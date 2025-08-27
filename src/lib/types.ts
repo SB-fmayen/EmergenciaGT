@@ -14,6 +14,7 @@ export type MedicalData = {
 };
 
 export type AlertData = {
+    id: string;
     userId: string;
     timestamp: any; // Firestore server timestamp
     location: {
@@ -22,5 +23,3 @@ export type AlertData = {
     } | null;
     status: 'new' | 'dispatched' | 'resolved';
 }
-
-    

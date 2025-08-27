@@ -14,6 +14,7 @@ import { CheckCircle, Clock, BrainCircuit } from "lucide-react";
 import { suggestResponsePlan, type SuggestResponsePlanOutput } from "@/ai/flows/suggest-response-plan";
 import { useState } from "react";
 import { Alert, AlertDescription, AlertTitle as UiAlertTitle } from "@/components/ui/alert";
+import type { AlertData, MedicalData } from "@/lib/types";
 
 
 interface EmergencyModalProps {
@@ -21,6 +22,10 @@ interface EmergencyModalProps {
   isOpen: boolean;
   /** Función para cerrar el modal. */
   onClose: () => void;
+  /** Los datos de la alerta generada. */
+  alertData: AlertData | null;
+  /** Los datos médicos del usuario. */
+  medicalData: MedicalData | null;
 }
 
 /**
@@ -29,22 +34,29 @@ interface EmergencyModalProps {
  * Permite al usuario solicitar un plan de respuesta generado por IA.
  * @param {EmergencyModalProps} props - Propiedades del componente.
  */
-export function EmergencyModal({ isOpen, onClose }: EmergencyModalProps) {
+export function EmergencyModal({ isOpen, onClose, alertData, medicalData }: EmergencyModalProps) {
   const [responsePlan, setResponsePlan] = useState<SuggestResponsePlanOutput | null>(null);
   const [isLoadingPlan, setIsLoadingPlan] = useState(false);
 
   /**
    * Llama al flujo de Genkit para obtener un plan de respuesta sugerido por IA.
-   * Actualiza el estado para mostrar el plan o un indicador de carga.
+   * Utiliza los datos reales de la alerta y la ficha médica.
    */
   const handleGeneratePlan = async () => {
+    if (!alertData) return;
+
     setIsLoadingPlan(true);
     setResponsePlan(null);
     try {
-      // Los detalles se enviarían dinámicamente en una app real
+      const alertDetails = `Alerta en ubicación: ${alertData.location?.latitude}, ${alertData.location?.longitude}. Estado: ${alertData.status}`;
+      
+      const medicalHistory = medicalData 
+        ? `Nombre: ${medicalData.fullName}, Edad: ${medicalData.age}, Tipo Sangre: ${medicalData.bloodType}, Condiciones: ${medicalData.conditions.join(', ')}. Medicamentos: ${medicalData.medications.map(m => m.name).join(', ')}. Notas: ${medicalData.additionalNotes}`
+        : "No hay datos médicos disponibles.";
+
       const plan = await suggestResponsePlan({ 
-        alertDetails: "Possible cardiac arrest at Av. Reforma y Calle 10, Zona 10. Patient is unconscious.",
-        medicalHistory: "Male, 58 years old. History of hypertension. Allergic to penicillin."
+        alertDetails,
+        medicalHistory
       });
       setResponsePlan(plan);
     } catch (error) {
@@ -80,7 +92,7 @@ export function EmergencyModal({ isOpen, onClose }: EmergencyModalProps) {
             </div>
             
             <div className="space-y-4">
-              <Button onClick={handleGeneratePlan} disabled={isLoadingPlan} className="w-full bg-blue-500 hover:bg-blue-600 text-white">
+              <Button onClick={handleGeneratePlan} disabled={isLoadingPlan || !alertData} className="w-full bg-blue-500 hover:bg-blue-600 text-white">
                 <BrainCircuit className="mr-2 h-4 w-4" />
                 {isLoadingPlan ? "Generando Plan..." : "Sugerir Plan de Respuesta (IA)"}
               </Button>

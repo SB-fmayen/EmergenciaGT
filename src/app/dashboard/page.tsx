@@ -9,7 +9,7 @@ import { MedicalInfoModal } from "@/components/dashboard/MedicalInfoModal";
 import { QuickActions } from "@/components/dashboard/QuickActions";
 import type { MedicalData, AlertData } from "@/lib/types";
 import { getAuth, onAuthStateChanged, type User } from "firebase/auth";
-import { getFirestore, doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
+import { getFirestore, doc, getDoc, setDoc, serverTimestamp, collection } from "firebase/firestore";
 import { firebaseApp } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
@@ -24,6 +24,7 @@ export default function DashboardPage() {
   const [isEmergencyModalOpen, setEmergencyModalOpen] = useState(false);
   const [isMedicalInfoModalOpen, setMedicalInfoModalOpen] = useState(false);
   const [medicalData, setMedicalData] = useState<MedicalData | null>(null);
+  const [alertData, setAlertData] = useState<AlertData | null>(null);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -39,7 +40,6 @@ export default function DashboardPage() {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
         setCurrentUser(user);
-        // Cargar datos médicos del usuario
         const medicalDocRef = doc(firestore, "medicalInfo", user.uid);
         getDoc(medicalDocRef).then((docSnap) => {
           if (docSnap.exists()) {
@@ -48,7 +48,6 @@ export default function DashboardPage() {
           setLoading(false);
         });
       } else {
-        // Si no hay usuario, puedes redirigirlo si lo deseas
         setCurrentUser(null);
         setLoading(false);
       }
@@ -95,14 +94,14 @@ export default function DashboardPage() {
       return;
     }
     
-    console.log("Activating emergency...");
     const location = await getUserLocation();
 
     try {
-      const alertId = doc(firestore, 'alerts', 'dummy').id; // Crea un ID único
-      const alertDocRef = doc(firestore, "alerts", alertId);
+      // Crea un ID de documento único para la nueva alerta
+      const alertDocRef = doc(collection(firestore, "alerts"));
 
       const newAlert: AlertData = {
+        id: alertDocRef.id,
         userId: currentUser.uid,
         timestamp: serverTimestamp(),
         location: location,
@@ -111,7 +110,7 @@ export default function DashboardPage() {
 
       await setDoc(alertDocRef, newAlert);
       
-      console.log("Emergency Activated! Alert ID:", alertId);
+      setAlertData(newAlert);
       setEmergencyModalOpen(true);
 
     } catch (error) {
@@ -160,16 +159,16 @@ export default function DashboardPage() {
       <EmergencyModal
         isOpen={isEmergencyModalOpen}
         onClose={() => setEmergencyModalOpen(false)}
+        alertData={alertData}
+        medicalData={medicalData}
       />
 
       {/* Modal que muestra la ficha médica */}
       <MedicalInfoModal
         isOpen={isMedicalInfoModalOpen}
-        onClose={() => setMedicalInfoMInfoModalOpen(false)}
+        onClose={() => setMedicalInfoModalOpen(false)}
         medicalData={medicalData}
       />
     </MobileAppContainer>
   );
 }
-
-    
