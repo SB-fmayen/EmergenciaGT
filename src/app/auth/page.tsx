@@ -37,7 +37,6 @@ export default function AuthPage() {
     toast({
       title,
       description,
-      variant: 'default'
     });
 
     if (redirectPath) {
@@ -117,11 +116,6 @@ export default function AuthPage() {
                 Crear Cuenta
               </Button>
             </div>
-             <div className="text-center mt-8">
-                <button onClick={() => router.push('/welcome')} className="text-white/60 hover:text-white text-sm underline">
-                    Continuar sin registro
-                </button>
-            </div>
           </div>
         );
     }
@@ -130,7 +124,7 @@ export default function AuthPage() {
   return (
     <MobileAppContainer className="bg-gradient-to-br from-red-800 via-red-900 to-black">
       <div className="flex-1 flex flex-col justify-center px-8 py-12 overflow-y-auto">
-        <div className="text-center mb-12 animate-fade-in">
+        <div className="text-center mb-12">
           <div className="w-20 h-20 bg-white rounded-full mx-auto mb-6 flex items-center justify-center shadow-lg">
             <EmergencyLogoIcon className="w-10 h-10 text-red-600" />
           </div>
