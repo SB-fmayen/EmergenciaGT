@@ -12,7 +12,7 @@ import { getAuth, onAuthStateChanged, signOut, type User } from "firebase/auth";
 import { getFirestore, doc, getDoc, setDoc, serverTimestamp, collection, GeoPoint } from "firebase/firestore";
 import { firebaseApp } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, LogOut } from "lucide-react";
+import { Loader2, LogOut, User as UserIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 
@@ -43,13 +43,18 @@ export default function DashboardPage() {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
         setCurrentUser(user);
-        const medicalDocRef = doc(firestore, "medicalInfo", user.uid);
-        getDoc(medicalDocRef).then((docSnap) => {
-          if (docSnap.exists()) {
-            setMedicalData(docSnap.data() as MedicalData);
-          }
-          setLoading(false);
-        });
+        // Para usuarios anónimos, no intentamos cargar datos médicos guardados
+        if (!user.isAnonymous) {
+            const medicalDocRef = doc(firestore, "medicalInfo", user.uid);
+            getDoc(medicalDocRef).then((docSnap) => {
+              if (docSnap.exists()) {
+                setMedicalData(docSnap.data() as MedicalData);
+              }
+              setLoading(false);
+            });
+        } else {
+            setLoading(false);
+        }
       } else {
         // Si no hay usuario, redirigir al login
         setCurrentUser(null);
@@ -128,7 +133,8 @@ export default function DashboardPage() {
         userId: currentUser.uid,
         timestamp: serverTimestamp(),
         location: new GeoPoint(location.latitude, location.longitude),
-        status: 'new'
+        status: 'new',
+        isAnonymous: currentUser.isAnonymous,
       };
 
       await setDoc(alertDocRef, newAlert);
@@ -150,6 +156,11 @@ export default function DashboardPage() {
   };
   
   const handleShowAlerts = () => {
+    // Los usuarios anónimos no tienen historial persistente
+    if (currentUser?.isAnonymous) {
+        toast({ title: "Modo Invitado", description: "El historial de alertas solo está disponible para usuarios registrados." });
+        return;
+    }
     router.push('/alerts');
   };
 
@@ -177,6 +188,8 @@ export default function DashboardPage() {
         </MobileAppContainer>
     )
   }
+  
+  const isAnonymousUser = currentUser?.isAnonymous ?? false;
 
   return (
     <MobileAppContainer className="bg-gradient-to-br from-gray-900 via-gray-800 to-black">
@@ -184,7 +197,7 @@ export default function DashboardPage() {
         <header className="relative bg-gradient-to-r from-red-600 to-red-800 text-white px-6 py-6 text-center shadow-lg flex-shrink-0">
           <h1 className="text-2xl font-bold mb-1">EmergenciaGT</h1>
           <p className="text-red-100 text-sm">
-            Sistema de Alerta Inmediata
+             {isAnonymousUser ? "Modo de Emergencia (Invitado)" : "Sistema de Alerta Inmediata"}
           </p>
           <Button
             variant="ghost"
@@ -195,6 +208,12 @@ export default function DashboardPage() {
           >
             <LogOut className="w-5 h-5" />
           </Button>
+            {isAnonymousUser && (
+                 <div className="absolute top-4 left-4 flex items-center bg-yellow-500/20 text-yellow-300 text-xs font-bold px-2 py-1 rounded-full">
+                    <UserIcon className="w-4 h-4 mr-1.5"/>
+                    Invitado
+                </div>
+            )}
         </header>
 
         <div className="flex-1 flex items-center justify-center px-6">
@@ -204,6 +223,7 @@ export default function DashboardPage() {
         <QuickActions 
           onShowMedicalInfo={handleShowMedicalInfo} 
           onShowAlerts={handleShowAlerts} 
+          isAnonymous={isAnonymousUser}
         />
       </div>
 
@@ -216,6 +236,7 @@ export default function DashboardPage() {
         isOpen={isMedicalInfoModalOpen}
         onClose={() => setMedicalInfoModalOpen(false)}
         medicalData={medicalData}
+        isAnonymous={isAnonymousUser}
       />
     </MobileAppContainer>
   );

@@ -10,7 +10,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { ClipboardList } from "lucide-react";
+import { ClipboardList, ShieldAlert } from "lucide-react";
 import type { MedicalData } from "@/lib/types";
 
 interface MedicalInfoModalProps {
@@ -20,6 +20,8 @@ interface MedicalInfoModalProps {
   onClose: () => void;
   /** Datos médicos del usuario a mostrar. */
   medicalData: MedicalData | null;
+  /** Indica si el usuario es anónimo */
+  isAnonymous?: boolean;
 }
 
 /**
@@ -31,6 +33,7 @@ export function MedicalInfoModal({
   isOpen,
   onClose,
   medicalData,
+  isAnonymous = false,
 }: MedicalInfoModalProps) {
   
   const hasData = !!medicalData && medicalData.fullName;
@@ -41,7 +44,7 @@ export function MedicalInfoModal({
         <DialogHeader className="p-6 pb-4 bg-gradient-to-r from-green-600 to-green-700 rounded-t-lg">
           <DialogTitle className="text-lg font-bold">Información Médica</DialogTitle>
           <DialogDescription className="text-green-100 text-sm">
-            Tus datos registrados para emergencias
+            {isAnonymous ? "Datos temporales para esta emergencia" : "Tus datos registrados para emergencias"}
           </DialogDescription>
         </DialogHeader>
         <div className="p-6 max-h-[60vh] overflow-y-auto">
@@ -90,24 +93,27 @@ export function MedicalInfoModal({
           ) : (
             <div className="text-center py-8">
               <div className="w-16 h-16 bg-slate-700 rounded-full mx-auto mb-4 flex items-center justify-center">
-                <ClipboardList className="w-8 h-8 text-slate-400" />
+                {isAnonymous ? <ShieldAlert className="w-8 h-8 text-slate-400"/> : <ClipboardList className="w-8 h-8 text-slate-400" />}
               </div>
               <p className="text-slate-400">
-                No hay información médica registrada.
+                {isAnonymous 
+                    ? "En modo invitado, puedes añadir datos médicos que se enviarán solo con tu próxima alerta."
+                    : "No hay información médica registrada."
+                }
               </p>
                <Button onClick={() => {onClose(); window.location.href = '/medical-info'}} className="mt-4 bg-blue-500 hover:bg-blue-600">
-                  Registrar ahora
+                  {isAnonymous ? "Añadir Info. Temporal" : "Registrar ahora"}
                </Button>
             </div>
           )}
         </div>
         <DialogFooter className="p-6 pt-4 border-t border-slate-700 bg-slate-800/50">
-           {hasData && (
+           {(hasData || isAnonymous) && (
               <Button onClick={() => {onClose(); window.location.href = '/medical-info'}} className="w-full bg-blue-500 hover:bg-blue-600 text-white">
-                Actualizar Información
+                {isAnonymous ? "Editar Info. Temporal" : "Actualizar Información"}
               </Button>
            )}
-          <Button onClick={onClose} className="w-full bg-slate-600 hover:bg-slate-500 text-white" variant={hasData ? "outline" : "default"}>
+          <Button onClick={onClose} className="w-full bg-slate-600 hover:bg-slate-500 text-white" variant={(hasData || isAnonymous) ? "outline" : "default"}>
             Cerrar
           </Button>
         </DialogFooter>

@@ -1,13 +1,15 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
   getAuth,
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   sendPasswordResetEmail,
+  onAuthStateChanged,
+  signInAnonymously
 } from "firebase/auth";
 import { firebaseApp } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
@@ -15,23 +17,14 @@ import { Input } from "@/components/ui/input";
 import { EmergencyLogoIcon } from "@/components/icons/EmergencyLogoIcon";
 import { MobileAppContainer } from "@/components/MobileAppContainer";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Eye, EyeOff } from "lucide-react";
+import { Loader2, Eye, EyeOff, ShieldQuestion } from "lucide-react";
 
 type AuthView = "login" | "register" | "forgotPassword";
 
-const AuthButton = ({ onClick, children }: { onClick: (e: React.FormEvent) => Promise<void>, children: React.ReactNode }) => {
-    const [loading, setLoading] = useState(false);
-
-    const handleClick = async (e: React.FormEvent) => {
-      e.preventDefault();
-      setLoading(true);
-      await onClick(e);
-      setLoading(false);
-    }
-
+const AuthButton = ({ onClick, loading, children }: { onClick: (e?: React.FormEvent) => Promise<void>, loading: boolean, children: React.ReactNode }) => {
     return (
         <Button
-        onClick={handleClick}
+        onClick={onClick}
         disabled={loading}
         className="w-full bg-white text-red-600 py-3 h-auto rounded-xl font-bold text-lg hover:bg-gray-200 transition-all duration-300 transform hover:scale-105"
         >
@@ -40,7 +33,7 @@ const AuthButton = ({ onClick, children }: { onClick: (e: React.FormEvent) => Pr
     );
 };
 
-const LoginForm = ({ setView, onFormSubmit }: { setView: (view: AuthView) => void, onFormSubmit: (email: string, pass: string) => Promise<void> }) => {
+const LoginForm = ({ setView, onFormSubmit, loading }: { setView: (view: AuthView) => void, onFormSubmit: (email: string, pass: string) => Promise<void>, loading: boolean }) => {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [showPassword, setShowPassword] = useState(false);
@@ -57,7 +50,7 @@ const LoginForm = ({ setView, onFormSubmit }: { setView: (view: AuthView) => voi
                     {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                   </button>
                 </div>
-                <AuthButton onClick={() => onFormSubmit(email, password)}>Iniciar Sesión</AuthButton>
+                <AuthButton onClick={() => onFormSubmit(email, password)} loading={loading}>Iniciar Sesión</AuthButton>
               </div>
               <div className="mt-4 text-center">
                 <button type="button" onClick={() => setView("forgotPassword")} className="text-white/80 hover:text-white text-sm underline">
@@ -75,7 +68,7 @@ const LoginForm = ({ setView, onFormSubmit }: { setView: (view: AuthView) => voi
     );
 };
 
-const RegisterForm = ({ setView, onFormSubmit }: { setView: (view: AuthView) => void, onFormSubmit: (email: string, pass: string, confirm:string) => Promise<void> }) => {
+const RegisterForm = ({ setView, onFormSubmit, loading }: { setView: (view: AuthView) => void, onFormSubmit: (email: string, pass: string, confirm:string) => Promise<void>, loading: boolean }) => {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
@@ -100,7 +93,7 @@ const RegisterForm = ({ setView, onFormSubmit }: { setView: (view: AuthView) => 
                     {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                 </button>
             </div>
-            <AuthButton onClick={() => onFormSubmit(email, password, confirmPassword)}>Crear Cuenta</AuthButton>
+            <AuthButton onClick={() => onFormSubmit(email, password, confirmPassword)} loading={loading}>Crear Cuenta</AuthButton>
           </div>
         </div>
         <div className="text-center">
@@ -112,7 +105,7 @@ const RegisterForm = ({ setView, onFormSubmit }: { setView: (view: AuthView) => 
     );
 };
 
-const ForgotPasswordForm = ({ setView, onFormSubmit }: { setView: (view: AuthView) => void, onFormSubmit: (email: string) => Promise<void> }) => {
+const ForgotPasswordForm = ({ setView, onFormSubmit, loading }: { setView: (view: AuthView) => void, onFormSubmit: (email: string) => Promise<void>, loading: boolean }) => {
     const [email, setEmail] = useState("");
     return (
         <form onSubmit={(e) => { e.preventDefault(); onFormSubmit(email)}} className="space-y-6 animate-fade-in">
@@ -121,7 +114,7 @@ const ForgotPasswordForm = ({ setView, onFormSubmit }: { setView: (view: AuthVie
           <p className="text-white/80 text-sm mb-4 text-center">Ingresa tu correo y te enviaremos un enlace para restablecerla.</p>
           <div className="space-y-4">
             <Input type="email" placeholder="Correo electrónico" value={email} onChange={(e) => setEmail(e.target.value)} required className="bg-white/90 text-slate-900 placeholder:text-slate-500 border-0 rounded-xl focus:ring-2 focus:ring-white focus:bg-white" />
-            <AuthButton onClick={() => onFormSubmit(email)}>Enviar Enlace</AuthButton>
+            <AuthButton onClick={() => onFormSubmit(email)} loading={loading}>Enviar Enlace</AuthButton>
           </div>
         </div>
         <div className="text-center">
@@ -140,95 +133,93 @@ const ForgotPasswordForm = ({ setView, onFormSubmit }: { setView: (view: AuthVie
  */
 export default function AuthPage() {
   const [view, setView] = useState<AuthView>("login");
+  const [loading, setLoading] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
   const auth = getAuth(firebaseApp);
 
-  /**
-   * Maneja el registro de un nuevo usuario con correo y contraseña en Firebase.
-   * Valida que las contraseñas coincidan y muestra notificaciones de éxito o error.
-   * Redirige a la página de bienvenida para el registro de datos médicos.
-   * @param e - Evento del formulario.
-   */
+  // Redirige si el usuario ya está logueado
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+        if (user) {
+            router.push('/dashboard');
+        }
+    });
+    return () => unsubscribe();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleAuthAction = async (action: () => Promise<any>, successPath?: string) => {
+    setLoading(true);
+    try {
+        await action();
+        if(successPath) router.push(successPath);
+    } catch (error: any) {
+        handleFirebaseAuthError(error);
+    } finally {
+        setLoading(false);
+    }
+  }
+
   const handleRegister = async (email:string, password:string, confirmPassword:string) => {
     if (password !== confirmPassword) {
-      toast({
-        title: "Error",
-        description: "Las contraseñas no coinciden.",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: "Las contraseñas no coinciden.", variant: "destructive" });
       return;
     }
-    try {
-      await createUserWithEmailAndPassword(auth, email, password);
-      router.push("/welcome");
-    } catch (error: any) {
+    await handleAuthAction(() => createUserWithEmailAndPassword(auth, email, password), "/welcome");
+  };
+
+  const handleLogin = async (email: string, password: string) => {
+    await handleAuthAction(() => signInWithEmailAndPassword(auth, email, password), "/dashboard");
+  };
+
+  const handlePasswordReset = async (email: string) => {
+    await handleAuthAction(async () => {
+        await sendPasswordResetEmail(auth, email);
+        toast({ title: "¡Enlace enviado!", description: "Revisa tu correo para restablecer tu contraseña." });
+        setView("login");
+    });
+  };
+
+  const handleAnonymousSignIn = async () => {
+    await handleAuthAction(() => signInAnonymously(auth), "/dashboard");
+  }
+
+  const handleFirebaseAuthError = (error: any) => {
       const errorCode = error.code;
       let errorMessage = "Ocurrió un error desconocido.";
-      if (errorCode === 'auth/email-already-in-use') {
-        errorMessage = "Este correo electrónico ya está en uso.";
-      } else if (errorCode === 'auth/weak-password') {
-        errorMessage = "La contraseña es demasiado débil. Debe tener al menos 6 caracteres.";
-      } else if (errorCode === 'auth/invalid-email') {
-        errorMessage = "El formato del correo electrónico no es válido.";
+      switch (errorCode) {
+        case 'auth/email-already-in-use':
+            errorMessage = "Este correo electrónico ya está en uso.";
+            break;
+        case 'auth/weak-password':
+            errorMessage = "La contraseña es muy débil. Debe tener al menos 6 caracteres.";
+            break;
+        case 'auth/invalid-email':
+            errorMessage = "El formato del correo electrónico no es válido.";
+            break;
+        case 'auth/user-not-found':
+        case 'auth/wrong-password':
+        case 'auth/invalid-credential':
+            errorMessage = "Credenciales incorrectas. Por favor, intenta de nuevo.";
+            break;
+        default:
+            errorMessage = "Ocurrió un error. Por favor, intenta de nuevo.";
+            console.error("Firebase Auth Error:", error);
+            break;
       }
-      toast({
-        title: "Error de Registro",
-        description: errorMessage,
-        variant: "destructive",
-      });
-    }
-  };
-
-  /**
-   * Maneja el inicio de sesión de un usuario existente con Firebase.
-   * Redirige al dashboard principal si el inicio de sesión es exitoso.
-   * @param e - Evento del formulario.
-   */
-  const handleLogin = async (email: string, password: string) => {
-    try {
-      await signInWithEmailAndPassword(auth, email, password);
-      router.push("/dashboard");
-    } catch (error: any) {
-      toast({
-        title: "Error de Inicio de Sesión",
-        description: "Credenciales incorrectas. Por favor, intenta de nuevo.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  /**
-   * Envía un correo de recuperación de contraseña a través de Firebase.
-   * @param e - Evento del formulario.
-   */
-  const handlePasswordReset = async (email: string) => {
-    try {
-      await sendPasswordResetEmail(auth, email);
-      toast({
-        title: "¡Enlace enviado!",
-        description: "Revisa tu correo para restablecer tu contraseña.",
-      });
-      setView("login");
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: "Asegúrate de que el correo electrónico sea correcto.",
-        variant: "destructive",
-      });
-    }
-  };
-
+      toast({ title: "Error de Autenticación", description: errorMessage, variant: "destructive" });
+  }
 
   const renderForm = () => {
     switch (view) {
       case "register":
-        return <RegisterForm setView={setView} onFormSubmit={handleRegister} />;
+        return <RegisterForm setView={setView} onFormSubmit={handleRegister} loading={loading} />;
       case "forgotPassword":
-        return <ForgotPasswordForm setView={setView} onFormSubmit={handlePasswordReset} />;
+        return <ForgotPasswordForm setView={setView} onFormSubmit={handlePasswordReset} loading={loading} />;
       case "login":
       default:
-        return <LoginForm setView={setView} onFormSubmit={handleLogin} />;
+        return <LoginForm setView={setView} onFormSubmit={handleLogin} loading={loading} />;
     }
   };
 
@@ -245,6 +236,18 @@ export default function AuthPage() {
         </div>
         
         {renderForm()}
+        
+         <div className="mt-6 text-center">
+            <Button 
+                variant="link" 
+                className="text-white/80 hover:text-white"
+                onClick={handleAnonymousSignIn}
+                disabled={loading}
+            >
+                <ShieldQuestion className="w-4 h-4 mr-2" />
+                Ingresar como Invitado
+            </Button>
+        </div>
 
       </div>
     </MobileAppContainer>
