@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Check, ShieldAlert } from "lucide-react";
@@ -19,15 +19,36 @@ interface PanicButtonProps {
  */
 export function PanicButton({ onActivate }: PanicButtonProps) {
   const [isHolding, setIsHolding] = useState(false);
+  const [isActivated, setIsActivated] = useState(false);
   const [progress, setProgress] = useState(0);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  /**
+   * Reinicia el estado del botón a su estado inicial.
+   */
+  const reset = useCallback(() => {
+    setIsHolding(false);
+    setIsActivated(false);
+    setProgress(0);
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+    if (progressIntervalRef.current) {
+      clearInterval(progressIntervalRef.current);
+      progressIntervalRef.current = null;
+    }
+  }, []);
+
 
   /**
    * Inicia el proceso de mantener presionado.
    * Activa un temporizador de 3 segundos y un intervalo para la barra de progreso.
    */
   const startHold = () => {
+    if (isActivated) return;
+    reset();
     setIsHolding(true);
     
     progressIntervalRef.current = setInterval(() => {
@@ -42,7 +63,9 @@ export function PanicButton({ onActivate }: PanicButtonProps) {
 
     timerRef.current = setTimeout(() => {
       onActivate();
-      reset();
+      setIsActivated(true);
+      // No reseteamos inmediatamente, sino que mostramos el estado activado
+      setTimeout(() => reset(), 2000); // Espera 2s antes de volver al estado inicial
     }, 3000);
   };
 
@@ -51,26 +74,8 @@ export function PanicButton({ onActivate }: PanicButtonProps) {
    * Limpia los temporizadores y reinicia el estado.
    */
   const cancelHold = () => {
-    if (timerRef.current) {
-      clearTimeout(timerRef.current);
-      timerRef.current = null;
-    }
-    if (progressIntervalRef.current) {
-      clearInterval(progressIntervalRef.current);
-      progressIntervalRef.current = null;
-    }
-    setIsHolding(false);
-    setProgress(0);
-  };
-
-  /**
-   * Reinicia el estado del botón a su estado inicial.
-   */
-  const reset = () => {
-    setIsHolding(false);
-    setProgress(0);
-    if (timerRef.current) clearTimeout(timerRef.current);
-    if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
+    if (isActivated) return;
+    reset();
   };
 
   /**
@@ -94,27 +99,28 @@ export function PanicButton({ onActivate }: PanicButtonProps) {
           onMouseLeave={cancelHold}
           onTouchStart={(e) => { e.preventDefault(); startHold(); }}
           onTouchEnd={cancelHold}
-          className="w-72 h-72 rounded-full bg-gradient-to-br from-red-500 via-red-600 to-red-800 text-white flex-col animate-pulse-emergency shadow-2xl shadow-red-500/20 active:scale-95 transition-all duration-300"
+          disabled={isActivated}
+          className="w-72 h-72 rounded-full bg-gradient-to-br from-red-500 via-red-600 to-red-800 text-white flex-col animate-pulse-emergency shadow-2xl shadow-red-500/20 active:scale-95 transition-all duration-300 disabled:opacity-80 disabled:cursor-not-allowed"
         >
           <div className="text-center relative z-10">
-            {progress >= 100 ? (
-                <Check className="w-20 h-20 mx-auto mb-3" />
+            {isActivated ? (
+                <Check className="w-20 h-20 mx-auto mb-3 animate-fade-in" />
             ) : (
                 <ShieldAlert className="w-20 h-20 mx-auto mb-3" />
             )}
-            <div className="text-3xl font-black mb-1">EMERGENCIA</div>
-            <div className="text-lg font-medium opacity-90">PRESIONAR</div>
+            <div className="text-3xl font-black mb-1">{isActivated ? "ENVIADO" : "EMERGENCIA"}</div>
+            <div className="text-lg font-medium opacity-90">{isActivated ? "" : "PRESIONAR"}</div>
           </div>
         </Button>
         <div className="absolute inset-0 rounded-full border-4 border-red-400/30 animate-ping -z-10"></div>
       </div>
       
       <p className="text-white text-xl font-medium mb-6">
-        Mantén presionado por 3 segundos
+        {isActivated ? "La ayuda está en camino" : "Mantén presionado por 3 segundos"}
       </p>
 
       <div className="w-72 mx-auto h-8">
-        {isHolding && (
+        {isHolding && !isActivated && (
           <div className="animate-fade-in">
             <Progress value={progress} className="h-3 bg-white/20 [&>div]:bg-white" />
             <p className="text-white/80 text-sm mt-2 text-center">Activando emergencia...</p>

@@ -1,4 +1,5 @@
 
+import type { Timestamp, GeoPoint } from "firebase/firestore";
 
 export type MedicalData = {
   fullName: string;
@@ -16,10 +17,7 @@ export type MedicalData = {
 export type AlertData = {
     id: string;
     userId: string;
-    timestamp: any; // Firestore server timestamp
-    location: {
-        latitude: number;
-        longitude: number;
-    } | null;
+    timestamp: Timestamp | any; // any for serverTimestamp
+    location: GeoPoint | { latitude: number, longitude: number } | null;
     status: 'new' | 'dispatched' | 'resolved';
 }

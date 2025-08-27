@@ -9,7 +9,7 @@ import { MedicalInfoModal } from "@/components/dashboard/MedicalInfoModal";
 import { QuickActions } from "@/components/dashboard/QuickActions";
 import type { MedicalData, AlertData } from "@/lib/types";
 import { getAuth, onAuthStateChanged, type User } from "firebase/auth";
-import { getFirestore, doc, getDoc, setDoc, serverTimestamp, collection } from "firebase/firestore";
+import { getFirestore, doc, getDoc, setDoc, serverTimestamp, collection, GeoPoint } from "firebase/firestore";
 import { firebaseApp } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
@@ -81,7 +81,7 @@ export default function DashboardPage() {
             toast({ title: "Error de Ubicación", description: "No se pudo obtener tu ubicación. Activa los permisos.", variant: "destructive"});
             resolve(null);
           },
-          { enableHighAccuracy: true }
+          { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
         );
       }
     });
@@ -125,13 +125,19 @@ export default function DashboardPage() {
         id: alertDocRef.id,
         userId: currentUser.uid,
         timestamp: serverTimestamp(),
-        location: location,
+        location: new GeoPoint(location.latitude, location.longitude),
         status: 'new'
       };
 
       await setDoc(alertDocRef, newAlert);
       
-      setAlertData(newAlert);
+      setAlertData({
+          ...newAlert,
+          location: { // Convert GeoPoint back to plain object for state
+              latitude: location.latitude,
+              longitude: location.longitude,
+          }
+      });
       setEmergencyModalOpen(true);
 
     } catch (error) {
@@ -144,9 +150,6 @@ export default function DashboardPage() {
    * Muestra el modal con la información médica del usuario.
    */
   const handleShowMedicalInfo = () => {
-    if (!medicalData) {
-      toast({ title: "Sin Datos", description: "No has registrado tu información médica aún."});
-    }
     setMedicalInfoModalOpen(true);
   };
   
