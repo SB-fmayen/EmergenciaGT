@@ -15,7 +15,7 @@ import { Input } from "@/components/ui/input";
 import { EmergencyLogoIcon } from "@/components/icons/EmergencyLogoIcon";
 import { MobileAppContainer } from "@/components/MobileAppContainer";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2 } from "lucide-react";
+import { Loader2, Eye, EyeOff } from "lucide-react";
 
 type AuthView = "login" | "register" | "forgotPassword";
 
@@ -32,6 +32,7 @@ const AuthButton = ({ onClick, children, loading }: { onClick: (e: React.FormEve
 const LoginForm = ({ setView, onFormSubmit }: { setView: (view: AuthView) => void, onFormSubmit: (e: React.FormEvent, email: string, pass: string) => void }) => {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
+    const [showPassword, setShowPassword] = useState(false);
 
     return (
         <form onSubmit={(e) => onFormSubmit(e, email, password)} className="space-y-6 animate-fade-in">
@@ -39,7 +40,12 @@ const LoginForm = ({ setView, onFormSubmit }: { setView: (view: AuthView) => voi
               <h2 className="text-xl font-bold text-white mb-6 text-center">Iniciar Sesión</h2>
               <div className="space-y-4">
                 <Input type="email" placeholder="Correo electrónico" value={email} onChange={(e) => setEmail(e.target.value)} required className="bg-white/90 text-slate-900 placeholder:text-slate-500 border-0 rounded-xl focus:ring-2 focus:ring-white focus:bg-white" />
-                <Input type="password" placeholder="Contraseña" value={password} onChange={(e) => setPassword(e.target.value)} required className="bg-white/90 text-slate-900 placeholder:text-slate-500 border-0 rounded-xl focus:ring-2 focus:ring-white focus:bg-white" />
+                <div className="relative">
+                  <Input type={showPassword ? "text" : "password"} placeholder="Contraseña" value={password} onChange={(e) => setPassword(e.target.value)} required className="bg-white/90 text-slate-900 placeholder:text-slate-500 border-0 rounded-xl focus:ring-2 focus:ring-white focus:bg-white pr-10" />
+                  <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-600">
+                    {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                  </button>
+                </div>
                 <AuthButton onClick={(e) => onFormSubmit(e, email, password)} loading={false}>Iniciar Sesión</AuthButton>
               </div>
               <div className="mt-4 text-center">
@@ -62,6 +68,8 @@ const RegisterForm = ({ setView, onFormSubmit }: { setView: (view: AuthView) => 
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
+    const [showPassword, setShowPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
     return (
         <form onSubmit={(e) => onFormSubmit(e, email, password, confirmPassword)} className="space-y-6 animate-fade-in">
@@ -69,8 +77,18 @@ const RegisterForm = ({ setView, onFormSubmit }: { setView: (view: AuthView) => 
           <h2 className="text-xl font-bold text-white mb-6 text-center">Crear Cuenta</h2>
           <div className="space-y-4">
             <Input type="email" placeholder="Correo electrónico" value={email} onChange={(e) => setEmail(e.target.value)} required className="bg-white/90 text-slate-900 placeholder:text-slate-500 border-0 rounded-xl focus:ring-2 focus:ring-white focus:bg-white" />
-            <Input type="password" placeholder="Contraseña (mín. 6 caracteres)" value={password} onChange={(e) => setPassword(e.target.value)} required className="bg-white/90 text-slate-900 placeholder:text-slate-500 border-0 rounded-xl focus:ring-2 focus:ring-white focus:bg-white" />
-            <Input type="password" placeholder="Confirmar contraseña" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required className="bg-white/90 text-slate-900 placeholder:text-slate-500 border-0 rounded-xl focus:ring-2 focus:ring-white focus:bg-white" />
+            <div className="relative">
+                <Input type={showPassword ? "text" : "password"} placeholder="Contraseña (mín. 6 caracteres)" value={password} onChange={(e) => setPassword(e.target.value)} required className="bg-white/90 text-slate-900 placeholder:text-slate-500 border-0 rounded-xl focus:ring-2 focus:ring-white focus:bg-white pr-10" />
+                <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-600">
+                    {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                </button>
+            </div>
+            <div className="relative">
+                <Input type={showConfirmPassword ? "text" : "password"} placeholder="Confirmar contraseña" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required className="bg-white/90 text-slate-900 placeholder:text-slate-500 border-0 rounded-xl focus:ring-2 focus:ring-white focus:bg-white pr-10" />
+                 <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-600">
+                    {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                </button>
+            </div>
             <AuthButton onClick={(e) => onFormSubmit(e, email, password, confirmPassword)} loading={false}>Crear Cuenta</AuthButton>
           </div>
         </div>
@@ -250,3 +268,5 @@ export default function AuthPage() {
     </MobileAppContainer>
   );
 }
+
+    
