@@ -100,8 +100,10 @@ export default function DashboardPage() {
    * y muestra el modal de confirmación de emergencia.
    */
   const handleActivateEmergency = async () => {
-    if (!currentUser) {
-      toast({ title: "Error", description: "Debes iniciar sesión para activar una alerta.", variant: "destructive"});
+    // Usar auth.currentUser para obtener el usuario más reciente y evitar problemas de estado.
+    const user = auth.currentUser;
+    if (!user) {
+      toast({ title: "Error de Autenticación", description: "No se pudo verificar tu sesión. Por favor, intenta de nuevo.", variant: "destructive"});
       return;
     }
     
@@ -130,11 +132,11 @@ export default function DashboardPage() {
 
       const newAlert: AlertData = {
         id: alertDocRef.id,
-        userId: currentUser.uid,
+        userId: user.uid,
         timestamp: serverTimestamp(),
         location: new GeoPoint(location.latitude, location.longitude),
         status: 'new',
-        isAnonymous: currentUser.isAnonymous,
+        isAnonymous: user.isAnonymous,
       };
 
       await setDoc(alertDocRef, newAlert);
