@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { CheckCircle, Clock, BrainCircuit } from "lucide-react";
 import { suggestResponsePlan, type SuggestResponsePlanOutput } from "@/ai/flows/suggest-response-plan";
 import { useState } from "react";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertTitle as UiAlertTitle } from "@/components/ui/alert";
 
 
 interface EmergencyModalProps {
@@ -44,6 +44,12 @@ export function EmergencyModal({ isOpen, onClose }: EmergencyModalProps) {
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="bg-red-600/95 backdrop-blur-md border-red-500 text-white max-w-sm w-full animate-flash-emergency p-0">
+        <DialogHeader className="sr-only">
+          <DialogTitle>Alerta de Emergencia Enviada</DialogTitle>
+          <DialogDescription>
+            Los servicios de emergencia han sido notificados y están en camino.
+          </DialogDescription>
+        </DialogHeader>
         <div className="p-6 text-center">
             <div className="mb-8">
                 <div className="w-32 h-32 bg-white rounded-full mx-auto mb-6 flex items-center justify-center animate-bounce">
@@ -69,7 +75,7 @@ export function EmergencyModal({ isOpen, onClose }: EmergencyModalProps) {
               
               {responsePlan && (
                 <Alert className="text-left bg-white/10 border-white/20">
-                  <AlertTitle className="text-white font-bold">Plan de Respuesta Sugerido:</AlertTitle>
+                  <UiAlertTitle className="text-white font-bold">Plan de Respuesta Sugerido:</UiAlertTitle>
                   <AlertDescription className="text-white/90">
                     {responsePlan.responsePlan}
                   </AlertDescription>
