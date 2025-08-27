@@ -144,8 +144,9 @@ export default function AuthPage() {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
         if (user) {
             router.push('/dashboard');
+        } else {
+            setSessionChecked(true);
         }
-        setSessionChecked(true);
     });
     return () => unsubscribe();
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -184,7 +185,15 @@ export default function AuthPage() {
   };
 
   const handleAnonymousSignIn = async () => {
-    await handleAuthAction(() => signInAnonymously(auth), "/dashboard");
+    setLoading(true);
+    try {
+        await signInAnonymously(auth);
+        // La redirección será manejada por onAuthStateChanged
+    } catch(error) {
+        handleFirebaseAuthError(error);
+    } finally {
+        setLoading(false);
+    }
   }
 
   const handleFirebaseAuthError = (error: any) => {
@@ -263,5 +272,3 @@ export default function AuthPage() {
     </MobileAppContainer>
   );
 }
-
-    
