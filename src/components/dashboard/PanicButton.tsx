@@ -13,7 +13,7 @@ interface PanicButtonProps {
 
 /**
  * Componente del botón de pánico principal.
- * El usuario debe mantenerlo presionado durante 3 segundos para activar la alerta.
+ * El usuario debe mantenerlo presionado durante 2 segundos para activar la alerta.
  * Muestra una barra de progreso durante la pulsación.
  * @param {PanicButtonProps} props - Propiedades del componente.
  */
@@ -51,7 +51,7 @@ export function PanicButton({ onActivate }: PanicButtonProps) {
 
   /**
    * Inicia el proceso de mantener presionado.
-   * Activa un temporizador de 3 segundos y un intervalo para la barra de progreso.
+   * Activa un temporizador de 2 segundos y un intervalo para la barra de progreso.
    */
   const startHold = () => {
     if (isActivated) return;
@@ -65,7 +65,7 @@ export function PanicButton({ onActivate }: PanicButtonProps) {
           clearInterval(progressIntervalRef.current!);
           return 100;
         }
-        return p + (100 / (3000 / 30)); // 3s total duration
+        return p + (100 / (2000 / 30)); // 2s total duration
       });
     }, 30);
 
@@ -76,7 +76,7 @@ export function PanicButton({ onActivate }: PanicButtonProps) {
       clearTimers();
       // Espera 2s antes de volver al estado inicial para que el usuario vea la confirmación
       setTimeout(() => reset(), 2000); 
-    }, 3000);
+    }, 2000);
   };
 
   /**
@@ -121,7 +121,7 @@ export function PanicButton({ onActivate }: PanicButtonProps) {
       </div>
       
       <p className="text-white text-xl font-medium mb-6">
-        {isActivated ? "La ayuda está en camino" : "Mantén presionado por 3 segundos"}
+        {isActivated ? "La ayuda está en camino" : "Mantén presionado por 2 segundos"}
       </p>
 
       <div className="w-72 mx-auto h-8">
