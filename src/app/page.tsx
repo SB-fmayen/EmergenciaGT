@@ -20,7 +20,7 @@ import { Loader2, Eye, EyeOff, ShieldQuestion } from "lucide-react";
 
 type AuthView = "login" | "register" | "forgotPassword";
 
-const AuthButton = ({ onClick, loading, children }: { onClick: (e?: React.FormEvent) => Promise<void>, loading: boolean, children: React.ReactNode }) => {
+const AuthButton = ({ onClick, loading, children }: { onClick: (e?: React.MouseEvent<HTMLButtonElement>) => void, loading: boolean, children: React.ReactNode }) => {
     return (
         <Button
         onClick={onClick}
@@ -32,13 +32,18 @@ const AuthButton = ({ onClick, loading, children }: { onClick: (e?: React.FormEv
     );
 };
 
-const LoginForm = ({ setView, onFormSubmit, loading }: { setView: (view: AuthView) => void, onFormSubmit: (email: string, pass: string) => Promise<void>, loading: boolean }) => {
+const LoginForm = ({ setView, onFormSubmit, loading }: { setView: (view: AuthView) => void, onFormSubmit: (email: string, pass: string) => void, loading: boolean }) => {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [showPassword, setShowPassword] = useState(false);
 
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        onFormSubmit(email, password);
+    };
+
     return (
-        <form onSubmit={(e) => {e.preventDefault(); onFormSubmit(email, password)}} className="space-y-6 animate-fade-in">
+        <form onSubmit={handleSubmit} className="space-y-6 animate-fade-in">
             <div className="border border-white/10 bg-white/5 backdrop-blur-lg rounded-2xl p-6">
               <h2 className="text-xl font-bold text-white mb-6 text-center">Iniciar Sesión</h2>
               <div className="space-y-4">
@@ -67,15 +72,20 @@ const LoginForm = ({ setView, onFormSubmit, loading }: { setView: (view: AuthVie
     );
 };
 
-const RegisterForm = ({ setView, onFormSubmit, loading }: { setView: (view: AuthView) => void, onFormSubmit: (email: string, pass: string, confirm:string) => Promise<void>, loading: boolean }) => {
+const RegisterForm = ({ setView, onFormSubmit, loading }: { setView: (view: AuthView) => void, onFormSubmit: (email: string, pass: string, confirm:string) => void, loading: boolean }) => {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        onFormSubmit(email, password, confirmPassword);
+    };
+
     return (
-        <form onSubmit={(e) => { e.preventDefault(); onFormSubmit(email, password, confirmPassword)}} className="space-y-6 animate-fade-in">
+        <form onSubmit={handleSubmit} className="space-y-6 animate-fade-in">
         <div className="border border-white/10 bg-white/5 backdrop-blur-lg rounded-2xl p-6">
           <h2 className="text-xl font-bold text-white mb-6 text-center">Crear Cuenta</h2>
           <div className="space-y-4">
@@ -104,10 +114,14 @@ const RegisterForm = ({ setView, onFormSubmit, loading }: { setView: (view: Auth
     );
 };
 
-const ForgotPasswordForm = ({ setView, onFormSubmit, loading }: { setView: (view: AuthView) => void, onFormSubmit: (email: string) => Promise<void>, loading: boolean }) => {
+const ForgotPasswordForm = ({ setView, onFormSubmit, loading }: { setView: (view: AuthView) => void, onFormSubmit: (email: string) => void, loading: boolean }) => {
     const [email, setEmail] = useState("");
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        onFormSubmit(email);
+    };
     return (
-        <form onSubmit={(e) => { e.preventDefault(); onFormSubmit(email)}} className="space-y-6 animate-fade-in">
+        <form onSubmit={handleSubmit} className="space-y-6 animate-fade-in">
         <div className="border border-white/10 bg-white/5 backdrop-blur-lg rounded-2xl p-6">
           <h2 className="text-xl font-bold text-white mb-6 text-center">Recuperar Contraseña</h2>
           <p className="text-white/80 text-sm mb-4 text-center">Ingresa tu correo y te enviaremos un enlace para restablecerla.</p>
@@ -151,6 +165,7 @@ export default function AuthPage() {
   }, []);
 
   const handleAuthAction = async (action: () => Promise<any>, successPath?: string) => {
+    if (loading) return;
     setLoading(true);
     try {
         await action();
@@ -162,36 +177,28 @@ export default function AuthPage() {
     }
   }
 
-  const handleRegister = async (email:string, password:string, confirmPassword:string) => {
+  const handleRegister = (email:string, password:string, confirmPassword:string) => {
     if (password !== confirmPassword) {
       toast({ title: "Error", description: "Las contraseñas no coinciden.", variant: "destructive" });
       return;
     }
-    await handleAuthAction(() => createUserWithEmailAndPassword(auth, email, password), "/welcome");
+    handleAuthAction(() => createUserWithEmailAndPassword(auth, email, password), "/welcome");
   };
 
-  const handleLogin = async (email: string, password: string) => {
-    await handleAuthAction(() => signInWithEmailAndPassword(auth, email, password), "/dashboard");
+  const handleLogin = (email: string, password: string) => {
+    handleAuthAction(() => signInWithEmailAndPassword(auth, email, password), "/dashboard");
   };
 
-  const handlePasswordReset = async (email: string) => {
-    await handleAuthAction(async () => {
+  const handlePasswordReset = (email: string) => {
+    handleAuthAction(async () => {
         await sendPasswordResetEmail(auth, email);
         toast({ title: "¡Enlace enviado!", description: "Revisa tu correo para restablecer tu contraseña." });
         setView("login");
     });
   };
 
-  const handleAnonymousSignIn = async () => {
-    setLoading(true);
-    try {
-        await signInAnonymously(auth);
-        // La redirección será manejada por onAuthStateChanged
-    } catch(error) {
-        handleFirebaseAuthError(error);
-    } finally {
-        setLoading(false);
-    }
+  const handleAnonymousSignIn = () => {
+    handleAuthAction(() => signInAnonymously(auth));
   }
 
   const handleFirebaseAuthError = (error: any) => {
@@ -270,5 +277,3 @@ export default function AuthPage() {
     </MobileAppContainer>
   );
 }
-
-    
