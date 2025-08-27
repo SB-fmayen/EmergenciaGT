@@ -134,6 +134,7 @@ const ForgotPasswordForm = ({ setView, onFormSubmit, loading }: { setView: (view
 export default function AuthPage() {
   const [view, setView] = useState<AuthView>("login");
   const [loading, setLoading] = useState(false);
+  const [sessionChecked, setSessionChecked] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
   const auth = getAuth(firebaseApp);
@@ -144,6 +145,7 @@ export default function AuthPage() {
         if (user) {
             router.push('/dashboard');
         }
+        setSessionChecked(true);
     });
     return () => unsubscribe();
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -182,7 +184,7 @@ export default function AuthPage() {
   };
 
   const handleAnonymousSignIn = async () => {
-    await handleAuthAction(() => signInAnonymously(auth));
+    await handleAuthAction(() => signInAnonymously(auth), "/dashboard");
   }
 
   const handleFirebaseAuthError = (error: any) => {
@@ -223,6 +225,14 @@ export default function AuthPage() {
     }
   };
 
+  if (!sessionChecked) {
+      return (
+          <MobileAppContainer className="bg-gradient-to-br from-red-800 via-red-900 to-black justify-center items-center">
+              <Loader2 className="w-12 h-12 text-white animate-spin" />
+          </MobileAppContainer>
+      )
+  }
+
   return (
     <MobileAppContainer className="bg-gradient-to-br from-red-800 via-red-900 to-black">
       <div className="flex-1 flex flex-col justify-center px-8 py-12 overflow-y-auto">
@@ -253,3 +263,5 @@ export default function AuthPage() {
     </MobileAppContainer>
   );
 }
+
+    
