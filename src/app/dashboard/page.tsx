@@ -1,13 +1,19 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { MobileAppContainer } from "@/components/MobileAppContainer";
 import { PanicButton } from "@/components/dashboard/PanicButton";
 import { EmergencyModal } from "@/components/dashboard/EmergencyModal";
 import { MedicalInfoModal } from "@/components/dashboard/MedicalInfoModal";
 import { QuickActions } from "@/components/dashboard/QuickActions";
-import type { MedicalData } from "@/lib/types";
+import type { MedicalData, AlertData } from "@/lib/types";
+import { getAuth, onAuthStateChanged, type User } from "firebase/auth";
+import { getFirestore, doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
+import { firebaseApp } from "@/lib/firebase";
+import { useToast } from "@/hooks/use-toast";
+import { Loader2 } from "lucide-react";
+
 
 /**
  * Página principal del dashboard.
@@ -18,24 +24,120 @@ export default function DashboardPage() {
   const [isEmergencyModalOpen, setEmergencyModalOpen] = useState(false);
   const [isMedicalInfoModalOpen, setMedicalInfoModalOpen] = useState(false);
   const [medicalData, setMedicalData] = useState<MedicalData | null>(null);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const auth = getAuth(firebaseApp);
+  const firestore = getFirestore(firebaseApp);
+  const { toast } = useToast();
+
+  /**
+   * Efecto para observar cambios en el estado de autenticación
+   * y cargar los datos médicos del usuario si está logueado.
+   */
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        setCurrentUser(user);
+        // Cargar datos médicos del usuario
+        const medicalDocRef = doc(firestore, "medicalInfo", user.uid);
+        getDoc(medicalDocRef).then((docSnap) => {
+          if (docSnap.exists()) {
+            setMedicalData(docSnap.data() as MedicalData);
+          }
+          setLoading(false);
+        });
+      } else {
+        // Si no hay usuario, puedes redirigirlo si lo deseas
+        setCurrentUser(null);
+        setLoading(false);
+      }
+    });
+
+    return () => unsubscribe();
+  }, [auth, firestore]);
+
+  /**
+   * Obtiene la geolocalización del usuario.
+   * @returns Una promesa que resuelve con la posición o null si falla.
+   */
+  const getUserLocation = (): Promise<{ latitude: number; longitude: number } | null> => {
+    return new Promise((resolve) => {
+      if (!navigator.geolocation) {
+        toast({ title: "Error", description: "La geolocalización no es soportada por tu navegador.", variant: "destructive"});
+        resolve(null);
+      } else {
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            resolve({
+              latitude: position.coords.latitude,
+              longitude: position.coords.longitude,
+            });
+          },
+          () => {
+            toast({ title: "Error de Ubicación", description: "No se pudo obtener tu ubicación. Activa los permisos.", variant: "destructive"});
+            resolve(null);
+          },
+          { enableHighAccuracy: true }
+        );
+      }
+    });
+  }
 
   /**
    * Se ejecuta cuando el botón de pánico es activado.
-   * Muestra el modal de confirmación de emergencia.
+   * Obtiene la ubicación del usuario, crea una nueva alerta en Firestore
+   * y muestra el modal de confirmación de emergencia.
    */
-  const handleActivateEmergency = () => {
-    console.log("Emergency Activated!");
-    setEmergencyModalOpen(true);
+  const handleActivateEmergency = async () => {
+    if (!currentUser) {
+      toast({ title: "Error", description: "Debes iniciar sesión para activar una alerta.", variant: "destructive"});
+      return;
+    }
+    
+    console.log("Activating emergency...");
+    const location = await getUserLocation();
+
+    try {
+      const alertId = doc(firestore, 'alerts', 'dummy').id; // Crea un ID único
+      const alertDocRef = doc(firestore, "alerts", alertId);
+
+      const newAlert: AlertData = {
+        userId: currentUser.uid,
+        timestamp: serverTimestamp(),
+        location: location,
+        status: 'new'
+      };
+
+      await setDoc(alertDocRef, newAlert);
+      
+      console.log("Emergency Activated! Alert ID:", alertId);
+      setEmergencyModalOpen(true);
+
+    } catch (error) {
+      console.error("Error creating alert:", error);
+      toast({ title: "Error", description: "No se pudo crear la alerta. Inténtalo de nuevo.", variant: "destructive"});
+    }
   };
 
   /**
    * Muestra el modal con la información médica del usuario.
-   * En una app real, aquí se obtendrían los datos de una base de datos.
    */
   const handleShowMedicalInfo = () => {
-    // In a real app, you'd fetch this data
+    if (!medicalData) {
+      toast({ title: "Sin Datos", description: "No has registrado tu información médica aún."});
+    }
     setMedicalInfoModalOpen(true);
   };
+  
+  // Muestra un loader mientras se cargan los datos
+  if (loading) {
+    return (
+        <MobileAppContainer className="bg-slate-900 justify-center items-center">
+            <Loader2 className="w-12 h-12 text-white animate-spin" />
+        </MobileAppContainer>
+    )
+  }
 
   return (
     <MobileAppContainer className="bg-gradient-to-br from-gray-900 via-gray-800 to-black">
@@ -63,9 +165,11 @@ export default function DashboardPage() {
       {/* Modal que muestra la ficha médica */}
       <MedicalInfoModal
         isOpen={isMedicalInfoModalOpen}
-        onClose={() => setMedicalInfoModalOpen(false)}
+        onClose={() => setMedicalInfoMInfoModalOpen(false)}
         medicalData={medicalData}
       />
     </MobileAppContainer>
   );
 }
+
+    

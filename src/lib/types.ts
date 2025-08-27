@@ -1,4 +1,5 @@
 
+
 export type MedicalData = {
   fullName: string;
   age: string;
@@ -11,3 +12,15 @@ export type MedicalData = {
   medications: { name: string }[];
   additionalNotes: string;
 };
+
+export type AlertData = {
+    userId: string;
+    timestamp: any; // Firestore server timestamp
+    location: {
+        latitude: number;
+        longitude: number;
+    } | null;
+    status: 'new' | 'dispatched' | 'resolved';
+}
+
+    

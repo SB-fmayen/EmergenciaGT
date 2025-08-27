@@ -1,3 +1,4 @@
+
 "use client";
 
 import {
@@ -9,36 +10,30 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { ClipboardList, X } from "lucide-react";
+import { ClipboardList } from "lucide-react";
 import type { MedicalData } from "@/lib/types";
 
 interface MedicalInfoModalProps {
+  /** Controla si el modal está abierto o cerrado. */
   isOpen: boolean;
+  /** Función para cerrar el modal. */
   onClose: () => void;
+  /** Datos médicos del usuario a mostrar. */
   medicalData: MedicalData | null;
 }
 
-// Mock data for demonstration
-const mockMedicalData: MedicalData = {
-    name: "Juan Pérez",
-    age: "45",
-    bloodType: "O+",
-    emergencyContactName: "Ana Pérez",
-    emergencyContactPhone: "5555-1234",
-    emergencyContactRelation: "Esposa",
-    conditions: ["Hipertensión", "Diabetes"],
-    otherConditions: "Operación de apéndice en 2010.",
-    medications: [{ name: "Metformina 500mg" }, { name: "Losartán 50mg" }],
-    additionalNotes: "Vive solo en el tercer piso, sin elevador."
-};
-
+/**
+ * Muestra la información médica del usuario en un modal.
+ * Los datos se obtienen de Firestore.
+ * @param {MedicalInfoModalProps} props - Propiedades del componente.
+ */
 export function MedicalInfoModal({
   isOpen,
   onClose,
   medicalData,
 }: MedicalInfoModalProps) {
-  const data = medicalData || mockMedicalData; // Use mock data if null
-  const hasData = !!data;
+  
+  const hasData = !!medicalData;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -52,26 +47,26 @@ export function MedicalInfoModal({
         <div className="p-6 max-h-[60vh] overflow-y-auto">
           {hasData ? (
             <div className="space-y-4 text-sm">
-              <div className="flex justify-between"><strong>Nombre:</strong> <span>{data.name}</span></div>
-              <div className="flex justify-between"><strong>Edad:</strong> <span>{data.age} años</span></div>
-              <div className="flex justify-between"><strong>Tipo de Sangre:</strong> <span className="bg-red-200 text-red-900 px-2 py-1 rounded-full text-xs font-medium">{data.bloodType}</span></div>
+              <div className="flex justify-between"><strong>Nombre:</strong> <span>{medicalData.fullName}</span></div>
+              <div className="flex justify-between"><strong>Edad:</strong> <span>{medicalData.age} años</span></div>
+              <div className="flex justify-between"><strong>Tipo de Sangre:</strong> <span className="bg-red-200 text-red-900 px-2 py-1 rounded-full text-xs font-medium">{medicalData.bloodType}</span></div>
               
-              {data.conditions.length > 0 && (
+              {medicalData.conditions && medicalData.conditions.length > 0 && (
                 <div>
                   <strong>Condiciones:</strong>
                   <div className="mt-2 flex flex-wrap gap-1">
-                    {data.conditions.map((condition, i) => (
+                    {medicalData.conditions.map((condition, i) => (
                       <span key={i} className="bg-blue-200 text-blue-900 px-2 py-1 rounded-full text-xs">{condition}</span>
                     ))}
                   </div>
                 </div>
               )}
 
-              {data.medications.length > 0 && data.medications[0].name && (
+              {medicalData.medications && medicalData.medications.length > 0 && medicalData.medications[0].name && (
                 <div>
                   <strong>Medicamentos:</strong>
                   <ul className="list-disc list-inside mt-2 space-y-1">
-                    {data.medications.map((med, i) => (
+                    {medicalData.medications.map((med, i) => (
                       <li key={i} className="text-xs bg-purple-200 text-purple-900 p-2 rounded">{med.name}</li>
                     ))}
                   </ul>
@@ -80,8 +75,8 @@ export function MedicalInfoModal({
               
               <div className="bg-green-200/20 p-3 rounded-lg border border-green-400/50">
                 <strong>Contacto de Emergencia:</strong><br/>
-                {data.emergencyContactName} ({data.emergencyContactRelation})<br/>
-                <a href={`tel:${data.emergencyContactPhone}`} className="text-green-300 font-medium">{data.emergencyContactPhone}</a>
+                {medicalData.emergencyContactName} ({medicalData.emergencyContactRelation})<br/>
+                <a href={`tel:${medicalData.emergencyContactPhone}`} className="text-green-300 font-medium">{medicalData.emergencyContactPhone}</a>
               </div>
             </div>
           ) : (
@@ -104,3 +99,5 @@ export function MedicalInfoModal({
     </Dialog>
   );
 }
+
+    

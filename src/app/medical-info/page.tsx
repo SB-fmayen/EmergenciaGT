@@ -24,6 +24,7 @@ import {
   Phone,
   MessageSquare,
   Loader2,
+  Pill,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { getAuth, onAuthStateChanged, type User as FirebaseUser } from "firebase/auth";
@@ -40,6 +41,10 @@ const medicalConditionsList = [
   "Alergias",
 ];
 
+/**
+ * Página para que los usuarios registren su información médica.
+ * Los datos se guardan en Firestore asociados al UID del usuario autenticado.
+ */
 export default function MedicalInfoPage() {
   const router = useRouter();
   const { toast } = useToast();
@@ -63,6 +68,10 @@ export default function MedicalInfoPage() {
     additionalNotes: "",
   });
 
+  /**
+   * Efecto para verificar el estado de autenticación del usuario.
+   * Si no hay un usuario logueado, lo redirige a la página de inicio.
+   */
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
@@ -77,14 +86,29 @@ export default function MedicalInfoPage() {
     return () => unsubscribe();
   }, [auth, router]);
   
+  /**
+   * Maneja los cambios en los campos de tipo input.
+   * @param field - El campo del estado formData a actualizar.
+   * @param value - El nuevo valor del campo.
+   */
   const handleInputChange = (field: keyof MedicalData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
+  /**
+   * Maneja los cambios en los campos de tipo select.
+   * @param field - El campo del estado formData a actualizar.
+   * @param value - El nuevo valor del campo.
+   */
   const handleSelectChange = (field: keyof MedicalData, value: string) => {
      setFormData(prev => ({ ...prev, [field]: value }));
   }
 
+  /**
+   * Maneja la selección o deselección de una condición médica predefinida.
+   * @param condition - La condición médica a agregar o quitar.
+   * @param checked - El estado del checkbox.
+   */
   const handleConditionChange = (condition: string, checked: boolean) => {
     setFormData(prev => {
       const newConditions = checked
@@ -94,22 +118,39 @@ export default function MedicalInfoPage() {
     });
   };
 
+  /**
+   * Agrega un nuevo campo para un medicamento.
+   */
   const handleAddMedication = () => {
     setFormData(prev => ({ ...prev, medications: [...prev.medications, { name: "" }] }));
   };
 
+  /**
+   * Elimina un campo de medicamento.
+   * @param index - El índice del medicamento a eliminar.
+   */
   const handleRemoveMedication = (index: number) => {
     if (formData.medications.length > 1) {
       setFormData(prev => ({ ...prev, medications: prev.medications.filter((_, i) => i !== index) }));
     }
   };
 
+  /**
+   * Actualiza el valor de un campo de medicamento.
+   * @param index - El índice del medicamento a actualizar.
+   * @param value - El nuevo nombre y dosis del medicamento.
+   */
   const handleMedicationChange = (index: number, value: string) => {
     const newMedications = [...formData.medications];
     newMedications[index] = { name: value };
     setFormData(prev => ({ ...prev, medications: newMedications }));
   };
 
+  /**
+   * Procesa el envío del formulario.
+   * Guarda los datos médicos en Firestore en un documento con el ID del usuario.
+   * @param e - Evento del formulario.
+   */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentUser) {
@@ -140,6 +181,7 @@ export default function MedicalInfoPage() {
     }
   };
 
+  // Muestra una pantalla de carga mientras se verifica el usuario
   if (loading) {
     return (
         <MobileAppContainer className="bg-slate-900 justify-center items-center">
@@ -301,3 +343,5 @@ export default function MedicalInfoPage() {
     </MobileAppContainer>
   );
 }
+
+    
