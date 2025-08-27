@@ -28,7 +28,7 @@ export function EmergencyModal({ isOpen, onClose }: EmergencyModalProps) {
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="bg-red-600/95 backdrop-blur-md border-red-500 text-white max-w-sm w-full animate-flash-emergency p-0">
+      <DialogContent className="bg-slate-900 border-red-500 text-white max-w-sm w-full p-0">
         <DialogHeader className="sr-only">
             <DialogTitle>Alerta de Emergencia Enviada</DialogTitle>
             <DialogDescription>
@@ -37,21 +37,21 @@ export function EmergencyModal({ isOpen, onClose }: EmergencyModalProps) {
         </DialogHeader>
         <div className="p-6 text-center">
             <div className="mb-8">
-                <div className="w-32 h-32 bg-white rounded-full mx-auto mb-6 flex items-center justify-center animate-bounce">
+                <div className="w-32 h-32 bg-white rounded-full mx-auto mb-6 flex items-center justify-center">
                 <CheckCircle className="w-16 h-16 text-red-600" />
                 </div>
             </div>
-            <h2 className="text-4xl font-black mb-4">¡ALERTA ENVIADA!</h2>
-            <p className="text-2xl mb-6 font-medium">
+            <h2 className="text-4xl font-black mb-4 text-red-500">¡ALERTA ENVIADA!</h2>
+            <p className="text-2xl mb-6 font-medium text-slate-200">
                 Los servicios de emergencia han sido notificados
             </p>
-            <div className="bg-white/20 rounded-2xl p-6 mb-8">
-                <p className="text-xl mb-2 flex items-center justify-center gap-2"><Clock /> Tiempo estimado de llegada</p>
-                <p className="text-3xl font-bold">8-12 minutos</p>
+            <div className="bg-slate-800 rounded-2xl p-6 mb-8">
+                <p className="text-xl mb-2 flex items-center justify-center gap-2 text-slate-300"><Clock /> Tiempo estimado de llegada</p>
+                <p className="text-3xl font-bold text-white">8-12 minutos</p>
             </div>
             
             <div className="space-y-4">
-              <Button onClick={onClose} className="w-full bg-white text-red-600 px-12 py-4 h-auto rounded-xl font-bold text-xl hover:bg-gray-100 transition-all duration-300 transform hover:scale-105 shadow-lg">
+              <Button onClick={onClose} className="w-full bg-red-600 text-white px-12 py-4 h-auto rounded-xl font-bold text-xl hover:bg-red-700 transition-all duration-300 transform hover:scale-105 shadow-lg">
                   Entendido
               </Button>
             </div>

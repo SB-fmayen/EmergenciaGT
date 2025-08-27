@@ -58,7 +58,8 @@ export default function DashboardPage() {
     });
 
     return () => unsubscribe();
-  }, [auth, firestore, router]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [auth, firestore]);
 
   /**
    * Obtiene la geolocalización del usuario.
