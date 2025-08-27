@@ -9,7 +9,7 @@ import {
   signInWithEmailAndPassword,
   sendPasswordResetEmail,
 } from "firebase/auth";
-import { firebaseApp } from "@/lib/firebase"; 
+import { firebaseApp } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { EmergencyLogoIcon } from "@/components/icons/EmergencyLogoIcon";
@@ -19,15 +19,98 @@ import { Loader2 } from "lucide-react";
 
 type AuthView = "login" | "register" | "forgotPassword";
 
+const AuthButton = ({ onClick, children, loading }: { onClick: (e: React.FormEvent) => void, children: React.ReactNode, loading: boolean }) => (
+    <Button
+      onClick={onClick}
+      disabled={loading}
+      className="w-full bg-white text-red-600 py-3 h-auto rounded-xl font-bold text-lg hover:bg-gray-200 transition-all duration-300 transform hover:scale-105"
+    >
+      {loading ? <Loader2 className="animate-spin" /> : children}
+    </Button>
+  );
+
+const LoginForm = ({ setView, onFormSubmit }: { setView: (view: AuthView) => void, onFormSubmit: (e: React.FormEvent, email: string, pass: string) => void }) => {
+    const [email, setEmail] = useState("");
+    const [password, setPassword] = useState("");
+
+    return (
+        <form onSubmit={(e) => onFormSubmit(e, email, password)} className="space-y-6 animate-fade-in">
+            <div className="border border-white/10 bg-white/5 backdrop-blur-lg rounded-2xl p-6">
+              <h2 className="text-xl font-bold text-white mb-6 text-center">Iniciar Sesión</h2>
+              <div className="space-y-4">
+                <Input type="email" placeholder="Correo electrónico" value={email} onChange={(e) => setEmail(e.target.value)} required className="bg-white/90 text-slate-900 placeholder:text-slate-500 border-0 rounded-xl focus:ring-2 focus:ring-white focus:bg-white" />
+                <Input type="password" placeholder="Contraseña" value={password} onChange={(e) => setPassword(e.target.value)} required className="bg-white/90 text-slate-900 placeholder:text-slate-500 border-0 rounded-xl focus:ring-2 focus:ring-white focus:bg-white" />
+                <AuthButton onClick={(e) => onFormSubmit(e, email, password)} loading={false}>Iniciar Sesión</AuthButton>
+              </div>
+              <div className="mt-4 text-center">
+                <button type="button" onClick={() => setView("forgotPassword")} className="text-white/80 hover:text-white text-sm underline">
+                  ¿Olvidaste tu contraseña?
+                </button>
+              </div>
+            </div>
+            <div className="text-center">
+              <p className="text-white/80 mb-4">¿No tienes cuenta?</p>
+              <Button onClick={() => setView("register")} variant="outline" className="bg-white/20 text-white px-8 py-3 h-auto rounded-xl font-medium hover:bg-white/30 transition-all duration-300 border-0 hover:text-white">
+                Crear Cuenta
+              </Button>
+            </div>
+          </form>
+    );
+};
+
+const RegisterForm = ({ setView, onFormSubmit }: { setView: (view: AuthView) => void, onFormSubmit: (e: React.FormEvent, email: string, pass: string, confirm:string) => void }) => {
+    const [email, setEmail] = useState("");
+    const [password, setPassword] = useState("");
+    const [confirmPassword, setConfirmPassword] = useState("");
+
+    return (
+        <form onSubmit={(e) => onFormSubmit(e, email, password, confirmPassword)} className="space-y-6 animate-fade-in">
+        <div className="border border-white/10 bg-white/5 backdrop-blur-lg rounded-2xl p-6">
+          <h2 className="text-xl font-bold text-white mb-6 text-center">Crear Cuenta</h2>
+          <div className="space-y-4">
+            <Input type="email" placeholder="Correo electrónico" value={email} onChange={(e) => setEmail(e.target.value)} required className="bg-white/90 text-slate-900 placeholder:text-slate-500 border-0 rounded-xl focus:ring-2 focus:ring-white focus:bg-white" />
+            <Input type="password" placeholder="Contraseña (mín. 6 caracteres)" value={password} onChange={(e) => setPassword(e.target.value)} required className="bg-white/90 text-slate-900 placeholder:text-slate-500 border-0 rounded-xl focus:ring-2 focus:ring-white focus:bg-white" />
+            <Input type="password" placeholder="Confirmar contraseña" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required className="bg-white/90 text-slate-900 placeholder:text-slate-500 border-0 rounded-xl focus:ring-2 focus:ring-white focus:bg-white" />
+            <AuthButton onClick={(e) => onFormSubmit(e, email, password, confirmPassword)} loading={false}>Crear Cuenta</AuthButton>
+          </div>
+        </div>
+        <div className="text-center">
+          <button type="button" onClick={() => setView("login")} className="text-white/80 hover:text-white text-sm underline">
+            ¿Ya tienes cuenta? Inicia sesión
+          </button>
+        </div>
+      </form>
+    );
+};
+
+const ForgotPasswordForm = ({ setView, onFormSubmit }: { setView: (view: AuthView) => void, onFormSubmit: (e: React.FormEvent, email: string) => void }) => {
+    const [email, setEmail] = useState("");
+    return (
+        <form onSubmit={(e) => onFormSubmit(e, email)} className="space-y-6 animate-fade-in">
+        <div className="border border-white/10 bg-white/5 backdrop-blur-lg rounded-2xl p-6">
+          <h2 className="text-xl font-bold text-white mb-6 text-center">Recuperar Contraseña</h2>
+          <p className="text-white/80 text-sm mb-4 text-center">Ingresa tu correo y te enviaremos un enlace para restablecerla.</p>
+          <div className="space-y-4">
+            <Input type="email" placeholder="Correo electrónico" value={email} onChange={(e) => setEmail(e.target.value)} required className="bg-white/90 text-slate-900 placeholder:text-slate-500 border-0 rounded-xl focus:ring-2 focus:ring-white focus:bg-white" />
+            <AuthButton onClick={(e) => onFormSubmit(e, email)} loading={false}>Enviar Enlace</AuthButton>
+          </div>
+        </div>
+        <div className="text-center">
+          <button type="button" onClick={() => setView("login")} className="text-white/80 hover:text-white text-sm underline">
+            Volver al inicio de sesión
+          </button>
+        </div>
+      </form>
+    );
+};
+
+
 /**
  * Página de autenticación que maneja el registro, inicio de sesión y recuperación de contraseña
  * utilizando los servicios de Firebase Authentication. Es la página de entrada a la aplicación.
  */
 export default function AuthPage() {
   const [view, setView] = useState<AuthView>("login");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
@@ -39,7 +122,7 @@ export default function AuthPage() {
    * Redirige a la página de bienvenida para el registro de datos médicos.
    * @param e - Evento del formulario.
    */
-  const handleRegister = async (e: React.FormEvent) => {
+  const handleRegister = async (e: React.FormEvent, email:string, password:string, confirmPassword:string) => {
     e.preventDefault();
     if (password !== confirmPassword) {
       toast({
@@ -82,7 +165,7 @@ export default function AuthPage() {
    * Redirige al dashboard principal si el inicio de sesión es exitoso.
    * @param e - Evento del formulario.
    */
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent, email: string, password: string) => {
     e.preventDefault();
     setLoading(true);
     try {
@@ -107,7 +190,7 @@ export default function AuthPage() {
    * Envía un correo de recuperación de contraseña a través de Firebase.
    * @param e - Evento del formulario.
    */
-  const handlePasswordReset = async (e: React.FormEvent) => {
+  const handlePasswordReset = async (e: React.FormEvent, email: string) => {
     e.preventDefault();
     setLoading(true);
     try {
@@ -128,80 +211,24 @@ export default function AuthPage() {
     }
   };
 
-  const AuthButton = ({ onClick, children }: { onClick: (e: React.FormEvent) => void, children: React.ReactNode }) => (
-    <Button
-      onClick={onClick}
-      disabled={loading}
-      className="w-full bg-white text-red-600 py-3 h-auto rounded-xl font-bold text-lg hover:bg-gray-200 transition-all duration-300 transform hover:scale-105"
-    >
-      {loading ? <Loader2 className="animate-spin" /> : children}
-    </Button>
-  );
 
-  const AuthForms = () => {
+  const renderForm = () => {
+    if (loading) {
+      return (
+        <div className="flex justify-center items-center h-64">
+          <Loader2 className="w-12 h-12 text-white animate-spin" />
+        </div>
+      );
+    }
+
     switch (view) {
       case "register":
-        return (
-          <form onSubmit={handleRegister} className="space-y-6 animate-fade-in">
-            <div className="border border-white/10 bg-white/5 backdrop-blur-lg rounded-2xl p-6">
-              <h2 className="text-xl font-bold text-white mb-6 text-center">Crear Cuenta</h2>
-              <div className="space-y-4">
-                <Input type="email" placeholder="Correo electrónico" value={email} onChange={(e) => setEmail(e.target.value)} required className="bg-white/90 text-slate-900 placeholder:text-slate-500 border-0 rounded-xl focus:ring-2 focus:ring-white focus:bg-white" />
-                <Input type="password" placeholder="Contraseña (mín. 6 caracteres)" value={password} onChange={(e) => setPassword(e.target.value)} required className="bg-white/90 text-slate-900 placeholder:text-slate-500 border-0 rounded-xl focus:ring-2 focus:ring-white focus:bg-white" />
-                <Input type="password" placeholder="Confirmar contraseña" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required className="bg-white/90 text-slate-900 placeholder:text-slate-500 border-0 rounded-xl focus:ring-2 focus:ring-white focus:bg-white" />
-                <AuthButton onClick={handleRegister}>Crear Cuenta</AuthButton>
-              </div>
-            </div>
-            <div className="text-center">
-              <button type="button" onClick={() => setView("login")} className="text-white/80 hover:text-white text-sm underline">
-                ¿Ya tienes cuenta? Inicia sesión
-              </button>
-            </div>
-          </form>
-        );
+        return <RegisterForm setView={setView} onFormSubmit={handleRegister} />;
       case "forgotPassword":
-        return (
-          <form onSubmit={handlePasswordReset} className="space-y-6 animate-fade-in">
-            <div className="border border-white/10 bg-white/5 backdrop-blur-lg rounded-2xl p-6">
-              <h2 className="text-xl font-bold text-white mb-6 text-center">Recuperar Contraseña</h2>
-              <p className="text-white/80 text-sm mb-4 text-center">Ingresa tu correo y te enviaremos un enlace para restablecerla.</p>
-              <div className="space-y-4">
-                <Input type="email" placeholder="Correo electrónico" value={email} onChange={(e) => setEmail(e.target.value)} required className="bg-white/90 text-slate-900 placeholder:text-slate-500 border-0 rounded-xl focus:ring-2 focus:ring-white focus:bg-white" />
-                <AuthButton onClick={handlePasswordReset}>Enviar Enlace</AuthButton>
-              </div>
-            </div>
-            <div className="text-center">
-              <button type="button" onClick={() => setView("login")} className="text-white/80 hover:text-white text-sm underline">
-                Volver al inicio de sesión
-              </button>
-            </div>
-          </form>
-        );
+        return <ForgotPasswordForm setView={setView} onFormSubmit={handlePasswordReset} />;
       case "login":
       default:
-        return (
-          <form onSubmit={handleLogin} className="space-y-6 animate-fade-in">
-            <div className="border border-white/10 bg-white/5 backdrop-blur-lg rounded-2xl p-6">
-              <h2 className="text-xl font-bold text-white mb-6 text-center">Iniciar Sesión</h2>
-              <div className="space-y-4">
-                <Input type="email" placeholder="Correo electrónico" value={email} onChange={(e) => setEmail(e.target.value)} required className="bg-white/90 text-slate-900 placeholder:text-slate-500 border-0 rounded-xl focus:ring-2 focus:ring-white focus:bg-white" />
-                <Input type="password" placeholder="Contraseña" value={password} onChange={(e) => setPassword(e.target.value)} required className="bg-white/90 text-slate-900 placeholder:text-slate-500 border-0 rounded-xl focus:ring-2 focus:ring-white focus:bg-white" />
-                <AuthButton onClick={handleLogin}>Iniciar Sesión</AuthButton>
-              </div>
-              <div className="mt-4 text-center">
-                <button type="button" onClick={() => setView("forgotPassword")} className="text-white/80 hover:text-white text-sm underline">
-                  ¿Olvidaste tu contraseña?
-                </button>
-              </div>
-            </div>
-            <div className="text-center">
-              <p className="text-white/80 mb-4">¿No tienes cuenta?</p>
-              <Button onClick={() => setView("register")} variant="outline" className="bg-white/20 text-white px-8 py-3 h-auto rounded-xl font-medium hover:bg-white/30 transition-all duration-300 border-0 hover:text-white">
-                Crear Cuenta
-              </Button>
-            </div>
-          </form>
-        );
+        return <LoginForm setView={setView} onFormSubmit={handleLogin} />;
     }
   };
 
@@ -217,7 +244,7 @@ export default function AuthPage() {
           <p className="text-red-200 text-sm mt-1">Respuesta Rápida • Guatemala</p>
         </div>
         
-        <AuthForms />
+        {renderForm()}
 
       </div>
     </MobileAppContainer>
