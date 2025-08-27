@@ -1,5 +1,6 @@
+
 export type MedicalData = {
-  name: string;
+  fullName: string;
   age: string;
   bloodType: string;
   emergencyContactName: string;

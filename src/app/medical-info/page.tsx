@@ -1,6 +1,7 @@
+
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,14 +22,16 @@ import {
   Trash2,
   User,
   Phone,
-  BookUser,
-  ClipboardList,
-  Pill,
   MessageSquare,
+  Loader2,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { getAuth, onAuthStateChanged, type User as FirebaseUser } from "firebase/auth";
+import { getFirestore, doc, setDoc } from "firebase/firestore";
+import { firebaseApp } from "@/lib/firebase";
+import type { MedicalData } from "@/lib/types";
 
-const medicalConditions = [
+const medicalConditionsList = [
   "Diabetes",
   "Hipertensión",
   "Problemas Cardíacos",
@@ -40,35 +43,111 @@ const medicalConditions = [
 export default function MedicalInfoPage() {
   const router = useRouter();
   const { toast } = useToast();
-  const [medications, setMedications] = useState([""]);
+  const auth = getAuth(firebaseApp);
+  const firestore = getFirestore(firebaseApp);
+
+  const [currentUser, setCurrentUser] = useState<FirebaseUser | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  const [formData, setFormData] = useState<MedicalData>({
+    fullName: "",
+    age: "",
+    bloodType: "",
+    emergencyContactName: "",
+    emergencyContactPhone: "",
+    emergencyContactRelation: "",
+    conditions: [],
+    otherConditions: "",
+    medications: [{ name: "" }],
+    additionalNotes: "",
+  });
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        setCurrentUser(user);
+      } else {
+        // Si no hay usuario, redirigir al login
+        router.push("/");
+      }
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, [auth, router]);
+  
+  const handleInputChange = (field: keyof MedicalData, value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleSelectChange = (field: keyof MedicalData, value: string) => {
+     setFormData(prev => ({ ...prev, [field]: value }));
+  }
+
+  const handleConditionChange = (condition: string, checked: boolean) => {
+    setFormData(prev => {
+      const newConditions = checked
+        ? [...prev.conditions, condition]
+        : prev.conditions.filter(c => c !== condition);
+      return { ...prev, conditions: newConditions };
+    });
+  };
 
   const handleAddMedication = () => {
-    setMedications([...medications, ""]);
+    setFormData(prev => ({ ...prev, medications: [...prev.medications, { name: "" }] }));
   };
 
   const handleRemoveMedication = (index: number) => {
-    if (medications.length > 1) {
-      const newMedications = medications.filter((_, i) => i !== index);
-      setMedications(newMedications);
+    if (formData.medications.length > 1) {
+      setFormData(prev => ({ ...prev, medications: prev.medications.filter((_, i) => i !== index) }));
     }
   };
 
   const handleMedicationChange = (index: number, value: string) => {
-    const newMedications = [...medications];
-    newMedications[index] = value;
-    setMedications(newMedications);
+    const newMedications = [...formData.medications];
+    newMedications[index] = { name: value };
+    setFormData(prev => ({ ...prev, medications: newMedications }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Here you would typically save the data to a backend/store
-    console.log("Saving medical info...");
-    toast({
-      title: "¡Datos guardados!",
-      description: "Tu información médica ha sido registrada correctamente.",
-    });
-    router.push("/dashboard");
+    if (!currentUser) {
+        toast({ title: "Error", description: "Debes iniciar sesión para guardar tus datos.", variant: "destructive"});
+        return;
+    }
+
+    setSaving(true);
+    try {
+      // Guardar datos en Firestore, usando el UID del usuario como ID del documento
+      const userMedicalDocRef = doc(firestore, "medicalInfo", currentUser.uid);
+      await setDoc(userMedicalDocRef, formData);
+
+      toast({
+        title: "¡Datos guardados!",
+        description: "Tu información médica ha sido registrada correctamente.",
+      });
+      router.push("/dashboard");
+    } catch (error) {
+      console.error("Error saving medical info:", error);
+      toast({
+        title: "Error al guardar",
+        description: "No se pudo guardar tu información. Inténtalo de nuevo.",
+        variant: "destructive",
+      });
+    } finally {
+        setSaving(false);
+    }
   };
+
+  if (loading) {
+    return (
+        <MobileAppContainer className="bg-slate-900 justify-center items-center">
+            <Loader2 className="w-12 h-12 text-white animate-spin" />
+            <p className="text-white mt-4">Cargando...</p>
+        </MobileAppContainer>
+    )
+  }
 
   return (
     <MobileAppContainer className="bg-slate-900">
@@ -100,10 +179,10 @@ export default function MedicalInfoPage() {
                 Información Personal
               </h3>
               <div className="space-y-4">
-                <Input type="text" placeholder="Nombre Completo" />
+                <Input type="text" placeholder="Nombre Completo" value={formData.fullName} onChange={e => handleInputChange('fullName', e.target.value)} required />
                 <div className="grid grid-cols-2 gap-4">
-                  <Input type="number" placeholder="Edad" />
-                  <Select>
+                  <Input type="number" placeholder="Edad" value={formData.age} onChange={e => handleInputChange('age', e.target.value)} required />
+                  <Select onValueChange={value => handleSelectChange('bloodType', value)} value={formData.bloodType}>
                     <SelectTrigger>
                       <SelectValue placeholder="Tipo de Sangre" />
                     </SelectTrigger>
@@ -130,10 +209,10 @@ export default function MedicalInfoPage() {
                 Contacto de Emergencia
               </h3>
               <div className="space-y-4">
-                <Input type="text" placeholder="Nombre del contacto" />
+                <Input type="text" placeholder="Nombre del contacto" value={formData.emergencyContactName} onChange={e => handleInputChange('emergencyContactName', e.target.value)} required />
                 <div className="grid grid-cols-2 gap-4">
-                  <Input type="tel" placeholder="Teléfono" />
-                  <Input type="text" placeholder="Relación (Ej: Esposo/a)" />
+                  <Input type="tel" placeholder="Teléfono" value={formData.emergencyContactPhone} onChange={e => handleInputChange('emergencyContactPhone', e.target.value)} required />
+                  <Input type="text" placeholder="Relación (Ej: Esposo/a)" value={formData.emergencyContactRelation} onChange={e => handleInputChange('emergencyContactRelation', e.target.value)} required />
                 </div>
               </div>
             </div>
@@ -146,12 +225,12 @@ export default function MedicalInfoPage() {
                 Condiciones Médicas
               </h3>
               <div className="grid grid-cols-2 gap-3 mb-4">
-                {medicalConditions.map((condition) => (
+                {medicalConditionsList.map((condition) => (
                   <label
                     key={condition}
                     className="flex items-center p-3 bg-slate-700/50 rounded-xl hover:bg-slate-700 transition-colors cursor-pointer"
                   >
-                    <Checkbox id={condition} className="mr-3" />
+                    <Checkbox id={condition} className="mr-3" onCheckedChange={checked => handleConditionChange(condition, !!checked)} checked={formData.conditions.includes(condition)} />
                     <span className="text-sm text-gray-300">{condition}</span>
                   </label>
                 ))}
@@ -159,6 +238,8 @@ export default function MedicalInfoPage() {
               <Textarea
                 rows={3}
                 placeholder="Describe otras condiciones médicas importantes"
+                value={formData.otherConditions}
+                onChange={e => handleInputChange('otherConditions', e.target.value)}
               />
             </div>
             
@@ -175,15 +256,15 @@ export default function MedicalInfoPage() {
                 </Button>
               </div>
               <div className="space-y-3">
-                {medications.map((med, index) => (
+                {formData.medications.map((med, index) => (
                   <div key={index} className="flex items-center space-x-3 animate-slide-in">
                     <Input
                       type="text"
                       placeholder="Nombre del medicamento y dosis"
-                      value={med}
+                      value={med.name}
                       onChange={(e) => handleMedicationChange(index, e.target.value)}
                     />
-                    {medications.length > 1 && (
+                    {formData.medications.length > 1 && (
                       <Button type="button" variant="destructive" size="icon" onClick={() => handleRemoveMedication(index)}>
                         <Trash2 className="w-4 h-4" />
                       </Button>
@@ -200,7 +281,7 @@ export default function MedicalInfoPage() {
                   </span>
                   Notas Adicionales
                 </h3>
-                <Textarea rows={4} placeholder="Cualquier información adicional importante..." />
+                <Textarea rows={4} placeholder="Cualquier información adicional importante..." value={formData.additionalNotes} onChange={e => handleInputChange('additionalNotes', e.target.value)} />
             </div>
 
           </form>
@@ -211,8 +292,9 @@ export default function MedicalInfoPage() {
             type="submit"
             onClick={handleSubmit}
             className="w-full bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white py-4 h-auto rounded-xl font-bold text-lg transition-all duration-300 transform hover:scale-105 shadow-lg"
+            disabled={saving}
           >
-            Guardar y Continuar
+            {saving ? <Loader2 className="animate-spin" /> : "Guardar y Continuar"}
           </Button>
         </footer>
       </div>
