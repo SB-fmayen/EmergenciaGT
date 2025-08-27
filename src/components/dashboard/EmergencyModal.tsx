@@ -114,3 +114,8 @@ export function EmergencyModal({ isOpen, onClose, alertData, medicalData }: Emer
                   Entendido
               </Button>
             </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
