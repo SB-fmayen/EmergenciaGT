@@ -4,14 +4,15 @@
 import { Button } from "@/components/ui/button";
 import { Ambulance, ClipboardList, History } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useRouter } from 'next/navigation';
 
 interface QuickActionsProps {
   onShowMedicalInfo: () => void;
-  onShowAlerts: () => void;
 }
 
-export function QuickActions({ onShowMedicalInfo, onShowAlerts }: QuickActionsProps) {
+export function QuickActions({ onShowMedicalInfo }: QuickActionsProps) {
     const { toast } = useToast();
+    const router = useRouter();
 
     const handleActionClick = (service: string) => {
         toast({
@@ -19,6 +20,11 @@ export function QuickActions({ onShowMedicalInfo, onShowAlerts }: QuickActionsPr
             description: "Esta es una demostración del sistema de alerta."
         })
     }
+
+    const onShowAlerts = () => {
+        router.push('/alerts');
+    }
+
   return (
     <div className="px-6 py-6 bg-black/20 backdrop-blur-sm">
       <h3 className="text-lg font-bold text-white mb-4 text-center">
@@ -30,7 +36,7 @@ export function QuickActions({ onShowMedicalInfo, onShowAlerts }: QuickActionsPr
         </Button>
         <Button
           onClick={onShowMedicalInfo}
-          className="h-auto py-4 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-medium transition-all duration-300 transform hover:scale-105 shadow-lg"
+          className="h-auto py-4 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-medium transition-all duration-300 transform hover:scale-105 shadow-lg"
         >
           <ClipboardList className="mr-2" /> Info Médica
         </Button>

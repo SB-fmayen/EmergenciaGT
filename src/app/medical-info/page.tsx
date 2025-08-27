@@ -28,9 +28,9 @@ import {
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { getAuth, onAuthStateChanged, type User as FirebaseUser } from "firebase/auth";
-import { getFirestore, doc, setDoc } from "firebase/firestore";
+import { getFirestore, doc, setDoc, getDoc } from "firebase/firestore";
 import { firebaseApp } from "@/lib/firebase";
-import type { MedicalData } from "@/lib/types";
+import type { MedicalData, EmergencyContact } from "@/lib/types";
 
 const medicalConditionsList = [
   "Diabetes",
@@ -41,8 +41,19 @@ const medicalConditionsList = [
   "Alergias",
 ];
 
+const initialFormData: MedicalData = {
+    fullName: "",
+    age: "",
+    bloodType: "",
+    emergencyContacts: [{ name: "", phone: "", relation: "" }],
+    conditions: [],
+    otherConditions: "",
+    medications: [{ name: "" }],
+    additionalNotes: "",
+}
+
 /**
- * Página para que los usuarios registren su información médica.
+ * Página para que los usuarios registren y actualicen su información médica.
  * Los datos se guardan en Firestore asociados al UID del usuario autenticado.
  */
 export default function MedicalInfoPage() {
@@ -54,61 +65,59 @@ export default function MedicalInfoPage() {
   const [currentUser, setCurrentUser] = useState<FirebaseUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [isNewUser, setIsNewUser] = useState(true);
 
-  const [formData, setFormData] = useState<MedicalData>({
-    fullName: "",
-    age: "",
-    bloodType: "",
-    emergencyContactName: "",
-    emergencyContactPhone: "",
-    emergencyContactRelation: "",
-    conditions: [],
-    otherConditions: "",
-    medications: [{ name: "" }],
-    additionalNotes: "",
-  });
+  const [formData, setFormData] = useState<MedicalData>(initialFormData);
 
   /**
-   * Efecto para verificar el estado de autenticación del usuario.
-   * Si no hay un usuario logueado, lo redirige a la página de inicio.
+   * Efecto para verificar la autenticación y cargar datos existentes.
    */
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
         setCurrentUser(user);
+        fetchMedicalData(user.uid);
       } else {
-        // Si no hay usuario, redirigir al login
         router.push("/");
       }
-      setLoading(false);
     });
 
     return () => unsubscribe();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [auth, router]);
-  
+
   /**
-   * Maneja los cambios en los campos de tipo input.
-   * @param field - El campo del estado formData a actualizar.
-   * @param value - El nuevo valor del campo.
+   * Carga los datos médicos del usuario desde Firestore si existen.
+   * @param uid - El ID del usuario.
    */
-  const handleInputChange = (field: keyof Omit<MedicalData, 'medications' | 'conditions'>, value: string) => {
+  const fetchMedicalData = async (uid: string) => {
+    setLoading(true);
+    const userMedicalDocRef = doc(firestore, "medicalInfo", uid);
+    const docSnap = await getDoc(userMedicalDocRef);
+    if (docSnap.exists()) {
+        const data = docSnap.data() as MedicalData;
+        // Nos aseguramos de que los arrays existan para evitar errores
+        data.emergencyContacts = data.emergencyContacts && data.emergencyContacts.length > 0 ? data.emergencyContacts : initialFormData.emergencyContacts;
+        data.medications = data.medications && data.medications.length > 0 ? data.medications : initialFormData.medications;
+        data.conditions = data.conditions || [];
+        
+        setFormData(data);
+        setIsNewUser(false);
+    } else {
+        setFormData(initialFormData);
+        setIsNewUser(true);
+    }
+    setLoading(false);
+  }
+  
+  const handleInputChange = (field: keyof Omit<MedicalData, 'medications' | 'conditions' | 'emergencyContacts'>, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  /**
-   * Maneja los cambios en los campos de tipo select.
-   * @param field - El campo del estado formData a actualizar.
-   * @param value - El nuevo valor del campo.
-   */
   const handleSelectChange = (field: keyof MedicalData, value: string) => {
      setFormData(prev => ({ ...prev, [field]: value }));
   }
 
-  /**
-   * Maneja la selección o deselección de una condición médica predefinida.
-   * @param condition - La condición médica a agregar o quitar.
-   * @param checked - El estado del checkbox.
-   */
   const handleConditionChange = (condition: string, checked: boolean) => {
     setFormData(prev => {
       const newConditions = checked
@@ -118,39 +127,41 @@ export default function MedicalInfoPage() {
     });
   };
 
-  /**
-   * Agrega un nuevo campo para un medicamento.
-   */
+  // --- Manejo de Contactos de Emergencia ---
+  
+  const handleContactChange = (index: number, field: keyof EmergencyContact, value: string) => {
+    const newContacts = [...formData.emergencyContacts];
+    newContacts[index] = { ...newContacts[index], [field]: value };
+    setFormData(prev => ({ ...prev, emergencyContacts: newContacts }));
+  };
+
+  const addContact = () => {
+    setFormData(prev => ({ ...prev, emergencyContacts: [...prev.emergencyContacts, { name: "", phone: "", relation: "" }] }));
+  };
+
+  const removeContact = (index: number) => {
+    if (formData.emergencyContacts.length > 1) {
+      setFormData(prev => ({ ...prev, emergencyContacts: prev.emergencyContacts.filter((_, i) => i !== index) }));
+    }
+  };
+
+  // --- Manejo de Medicamentos ---
+
   const handleAddMedication = () => {
     setFormData(prev => ({ ...prev, medications: [...prev.medications, { name: "" }] }));
   };
 
-  /**
-   * Elimina un campo de medicamento.
-   * @param index - El índice del medicamento a eliminar.
-   */
   const handleRemoveMedication = (index: number) => {
-    if (formData.medications.length > 1) {
-      setFormData(prev => ({ ...prev, medications: prev.medications.filter((_, i) => i !== index) }));
-    }
+    // Permitir eliminar incluso si es el último, para dejar la lista vacía
+     setFormData(prev => ({ ...prev, medications: prev.medications.filter((_, i) => i !== index) }));
   };
 
-  /**
-   * Actualiza el valor de un campo de medicamento.
-   * @param index - El índice del medicamento a actualizar.
-   * @param value - El nuevo nombre y dosis del medicamento.
-   */
   const handleMedicationChange = (index: number, value: string) => {
     const newMedications = [...formData.medications];
     newMedications[index] = { name: value };
     setFormData(prev => ({ ...prev, medications: newMedications }));
   };
 
-  /**
-   * Procesa el envío del formulario.
-   * Guarda los datos médicos en Firestore en un documento con el ID del usuario.
-   * @param e - Evento del formulario.
-   */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentUser) {
@@ -160,9 +171,15 @@ export default function MedicalInfoPage() {
 
     setSaving(true);
     try {
-      // Guardar datos en Firestore, usando el UID del usuario como ID del documento
+      const finalData = {
+          ...formData,
+          // Filtra medicamentos y contactos vacíos antes de guardar
+          medications: formData.medications.filter(m => m.name.trim() !== ""),
+          emergencyContacts: formData.emergencyContacts.filter(c => c.name.trim() !== "" && c.phone.trim() !== "")
+      }
+
       const userMedicalDocRef = doc(firestore, "medicalInfo", currentUser.uid);
-      await setDoc(userMedicalDocRef, formData);
+      await setDoc(userMedicalDocRef, finalData);
 
       toast({
         title: "¡Datos guardados!",
@@ -181,12 +198,11 @@ export default function MedicalInfoPage() {
     }
   };
 
-  // Muestra una pantalla de carga mientras se verifica el usuario
   if (loading) {
     return (
         <MobileAppContainer className="bg-slate-900 justify-center items-center">
             <Loader2 className="w-12 h-12 text-white animate-spin" />
-            <p className="text-white mt-4">Cargando...</p>
+            <p className="text-white mt-4">Cargando tus datos...</p>
         </MobileAppContainer>
     )
   }
@@ -206,7 +222,7 @@ export default function MedicalInfoPage() {
           <div>
             <h1 className="text-xl font-bold">Información Médica</h1>
             <p className="text-blue-100 text-sm">
-              Completa tus datos para emergencias
+              {isNewUser ? "Completa tus datos para emergencias" : "Actualiza tus datos de emergencia"}
             </p>
           </div>
         </header>
@@ -244,18 +260,33 @@ export default function MedicalInfoPage() {
             </div>
 
             <div className="bg-slate-800/50 rounded-2xl p-6 shadow-lg">
-              <h3 className="text-lg font-bold text-gray-100 mb-4 flex items-center">
-                <span className="w-8 h-8 bg-green-500/20 rounded-full flex items-center justify-center mr-3">
-                  <Phone className="w-4 h-4 text-green-300" />
-                </span>
-                Contacto de Emergencia
-              </h3>
+              <div className="flex justify-between items-center mb-4">
+                 <h3 className="text-lg font-bold text-gray-100 flex items-center">
+                  <span className="w-8 h-8 bg-green-500/20 rounded-full flex items-center justify-center mr-3">
+                    <Phone className="w-4 h-4 text-green-300" />
+                  </span>
+                  Contactos de Emergencia
+                </h3>
+                 <Button type="button" onClick={addContact} size="sm" className="bg-green-500 hover:bg-green-600 text-white rounded-lg">
+                  <Plus className="w-4 h-4 mr-1" /> Agregar
+                </Button>
+              </div>
+             
               <div className="space-y-4">
-                <Input type="text" placeholder="Nombre del contacto" value={formData.emergencyContactName} onChange={e => handleInputChange('emergencyContactName', e.target.value)} required />
-                <div className="grid grid-cols-2 gap-4">
-                  <Input type="tel" placeholder="Teléfono" value={formData.emergencyContactPhone} onChange={e => handleInputChange('emergencyContactPhone', e.target.value)} required />
-                  <Input type="text" placeholder="Relación (Ej: Esposo/a)" value={formData.emergencyContactRelation} onChange={e => handleInputChange('emergencyContactRelation', e.target.value)} required />
-                </div>
+                {formData.emergencyContacts.map((contact, index) => (
+                    <div key={index} className="space-y-3 p-4 bg-slate-700/50 rounded-xl relative animate-slide-in">
+                        {formData.emergencyContacts.length > 1 && (
+                             <Button type="button" variant="destructive" size="icon" className="absolute -top-2 -right-2 w-7 h-7" onClick={() => removeContact(index)}>
+                                <Trash2 className="w-4 h-4" />
+                            </Button>
+                        )}
+                        <Input type="text" placeholder="Nombre del contacto" value={contact.name} onChange={e => handleContactChange(index, 'name', e.target.value)} required />
+                        <div className="grid grid-cols-2 gap-4">
+                            <Input type="tel" placeholder="Teléfono" value={contact.phone} onChange={e => handleContactChange(index, 'phone', e.target.value)} required />
+                            <Input type="text" placeholder="Relación (Ej: Esposo/a)" value={contact.relation} onChange={e => handleContactChange(index, 'relation', e.target.value)} required />
+                        </div>
+                    </div>
+                ))}
               </div>
             </div>
 
@@ -298,7 +329,7 @@ export default function MedicalInfoPage() {
                 </Button>
               </div>
               <div className="space-y-3">
-                {formData.medications.map((med, index) => (
+                {formData.medications.length > 0 ? formData.medications.map((med, index) => (
                   <div key={index} className="flex items-center space-x-3 animate-slide-in">
                     <Input
                       type="text"
@@ -306,13 +337,13 @@ export default function MedicalInfoPage() {
                       value={med.name}
                       onChange={(e) => handleMedicationChange(index, e.target.value)}
                     />
-                    {formData.medications.length > 1 && (
-                      <Button type="button" variant="destructive" size="icon" onClick={() => handleRemoveMedication(index)}>
+                    <Button type="button" variant="destructive" size="icon" onClick={() => handleRemoveMedication(index)}>
                         <Trash2 className="w-4 h-4" />
-                      </Button>
-                    )}
+                    </Button>
                   </div>
-                ))}
+                )) : (
+                    <p className="text-slate-400 text-sm text-center py-2">No has agregado medicamentos.</p>
+                )}
               </div>
             </div>
 
@@ -336,7 +367,7 @@ export default function MedicalInfoPage() {
             className="w-full bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white py-4 h-auto rounded-xl font-bold text-lg transition-all duration-300 transform hover:scale-105 shadow-lg"
             disabled={saving}
           >
-            {saving ? <Loader2 className="animate-spin" /> : "Guardar y Continuar"}
+            {saving ? <Loader2 className="animate-spin" /> : "Guardar Información"}
           </Button>
         </footer>
       </div>

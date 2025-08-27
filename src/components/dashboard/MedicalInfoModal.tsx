@@ -33,7 +33,7 @@ export function MedicalInfoModal({
   medicalData,
 }: MedicalInfoModalProps) {
   
-  const hasData = !!medicalData;
+  const hasData = !!medicalData && medicalData.fullName;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -41,7 +41,7 @@ export function MedicalInfoModal({
         <DialogHeader className="p-6 pb-4 bg-gradient-to-r from-green-600 to-green-700 rounded-t-lg">
           <DialogTitle className="text-lg font-bold">Información Médica</DialogTitle>
           <DialogDescription className="text-green-100 text-sm">
-            Datos para emergencias
+            Tus datos registrados para emergencias
           </DialogDescription>
         </DialogHeader>
         <div className="p-6 max-h-[60vh] overflow-y-auto">
@@ -49,7 +49,7 @@ export function MedicalInfoModal({
             <div className="space-y-4 text-sm">
               <div className="flex justify-between"><strong>Nombre:</strong> <span>{medicalData.fullName}</span></div>
               <div className="flex justify-between"><strong>Edad:</strong> <span>{medicalData.age} años</span></div>
-              <div className="flex justify-between"><strong>Tipo de Sangre:</strong> <span className="bg-red-200 text-red-900 px-2 py-1 rounded-full text-xs font-medium">{medicalData.bloodType}</span></div>
+              <div className="flex justify-between items-center"><strong>Tipo de Sangre:</strong> <span className="bg-red-200 text-red-900 px-2 py-1 rounded-full text-xs font-medium">{medicalData.bloodType}</span></div>
               
               {medicalData.conditions && medicalData.conditions.length > 0 && (
                 <div>
@@ -73,11 +73,19 @@ export function MedicalInfoModal({
                 </div>
               )}
               
-              <div className="bg-green-200/20 p-3 rounded-lg border border-green-400/50">
-                <strong>Contacto de Emergencia:</strong><br/>
-                {medicalData.emergencyContactName} ({medicalData.emergencyContactRelation})<br/>
-                <a href={`tel:${medicalData.emergencyContactPhone}`} className="text-green-300 font-medium">{medicalData.emergencyContactPhone}</a>
-              </div>
+              {medicalData.emergencyContacts && medicalData.emergencyContacts.length > 0 && medicalData.emergencyContacts.some(c => c.name) && (
+                 <div>
+                    <strong>Contactos de Emergencia:</strong>
+                    <div className="space-y-2 mt-2">
+                        {medicalData.emergencyContacts.filter(c => c.name).map((contact, i) => (
+                            <div key={i} className="bg-green-200/20 p-3 rounded-lg border border-green-400/50">
+                                <strong>{contact.name} ({contact.relation})</strong><br/>
+                                <a href={`tel:${contact.phone}`} className="text-green-300 font-medium">{contact.phone}</a>
+                            </div>
+                        ))}
+                    </div>
+                 </div>
+              )}
             </div>
           ) : (
             <div className="text-center py-8">
@@ -87,11 +95,19 @@ export function MedicalInfoModal({
               <p className="text-slate-400">
                 No hay información médica registrada.
               </p>
+               <Button onClick={() => {onClose(); window.location.href = '/medical-info'}} className="mt-4 bg-blue-500 hover:bg-blue-600">
+                  Registrar ahora
+               </Button>
             </div>
           )}
         </div>
-        <DialogFooter className="p-6 pt-4 border-t border-slate-700">
-          <Button onClick={onClose} className="w-full bg-slate-600 hover:bg-slate-500 text-white">
+        <DialogFooter className="p-6 pt-4 border-t border-slate-700 bg-slate-800/50">
+           {hasData && (
+              <Button onClick={() => {onClose(); window.location.href = '/medical-info'}} className="w-full bg-blue-500 hover:bg-blue-600 text-white">
+                Actualizar Información
+              </Button>
+           )}
+          <Button onClick={onClose} className="w-full bg-slate-600 hover:bg-slate-500 text-white" variant={hasData ? "outline" : "default"}>
             Cerrar
           </Button>
         </DialogFooter>
