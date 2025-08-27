@@ -8,12 +8,13 @@ import { EmergencyModal } from "@/components/dashboard/EmergencyModal";
 import { MedicalInfoModal } from "@/components/dashboard/MedicalInfoModal";
 import { QuickActions } from "@/components/dashboard/QuickActions";
 import type { MedicalData, AlertData } from "@/lib/types";
-import { getAuth, onAuthStateChanged, type User } from "firebase/auth";
+import { getAuth, onAuthStateChanged, signOut, type User } from "firebase/auth";
 import { getFirestore, doc, getDoc, setDoc, serverTimestamp, collection, GeoPoint } from "firebase/firestore";
 import { firebaseApp } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2 } from "lucide-react";
+import { Loader2, LogOut } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
 
 
 /**
@@ -157,6 +158,17 @@ export default function DashboardPage() {
     setAlertData(null);
   }
 
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      toast({ title: "Sesión cerrada", description: "Has cerrado sesión correctamente." });
+      router.push('/');
+    } catch (error) {
+      toast({ title: "Error", description: "No se pudo cerrar la sesión.", variant: "destructive" });
+    }
+  };
+
+
   // Muestra un loader mientras se cargan los datos
   if (loading) {
     return (
@@ -169,11 +181,20 @@ export default function DashboardPage() {
   return (
     <MobileAppContainer className="bg-gradient-to-br from-gray-900 via-gray-800 to-black">
       <div className="flex flex-col h-full">
-        <header className="bg-gradient-to-r from-red-600 to-red-800 text-white px-6 py-6 text-center shadow-lg flex-shrink-0">
+        <header className="relative bg-gradient-to-r from-red-600 to-red-800 text-white px-6 py-6 text-center shadow-lg flex-shrink-0">
           <h1 className="text-2xl font-bold mb-1">EmergenciaGT</h1>
           <p className="text-red-100 text-sm">
             Sistema de Alerta Inmediata
           </p>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleLogout}
+            className="absolute top-4 right-4 hover:bg-white/10"
+            aria-label="Cerrar sesión"
+          >
+            <LogOut className="w-5 h-5" />
+          </Button>
         </header>
 
         <div className="flex-1 flex items-center justify-center px-6">
