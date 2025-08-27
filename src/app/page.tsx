@@ -182,7 +182,7 @@ export default function AuthPage() {
   };
 
   const handleAnonymousSignIn = async () => {
-    await handleAuthAction(() => signInAnonymously(auth), "/dashboard");
+    await handleAuthAction(() => signInAnonymously(auth));
   }
 
   const handleFirebaseAuthError = (error: any) => {
