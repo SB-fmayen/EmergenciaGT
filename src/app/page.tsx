@@ -198,6 +198,7 @@ export default function AuthPage() {
   };
 
   const handleAnonymousSignIn = () => {
+    // La redirección será manejada por el onAuthStateChanged
     handleAuthAction(() => signInAnonymously(auth));
   }
 
@@ -277,3 +278,5 @@ export default function AuthPage() {
     </MobileAppContainer>
   );
 }
+
+    
