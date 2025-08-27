@@ -62,11 +62,11 @@ export function MedicalInfoModal({
                 </div>
               )}
 
-              {medicalData.medications && medicalData.medications.length > 0 && medicalData.medications[0].name && (
+              {medicalData.medications && medicalData.medications.length > 0 && medicalData.medications.some(m => m.name) && (
                 <div>
                   <strong>Medicamentos:</strong>
                   <ul className="list-disc list-inside mt-2 space-y-1">
-                    {medicalData.medications.map((med, i) => (
+                    {medicalData.medications.filter(m => m.name).map((med, i) => (
                       <li key={i} className="text-xs bg-purple-200 text-purple-900 p-2 rounded">{med.name}</li>
                     ))}
                   </ul>

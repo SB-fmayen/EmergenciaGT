@@ -91,7 +91,7 @@ export default function MedicalInfoPage() {
    * @param field - El campo del estado formData a actualizar.
    * @param value - El nuevo valor del campo.
    */
-  const handleInputChange = (field: keyof MedicalData, value: string) => {
+  const handleInputChange = (field: keyof Omit<MedicalData, 'medications' | 'conditions'>, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
@@ -343,4 +343,3 @@ export default function MedicalInfoPage() {
     </MobileAppContainer>
   );
 }
-
