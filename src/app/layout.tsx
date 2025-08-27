@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 export const metadata: Metadata = {
   title: 'EmergenciaGT',
   description: 'Sistema de Emergencias - Respuesta Rápida • Guatemala',
+  manifest: '/manifest.json',
 };
 
 export default function RootLayout({
