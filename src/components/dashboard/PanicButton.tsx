@@ -25,12 +25,9 @@ export function PanicButton({ onActivate }: PanicButtonProps) {
   const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   /**
-   * Reinicia el estado del botón a su estado inicial.
+   * Limpia todos los temporizadores y estados.
    */
-  const reset = useCallback(() => {
-    setIsHolding(false);
-    setIsActivated(false);
-    setProgress(0);
+  const clearTimers = () => {
     if (timerRef.current) {
       clearTimeout(timerRef.current);
       timerRef.current = null;
@@ -39,6 +36,16 @@ export function PanicButton({ onActivate }: PanicButtonProps) {
       clearInterval(progressIntervalRef.current);
       progressIntervalRef.current = null;
     }
+  };
+
+  /**
+   * Reinicia el estado del botón a su estado inicial.
+   */
+  const reset = useCallback(() => {
+    clearTimers();
+    setIsHolding(false);
+    setIsActivated(false);
+    setProgress(0);
   }, []);
 
 
@@ -48,8 +55,9 @@ export function PanicButton({ onActivate }: PanicButtonProps) {
    */
   const startHold = () => {
     if (isActivated) return;
-    reset();
+    
     setIsHolding(true);
+    setProgress(0); // Empezar siempre desde 0
     
     progressIntervalRef.current = setInterval(() => {
       setProgress((p) => {
@@ -57,21 +65,22 @@ export function PanicButton({ onActivate }: PanicButtonProps) {
           clearInterval(progressIntervalRef.current!);
           return 100;
         }
-        return p + 1;
+        return p + (100 / (3000 / 30)); // 3s total duration
       });
-    }, 30); // 3000ms / 100 steps = 30ms per step
+    }, 30);
 
     timerRef.current = setTimeout(() => {
       onActivate();
       setIsActivated(true);
-      // No reseteamos inmediatamente, sino que mostramos el estado activado
-      setTimeout(() => reset(), 2000); // Espera 2s antes de volver al estado inicial
+      setIsHolding(false); // Dejar de mostrar la barra de progreso
+      clearTimers();
+      // Espera 2s antes de volver al estado inicial para que el usuario vea la confirmación
+      setTimeout(() => reset(), 2000); 
     }, 3000);
   };
 
   /**
    * Cancela el proceso si el usuario suelta el botón antes de tiempo.
-   * Limpia los temporizadores y reinicia el estado.
    */
   const cancelHold = () => {
     if (isActivated) return;
@@ -83,11 +92,7 @@ export function PanicButton({ onActivate }: PanicButtonProps) {
    * para evitar fugas de memoria.
    */
   useEffect(() => {
-    return () => {
-      // Cleanup timers on component unmount
-      if (timerRef.current) clearTimeout(timerRef.current);
-      if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
-    };
+    return () => clearTimers();
   }, []);
 
   return (
