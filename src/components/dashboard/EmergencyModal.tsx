@@ -1,3 +1,4 @@
+
 "use client";
 
 import {
@@ -16,18 +17,31 @@ import { Alert, AlertDescription, AlertTitle as UiAlertTitle } from "@/component
 
 
 interface EmergencyModalProps {
+  /** Controla si el modal está abierto o cerrado. */
   isOpen: boolean;
+  /** Función para cerrar el modal. */
   onClose: () => void;
 }
 
+/**
+ * Modal que se muestra después de activar una alerta de emergencia.
+ * Confirma al usuario que la alerta fue enviada y muestra un tiempo estimado de llegada.
+ * Permite al usuario solicitar un plan de respuesta generado por IA.
+ * @param {EmergencyModalProps} props - Propiedades del componente.
+ */
 export function EmergencyModal({ isOpen, onClose }: EmergencyModalProps) {
   const [responsePlan, setResponsePlan] = useState<SuggestResponsePlanOutput | null>(null);
   const [isLoadingPlan, setIsLoadingPlan] = useState(false);
 
+  /**
+   * Llama al flujo de Genkit para obtener un plan de respuesta sugerido por IA.
+   * Actualiza el estado para mostrar el plan o un indicador de carga.
+   */
   const handleGeneratePlan = async () => {
     setIsLoadingPlan(true);
     setResponsePlan(null);
     try {
+      // Los detalles se enviarían dinámicamente en una app real
       const plan = await suggestResponsePlan({ 
         alertDetails: "Possible cardiac arrest at Av. Reforma y Calle 10, Zona 10. Patient is unconscious.",
         medicalHistory: "Male, 58 years old. History of hypertension. Allergic to penicillin."
@@ -45,10 +59,10 @@ export function EmergencyModal({ isOpen, onClose }: EmergencyModalProps) {
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="bg-red-600/95 backdrop-blur-md border-red-500 text-white max-w-sm w-full animate-flash-emergency p-0">
         <DialogHeader className="sr-only">
-          <DialogTitle>Alerta de Emergencia Enviada</DialogTitle>
-          <DialogDescription>
-            Los servicios de emergencia han sido notificados y están en camino.
-          </DialogDescription>
+            <DialogTitle>Alerta de Emergencia Enviada</DialogTitle>
+            <DialogDescription>
+                Los servicios de emergencia han sido notificados y están en camino.
+            </DialogDescription>
         </DialogHeader>
         <div className="p-6 text-center">
             <div className="mb-8">

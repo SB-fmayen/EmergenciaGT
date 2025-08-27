@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -8,16 +9,29 @@ import { MedicalInfoModal } from "@/components/dashboard/MedicalInfoModal";
 import { QuickActions } from "@/components/dashboard/QuickActions";
 import type { MedicalData } from "@/lib/types";
 
+/**
+ * Página principal del dashboard.
+ * Muestra el botón de pánico y las acciones rápidas.
+ * Gestiona la visibilidad de los modales de emergencia e información médica.
+ */
 export default function DashboardPage() {
   const [isEmergencyModalOpen, setEmergencyModalOpen] = useState(false);
   const [isMedicalInfoModalOpen, setMedicalInfoModalOpen] = useState(false);
   const [medicalData, setMedicalData] = useState<MedicalData | null>(null);
 
+  /**
+   * Se ejecuta cuando el botón de pánico es activado.
+   * Muestra el modal de confirmación de emergencia.
+   */
   const handleActivateEmergency = () => {
     console.log("Emergency Activated!");
     setEmergencyModalOpen(true);
   };
 
+  /**
+   * Muestra el modal con la información médica del usuario.
+   * En una app real, aquí se obtendrían los datos de una base de datos.
+   */
   const handleShowMedicalInfo = () => {
     // In a real app, you'd fetch this data
     setMedicalInfoModalOpen(true);
@@ -40,11 +54,13 @@ export default function DashboardPage() {
         <QuickActions onShowMedicalInfo={handleShowMedicalInfo} />
       </div>
 
+      {/* Modal que aparece al activar la emergencia */}
       <EmergencyModal
         isOpen={isEmergencyModalOpen}
         onClose={() => setEmergencyModalOpen(false)}
       />
 
+      {/* Modal que muestra la ficha médica */}
       <MedicalInfoModal
         isOpen={isMedicalInfoModalOpen}
         onClose={() => setMedicalInfoModalOpen(false)}

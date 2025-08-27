@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useRef, useEffect } from "react";
@@ -6,15 +7,26 @@ import { Progress } from "@/components/ui/progress";
 import { Check, ShieldAlert } from "lucide-react";
 
 interface PanicButtonProps {
+  /** Función a ejecutar cuando el botón se activa completamente. */
   onActivate: () => void;
 }
 
+/**
+ * Componente del botón de pánico principal.
+ * El usuario debe mantenerlo presionado durante 3 segundos para activar la alerta.
+ * Muestra una barra de progreso durante la pulsación.
+ * @param {PanicButtonProps} props - Propiedades del componente.
+ */
 export function PanicButton({ onActivate }: PanicButtonProps) {
   const [isHolding, setIsHolding] = useState(false);
   const [progress, setProgress] = useState(0);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
+  /**
+   * Inicia el proceso de mantener presionado.
+   * Activa un temporizador de 3 segundos y un intervalo para la barra de progreso.
+   */
   const startHold = () => {
     setIsHolding(true);
     
@@ -34,6 +46,10 @@ export function PanicButton({ onActivate }: PanicButtonProps) {
     }, 3000);
   };
 
+  /**
+   * Cancela el proceso si el usuario suelta el botón antes de tiempo.
+   * Limpia los temporizadores y reinicia el estado.
+   */
   const cancelHold = () => {
     if (timerRef.current) {
       clearTimeout(timerRef.current);
@@ -47,6 +63,9 @@ export function PanicButton({ onActivate }: PanicButtonProps) {
     setProgress(0);
   };
 
+  /**
+   * Reinicia el estado del botón a su estado inicial.
+   */
   const reset = () => {
     setIsHolding(false);
     setProgress(0);
@@ -54,6 +73,10 @@ export function PanicButton({ onActivate }: PanicButtonProps) {
     if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
   };
 
+  /**
+   * Hook de efecto para limpiar los temporizadores cuando el componente se desmonta,
+   * para evitar fugas de memoria.
+   */
   useEffect(() => {
     return () => {
       // Cleanup timers on component unmount
