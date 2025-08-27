@@ -4,14 +4,13 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
-  getAuth,
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   sendPasswordResetEmail,
   onAuthStateChanged,
   signInAnonymously
 } from "firebase/auth";
-import { firebaseApp } from "@/lib/firebase";
+import { auth } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { EmergencyLogoIcon } from "@/components/icons/EmergencyLogoIcon";
@@ -137,8 +136,7 @@ export default function AuthPage() {
   const [sessionChecked, setSessionChecked] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
-  const auth = getAuth(firebaseApp);
-
+  
   // Redirige si el usuario ya está logueado
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -272,3 +270,5 @@ export default function AuthPage() {
     </MobileAppContainer>
   );
 }
+
+    
