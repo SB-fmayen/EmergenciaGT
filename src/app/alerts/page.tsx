@@ -7,7 +7,7 @@ import { MobileAppContainer } from "@/components/MobileAppContainer";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Loader2, Clock, MapPin, CheckCircle, AlertTriangle, Send } from "lucide-react";
 import { getAuth, onAuthStateChanged, type User as FirebaseUser } from "firebase/auth";
-import { getFirestore, collection, query, where, getDocs, orderBy } from "firebase/firestore";
+import { getFirestore, collection, query, where, getDocs, orderBy, Timestamp } from "firebase/firestore";
 import { firebaseApp } from "@/lib/firebase";
 import type { AlertData, AlertStatus } from "@/lib/types";
 import { format } from 'date-fns';
@@ -36,7 +36,8 @@ export default function AlertsPage() {
     });
 
     return () => unsubscribe();
-  }, [auth, router]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [auth]);
 
   /**
    * Obtiene las alertas del usuario desde Firestore.
@@ -50,21 +51,15 @@ export default function AlertsPage() {
       const querySnapshot = await getDocs(q);
       const userAlerts = querySnapshot.docs.map(doc => {
         const data = doc.data();
-        // Firestore a veces no devuelve el timestamp hasta que está completamente escrito,
-        // por lo que hay que manejar el caso de que sea null.
         return {
+          id: doc.id,
           ...data,
-          timestamp: data.timestamp ? data.timestamp.toDate() : new Date(),
+          // El timestamp de firestore es un objeto, lo convertimos a Date de JS
+          timestamp: (data.timestamp as Timestamp)?.toDate(), 
         } as AlertData;
-      }).filter(alert => alert.timestamp); // Filtramos por si acaso
+      }).filter(alert => alert.timestamp); // Filtramos por si acaso no tiene timestamp aun
       
-      // Convertimos el timestamp de Firestore a un objeto Date de JS
-      const formattedAlerts = userAlerts.map(alert => ({
-          ...alert,
-          // El timestamp ya es un objeto Date gracias al mapeo anterior
-      }));
-
-      setAlerts(formattedAlerts as any);
+      setAlerts(userAlerts);
     } catch (error) {
       console.error("Error fetching alerts:", error);
     } finally {
@@ -89,7 +84,7 @@ export default function AlertsPage() {
 
   const AlertCard = ({ alert }: { alert: AlertData }) => {
     const { text, icon: Icon, color } = getStatusInfo(alert.status);
-    const alertDate = alert.timestamp as unknown as Date; // El timestamp ya es un objeto Date
+    const alertDate = alert.timestamp as Date;
 
     return (
       <div className="bg-slate-800/50 rounded-2xl p-4 shadow-lg flex flex-col space-y-3 animate-fade-in">

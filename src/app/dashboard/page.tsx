@@ -153,6 +153,7 @@ export default function DashboardPage() {
 
   const handleCloseEmergencyModal = () => {
     setEmergencyModalOpen(false);
+    setAlertData(null);
   }
 
   // Muestra un loader mientras se cargan los datos
@@ -187,7 +188,6 @@ export default function DashboardPage() {
       <EmergencyModal
         isOpen={isEmergencyModalOpen}
         onClose={handleCloseEmergencyModal}
-        alertData={alertData}
       />
 
       <MedicalInfoModal

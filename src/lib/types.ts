@@ -19,7 +19,7 @@ export type AlertStatus = 'new' | 'dispatched' | 'resolved' | 'cancelled';
 export type AlertData = {
     id: string;
     userId: string;
-    timestamp: Timestamp | Date;
+    timestamp: Timestamp | Date | any; // Any para permitir serverTimestamp()
     location: GeoPoint;
     status: AlertStatus;
 }

@@ -10,7 +10,6 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { CheckCircle, Clock } from "lucide-react";
-import type { AlertData, MedicalData } from "@/lib/types";
 
 
 interface EmergencyModalProps {
@@ -18,10 +17,6 @@ interface EmergencyModalProps {
   isOpen: boolean;
   /** Función para cerrar el modal. */
   onClose: () => void;
-  /** Los datos de la alerta generada. */
-  alertData: AlertData | null;
-  /** Los datos médicos del usuario. */
-  medicalData: MedicalData | null;
 }
 
 /**
@@ -29,7 +24,7 @@ interface EmergencyModalProps {
  * Confirma al usuario que la alerta fue enviada y muestra un tiempo estimado de llegada.
  * @param {EmergencyModalProps} props - Propiedades del componente.
  */
-export function EmergencyModal({ isOpen, onClose, alertData, medicalData }: EmergencyModalProps) {
+export function EmergencyModal({ isOpen, onClose }: EmergencyModalProps) {
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
