@@ -19,23 +19,34 @@ import { Loader2, Eye, EyeOff } from "lucide-react";
 
 type AuthView = "login" | "register" | "forgotPassword";
 
-const AuthButton = ({ onClick, children, loading }: { onClick: (e: React.FormEvent) => void, children: React.ReactNode, loading: boolean }) => (
-    <Button
-      onClick={onClick}
-      disabled={loading}
-      className="w-full bg-white text-red-600 py-3 h-auto rounded-xl font-bold text-lg hover:bg-gray-200 transition-all duration-300 transform hover:scale-105"
-    >
-      {loading ? <Loader2 className="animate-spin" /> : children}
-    </Button>
-  );
+const AuthButton = ({ onClick, children }: { onClick: (e: React.FormEvent) => Promise<void>, children: React.ReactNode }) => {
+    const [loading, setLoading] = useState(false);
 
-const LoginForm = ({ setView, onFormSubmit }: { setView: (view: AuthView) => void, onFormSubmit: (e: React.FormEvent, email: string, pass: string) => void }) => {
+    const handleClick = async (e: React.FormEvent) => {
+      e.preventDefault();
+      setLoading(true);
+      await onClick(e);
+      setLoading(false);
+    }
+
+    return (
+        <Button
+        onClick={handleClick}
+        disabled={loading}
+        className="w-full bg-white text-red-600 py-3 h-auto rounded-xl font-bold text-lg hover:bg-gray-200 transition-all duration-300 transform hover:scale-105"
+        >
+        {loading ? <Loader2 className="animate-spin" /> : children}
+        </Button>
+    );
+};
+
+const LoginForm = ({ setView, onFormSubmit }: { setView: (view: AuthView) => void, onFormSubmit: (email: string, pass: string) => Promise<void> }) => {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [showPassword, setShowPassword] = useState(false);
 
     return (
-        <form onSubmit={(e) => onFormSubmit(e, email, password)} className="space-y-6 animate-fade-in">
+        <form onSubmit={(e) => {e.preventDefault(); onFormSubmit(email, password)}} className="space-y-6 animate-fade-in">
             <div className="border border-white/10 bg-white/5 backdrop-blur-lg rounded-2xl p-6">
               <h2 className="text-xl font-bold text-white mb-6 text-center">Iniciar Sesión</h2>
               <div className="space-y-4">
@@ -46,7 +57,7 @@ const LoginForm = ({ setView, onFormSubmit }: { setView: (view: AuthView) => voi
                     {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                   </button>
                 </div>
-                <AuthButton onClick={(e) => onFormSubmit(e, email, password)} loading={false}>Iniciar Sesión</AuthButton>
+                <AuthButton onClick={() => onFormSubmit(email, password)}>Iniciar Sesión</AuthButton>
               </div>
               <div className="mt-4 text-center">
                 <button type="button" onClick={() => setView("forgotPassword")} className="text-white/80 hover:text-white text-sm underline">
@@ -64,7 +75,7 @@ const LoginForm = ({ setView, onFormSubmit }: { setView: (view: AuthView) => voi
     );
 };
 
-const RegisterForm = ({ setView, onFormSubmit }: { setView: (view: AuthView) => void, onFormSubmit: (e: React.FormEvent, email: string, pass: string, confirm:string) => void }) => {
+const RegisterForm = ({ setView, onFormSubmit }: { setView: (view: AuthView) => void, onFormSubmit: (email: string, pass: string, confirm:string) => Promise<void> }) => {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
@@ -72,7 +83,7 @@ const RegisterForm = ({ setView, onFormSubmit }: { setView: (view: AuthView) => 
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
     return (
-        <form onSubmit={(e) => onFormSubmit(e, email, password, confirmPassword)} className="space-y-6 animate-fade-in">
+        <form onSubmit={(e) => { e.preventDefault(); onFormSubmit(email, password, confirmPassword)}} className="space-y-6 animate-fade-in">
         <div className="border border-white/10 bg-white/5 backdrop-blur-lg rounded-2xl p-6">
           <h2 className="text-xl font-bold text-white mb-6 text-center">Crear Cuenta</h2>
           <div className="space-y-4">
@@ -89,7 +100,7 @@ const RegisterForm = ({ setView, onFormSubmit }: { setView: (view: AuthView) => 
                     {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                 </button>
             </div>
-            <AuthButton onClick={(e) => onFormSubmit(e, email, password, confirmPassword)} loading={false}>Crear Cuenta</AuthButton>
+            <AuthButton onClick={() => onFormSubmit(email, password, confirmPassword)}>Crear Cuenta</AuthButton>
           </div>
         </div>
         <div className="text-center">
@@ -101,16 +112,16 @@ const RegisterForm = ({ setView, onFormSubmit }: { setView: (view: AuthView) => 
     );
 };
 
-const ForgotPasswordForm = ({ setView, onFormSubmit }: { setView: (view: AuthView) => void, onFormSubmit: (e: React.FormEvent, email: string) => void }) => {
+const ForgotPasswordForm = ({ setView, onFormSubmit }: { setView: (view: AuthView) => void, onFormSubmit: (email: string) => Promise<void> }) => {
     const [email, setEmail] = useState("");
     return (
-        <form onSubmit={(e) => onFormSubmit(e, email)} className="space-y-6 animate-fade-in">
+        <form onSubmit={(e) => { e.preventDefault(); onFormSubmit(email)}} className="space-y-6 animate-fade-in">
         <div className="border border-white/10 bg-white/5 backdrop-blur-lg rounded-2xl p-6">
           <h2 className="text-xl font-bold text-white mb-6 text-center">Recuperar Contraseña</h2>
           <p className="text-white/80 text-sm mb-4 text-center">Ingresa tu correo y te enviaremos un enlace para restablecerla.</p>
           <div className="space-y-4">
             <Input type="email" placeholder="Correo electrónico" value={email} onChange={(e) => setEmail(e.target.value)} required className="bg-white/90 text-slate-900 placeholder:text-slate-500 border-0 rounded-xl focus:ring-2 focus:ring-white focus:bg-white" />
-            <AuthButton onClick={(e) => onFormSubmit(e, email)} loading={false}>Enviar Enlace</AuthButton>
+            <AuthButton onClick={() => onFormSubmit(email)}>Enviar Enlace</AuthButton>
           </div>
         </div>
         <div className="text-center">
@@ -129,7 +140,6 @@ const ForgotPasswordForm = ({ setView, onFormSubmit }: { setView: (view: AuthVie
  */
 export default function AuthPage() {
   const [view, setView] = useState<AuthView>("login");
-  const [loading, setLoading] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
   const auth = getAuth(firebaseApp);
@@ -140,8 +150,7 @@ export default function AuthPage() {
    * Redirige a la página de bienvenida para el registro de datos médicos.
    * @param e - Evento del formulario.
    */
-  const handleRegister = async (e: React.FormEvent, email:string, password:string, confirmPassword:string) => {
-    e.preventDefault();
+  const handleRegister = async (email:string, password:string, confirmPassword:string) => {
     if (password !== confirmPassword) {
       toast({
         title: "Error",
@@ -150,14 +159,9 @@ export default function AuthPage() {
       });
       return;
     }
-    setLoading(true);
     try {
       await createUserWithEmailAndPassword(auth, email, password);
-      toast({
-        title: "¡Cuenta creada!",
-        description: "Tu cuenta ha sido creada exitosamente. Ahora registra tus datos médicos.",
-      });
-      router.push("/medical-info"); // Redirige a la página de información médica
+      router.push("/welcome");
     } catch (error: any) {
       const errorCode = error.code;
       let errorMessage = "Ocurrió un error desconocido.";
@@ -173,8 +177,6 @@ export default function AuthPage() {
         description: errorMessage,
         variant: "destructive",
       });
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -183,24 +185,16 @@ export default function AuthPage() {
    * Redirige al dashboard principal si el inicio de sesión es exitoso.
    * @param e - Evento del formulario.
    */
-  const handleLogin = async (e: React.FormEvent, email: string, password: string) => {
-    e.preventDefault();
-    setLoading(true);
+  const handleLogin = async (email: string, password: string) => {
     try {
       await signInWithEmailAndPassword(auth, email, password);
-      toast({
-        title: "¡Bienvenido de nuevo!",
-        description: "Has iniciado sesión correctamente.",
-      });
-      router.push("/dashboard"); // Redirige al dashboard principal
+      router.push("/dashboard");
     } catch (error: any) {
       toast({
         title: "Error de Inicio de Sesión",
         description: "Credenciales incorrectas. Por favor, intenta de nuevo.",
         variant: "destructive",
       });
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -208,9 +202,7 @@ export default function AuthPage() {
    * Envía un correo de recuperación de contraseña a través de Firebase.
    * @param e - Evento del formulario.
    */
-  const handlePasswordReset = async (e: React.FormEvent, email: string) => {
-    e.preventDefault();
-    setLoading(true);
+  const handlePasswordReset = async (email: string) => {
     try {
       await sendPasswordResetEmail(auth, email);
       toast({
@@ -224,21 +216,11 @@ export default function AuthPage() {
         description: "Asegúrate de que el correo electrónico sea correcto.",
         variant: "destructive",
       });
-    } finally {
-      setLoading(false);
     }
   };
 
 
   const renderForm = () => {
-    if (loading) {
-      return (
-        <div className="flex justify-center items-center h-64">
-          <Loader2 className="w-12 h-12 text-white animate-spin" />
-        </div>
-      );
-    }
-
     switch (view) {
       case "register":
         return <RegisterForm setView={setView} onFormSubmit={handleRegister} />;
@@ -268,5 +250,3 @@ export default function AuthPage() {
     </MobileAppContainer>
   );
 }
-
-    

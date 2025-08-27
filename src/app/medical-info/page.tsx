@@ -84,7 +84,7 @@ export default function MedicalInfoPage() {
 
     return () => unsubscribe();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [auth, router]);
+  }, []);
 
   /**
    * Carga los datos médicos del usuario desde Firestore si existen.
