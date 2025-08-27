@@ -99,9 +99,18 @@ export default function DashboardPage() {
     }
     
     // Muestra un toast mientras se obtiene la ubicación
-    const locationToast = toast({ title: "Activando Alerta", description: "Obteniendo tu ubicación..." });
+    const { id, dismiss } = toast({ 
+      description: (
+        <div className="flex items-center gap-2 text-white">
+          <Loader2 className="animate-spin" />
+          <span>Activando Alerta: Obteniendo tu ubicación...</span>
+        </div>
+      ),
+      duration: Infinity,
+    });
+    
     const location = await getUserLocation();
-    locationToast.dismiss(); // Cierra el toast de ubicación
+    dismiss(id);
 
     if (!location) {
         toast({ title: "Activación Cancelada", description: "No se pudo activar la alerta sin tu ubicación.", variant: "destructive" });
@@ -167,7 +176,6 @@ export default function DashboardPage() {
         <QuickActions onShowMedicalInfo={handleShowMedicalInfo} />
       </div>
 
-      {/* Modal que aparece al activar la emergencia */}
       <EmergencyModal
         isOpen={isEmergencyModalOpen}
         onClose={() => setEmergencyModalOpen(false)}
@@ -175,7 +183,6 @@ export default function DashboardPage() {
         medicalData={medicalData}
       />
 
-      {/* Modal que muestra la ficha médica */}
       <MedicalInfoModal
         isOpen={isMedicalInfoModalOpen}
         onClose={() => setMedicalInfoModalOpen(false)}
