@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { EmergencyLogoIcon } from "@/components/icons/EmergencyLogoIcon";
 import { MobileAppContainer } from "@/components/MobileAppContainer";
-import { ClipboardHeart, ShieldAlert } from "lucide-react";
+import { ClipboardList, ShieldAlert } from "lucide-react";
 
 export default function WelcomePage() {
   return (
@@ -41,7 +41,7 @@ export default function WelcomePage() {
             </Button>
             <Button asChild className="w-full bg-blue-500 hover:bg-blue-600 text-white py-4 h-auto rounded-xl font-bold text-lg transition-all duration-300 transform hover:scale-105 shadow-lg">
               <Link href="/medical-info">
-                <ClipboardHeart className="mr-2" />
+                <ClipboardList className="mr-2" />
                 Registrar Datos Médicos
               </Link>
             </Button>

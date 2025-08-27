@@ -1,7 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Ambulance, Flame, Shield, ClipboardHeart } from "lucide-react";
+import { Ambulance, Flame, Shield, ClipboardList } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface QuickActionsProps {
@@ -36,7 +36,7 @@ export function QuickActions({ onShowMedicalInfo }: QuickActionsProps) {
           onClick={onShowMedicalInfo}
           className="h-auto py-4 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-medium transition-all duration-300 transform hover:scale-105 shadow-lg"
         >
-          <ClipboardHeart className="mr-2" /> Info Médica
+          <ClipboardList className="mr-2" /> Info Médica
         </Button>
       </div>
     </div>
