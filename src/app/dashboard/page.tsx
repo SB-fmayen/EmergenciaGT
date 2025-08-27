@@ -13,6 +13,7 @@ import { getFirestore, doc, getDoc, setDoc, serverTimestamp, collection } from "
 import { firebaseApp } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 
 /**
@@ -31,6 +32,7 @@ export default function DashboardPage() {
   const auth = getAuth(firebaseApp);
   const firestore = getFirestore(firebaseApp);
   const { toast } = useToast();
+  const router = useRouter();
 
   /**
    * Efecto para observar cambios en el estado de autenticación
@@ -48,13 +50,15 @@ export default function DashboardPage() {
           setLoading(false);
         });
       } else {
+        // Si no hay usuario, redirigir al login
         setCurrentUser(null);
         setLoading(false);
+        router.push('/');
       }
     });
 
     return () => unsubscribe();
-  }, [auth, firestore]);
+  }, [auth, firestore, router]);
 
   /**
    * Obtiene la geolocalización del usuario.
@@ -94,7 +98,15 @@ export default function DashboardPage() {
       return;
     }
     
+    // Muestra un toast mientras se obtiene la ubicación
+    const locationToast = toast({ title: "Activando Alerta", description: "Obteniendo tu ubicación..." });
     const location = await getUserLocation();
+    locationToast.dismiss(); // Cierra el toast de ubicación
+
+    if (!location) {
+        toast({ title: "Activación Cancelada", description: "No se pudo activar la alerta sin tu ubicación.", variant: "destructive" });
+        return;
+    }
 
     try {
       // Crea un ID de documento único para la nueva alerta

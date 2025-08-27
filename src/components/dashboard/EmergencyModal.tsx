@@ -7,10 +7,9 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
-  DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { CheckCircle, Clock, BrainCircuit } from "lucide-react";
+import { CheckCircle, Clock, BrainCircuit, Loader2 } from "lucide-react";
 import { suggestResponsePlan, type SuggestResponsePlanOutput } from "@/ai/flows/suggest-response-plan";
 import { useState } from "react";
 import { Alert, AlertDescription, AlertTitle as UiAlertTitle } from "@/components/ui/alert";
@@ -48,11 +47,12 @@ export function EmergencyModal({ isOpen, onClose, alertData, medicalData }: Emer
     setIsLoadingPlan(true);
     setResponsePlan(null);
     try {
-      const alertDetails = `Alerta en ubicación: ${alertData.location?.latitude}, ${alertData.location?.longitude}. Estado: ${alertData.status}`;
+      const alertDetails = `Alerta generada. Ubicación: ${alertData.location?.latitude}, ${alertData.location?.longitude}. Estado actual: ${alertData.status}.`;
       
+      // Formatea el historial médico para que sea más legible para la IA
       const medicalHistory = medicalData 
-        ? `Nombre: ${medicalData.fullName}, Edad: ${medicalData.age}, Tipo Sangre: ${medicalData.bloodType}, Condiciones: ${medicalData.conditions.join(', ')}. Medicamentos: ${medicalData.medications.map(m => m.name).join(', ')}. Notas: ${medicalData.additionalNotes}`
-        : "No hay datos médicos disponibles.";
+        ? `Nombre del paciente: ${medicalData.fullName}, Edad: ${medicalData.age}, Tipo de Sangre: ${medicalData.bloodType}. Condiciones médicas conocidas: ${medicalData.conditions.join(', ') || 'Ninguna'}. Otras condiciones: ${medicalData.otherConditions || 'Ninguna'}. Medicamentos actuales: ${medicalData.medications.map(m => m.name).join(', ') || 'Ninguno'}. Notas adicionales: ${medicalData.additionalNotes || 'Ninguna'}.`
+        : "No hay datos médicos disponibles para el paciente.";
 
       const plan = await suggestResponsePlan({ 
         alertDetails,
@@ -92,28 +92,25 @@ export function EmergencyModal({ isOpen, onClose, alertData, medicalData }: Emer
             </div>
             
             <div className="space-y-4">
-              <Button onClick={handleGeneratePlan} disabled={isLoadingPlan || !alertData} className="w-full bg-blue-500 hover:bg-blue-600 text-white">
-                <BrainCircuit className="mr-2 h-4 w-4" />
+              <Button onClick={handleGeneratePlan} disabled={isLoadingPlan || !alertData} className="w-full bg-blue-500 hover:bg-blue-600 text-white flex items-center gap-2">
+                {isLoadingPlan ? (
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                ) : (
+                  <BrainCircuit className="h-5 w-5" />
+                )}
                 {isLoadingPlan ? "Generando Plan..." : "Sugerir Plan de Respuesta (IA)"}
               </Button>
-              
-              {isLoadingPlan && <p>La IA está analizando la situación...</p>}
               
               {responsePlan && (
                 <Alert className="text-left bg-white/10 border-white/20">
                   <UiAlertTitle className="text-white font-bold">Plan de Respuesta Sugerido:</UiAlertTitle>
-                  <AlertDescription className="text-white/90">
+                  <AlertDescription className="text-white/90 whitespace-pre-wrap">
                     {responsePlan.responsePlan}
                   </AlertDescription>
                 </Alert>
               )}
 
               <Button onClick={onClose} className="w-full bg-white text-red-600 px-12 py-4 h-auto rounded-xl font-bold text-xl hover:bg-gray-100 transition-all duration-300 transform hover:scale-105 shadow-lg">
-                  Cancelar Alerta
+                  Entendido
               </Button>
             </div>
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
-}
