@@ -24,6 +24,7 @@ export default function AlertsPage() {
   const [currentUser, setCurrentUser] = useState<FirebaseUser | null>(null);
   const [alerts, setAlerts] = useState<AlertData[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -45,23 +46,34 @@ export default function AlertsPage() {
    */
   const fetchAlerts = async (uid: string) => {
     setLoading(true);
+    setError(null);
     try {
       const alertsRef = collection(firestore, "alerts");
       const q = query(alertsRef, where("userId", "==", uid), orderBy("timestamp", "desc"));
       const querySnapshot = await getDocs(q);
       const userAlerts = querySnapshot.docs.map(doc => {
         const data = doc.data();
+        const timestamp = data.timestamp;
+        
+        // El timestamp de firestore es un objeto, lo convertimos a Date de JS de forma segura
+        const date = timestamp instanceof Timestamp ? timestamp.toDate() : new Date();
+
         return {
           id: doc.id,
           ...data,
-          // El timestamp de firestore es un objeto, lo convertimos a Date de JS
-          timestamp: (data.timestamp as Timestamp)?.toDate(), 
+          timestamp: date,
         } as AlertData;
-      }).filter(alert => alert.timestamp); // Filtramos por si acaso no tiene timestamp aun
+      });
       
       setAlerts(userAlerts);
-    } catch (error) {
-      console.error("Error fetching alerts:", error);
+    } catch (e: any) {
+      console.error("Error fetching alerts:", e);
+      // El error de índice de Firestore se mostrará aquí si no se ha creado
+      if (e.code === 'failed-precondition') {
+          setError("La base de datos requiere un índice para esta consulta. Por favor, créalo en la consola de Firebase.");
+      } else {
+          setError("No se pudieron cargar las alertas.");
+      }
     } finally {
       setLoading(false);
     }
@@ -143,6 +155,11 @@ export default function AlertsPage() {
             <div className="text-center py-10">
               <Loader2 className="w-8 h-8 mx-auto text-white animate-spin" />
               <p className="text-white mt-4">Cargando alertas...</p>
+            </div>
+          ) : error ? (
+             <div className="text-center py-10 text-red-400 bg-red-900/50 rounded-lg">
+              <p className="font-bold">Error</p>
+              <p className="text-sm">{error}</p>
             </div>
           ) : alerts.length > 0 ? (
             alerts.map(alert => <AlertCard key={alert.id} alert={alert} />)
