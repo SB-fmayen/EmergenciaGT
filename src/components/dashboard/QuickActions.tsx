@@ -2,7 +2,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Ambulance, Flame, Shield, ClipboardList, History } from "lucide-react";
+import { Ambulance, ClipboardList, History } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface QuickActionsProps {

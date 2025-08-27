@@ -48,8 +48,23 @@ export default function AlertsPage() {
       const alertsRef = collection(firestore, "alerts");
       const q = query(alertsRef, where("userId", "==", uid), orderBy("timestamp", "desc"));
       const querySnapshot = await getDocs(q);
-      const userAlerts = querySnapshot.docs.map(doc => doc.data() as AlertData);
-      setAlerts(userAlerts);
+      const userAlerts = querySnapshot.docs.map(doc => {
+        const data = doc.data();
+        // Firestore a veces no devuelve el timestamp hasta que está completamente escrito,
+        // por lo que hay que manejar el caso de que sea null.
+        return {
+          ...data,
+          timestamp: data.timestamp ? data.timestamp.toDate() : new Date(),
+        } as AlertData;
+      }).filter(alert => alert.timestamp); // Filtramos por si acaso
+      
+      // Convertimos el timestamp de Firestore a un objeto Date de JS
+      const formattedAlerts = userAlerts.map(alert => ({
+          ...alert,
+          // El timestamp ya es un objeto Date gracias al mapeo anterior
+      }));
+
+      setAlerts(formattedAlerts as any);
     } catch (error) {
       console.error("Error fetching alerts:", error);
     } finally {
@@ -74,7 +89,7 @@ export default function AlertsPage() {
 
   const AlertCard = ({ alert }: { alert: AlertData }) => {
     const { text, icon: Icon, color } = getStatusInfo(alert.status);
-    const alertDate = alert.timestamp.toDate();
+    const alertDate = alert.timestamp as unknown as Date; // El timestamp ya es un objeto Date
 
     return (
       <div className="bg-slate-800/50 rounded-2xl p-4 shadow-lg flex flex-col space-y-3 animate-fade-in">
