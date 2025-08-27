@@ -131,13 +131,7 @@ export default function DashboardPage() {
 
       await setDoc(alertDocRef, newAlert);
       
-      setAlertData({
-          ...newAlert,
-          location: { // Convert GeoPoint back to plain object for state
-              latitude: location.latitude,
-              longitude: location.longitude,
-          }
-      });
+      setAlertData(newAlert);
       setEmergencyModalOpen(true);
 
     } catch (error) {
@@ -153,6 +147,14 @@ export default function DashboardPage() {
     setMedicalInfoModalOpen(true);
   };
   
+  const handleShowAlerts = () => {
+    router.push('/alerts');
+  };
+
+  const handleCloseEmergencyModal = () => {
+    setEmergencyModalOpen(false);
+  }
+
   // Muestra un loader mientras se cargan los datos
   if (loading) {
     return (
@@ -176,14 +178,16 @@ export default function DashboardPage() {
           <PanicButton onActivate={handleActivateEmergency} />
         </div>
 
-        <QuickActions onShowMedicalInfo={handleShowMedicalInfo} />
+        <QuickActions 
+          onShowMedicalInfo={handleShowMedicalInfo} 
+          onShowAlerts={handleShowAlerts} 
+        />
       </div>
 
       <EmergencyModal
         isOpen={isEmergencyModalOpen}
-        onClose={() => setEmergencyModalOpen(false)}
+        onClose={handleCloseEmergencyModal}
         alertData={alertData}
-        medicalData={medicalData}
       />
 
       <MedicalInfoModal

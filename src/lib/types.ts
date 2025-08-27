@@ -14,10 +14,12 @@ export type MedicalData = {
   additionalNotes: string;
 };
 
+export type AlertStatus = 'new' | 'dispatched' | 'resolved' | 'cancelled';
+
 export type AlertData = {
     id: string;
     userId: string;
-    timestamp: Timestamp | any; // any for serverTimestamp
-    location: GeoPoint | { latitude: number, longitude: number } | null;
-    status: 'new' | 'dispatched' | 'resolved';
+    timestamp: Timestamp;
+    location: GeoPoint;
+    status: AlertStatus;
 }

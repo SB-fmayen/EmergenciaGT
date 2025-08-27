@@ -1,14 +1,16 @@
+
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Ambulance, Flame, Shield, ClipboardList } from "lucide-react";
+import { Ambulance, Flame, Shield, ClipboardList, History } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface QuickActionsProps {
   onShowMedicalInfo: () => void;
+  onShowAlerts: () => void;
 }
 
-export function QuickActions({ onShowMedicalInfo }: QuickActionsProps) {
+export function QuickActions({ onShowMedicalInfo, onShowAlerts }: QuickActionsProps) {
     const { toast } = useToast();
 
     const handleActionClick = (service: string) => {
@@ -23,20 +25,17 @@ export function QuickActions({ onShowMedicalInfo }: QuickActionsProps) {
         Acciones Rápidas
       </h3>
       <div className="grid grid-cols-2 gap-4">
-        <Button onClick={() => handleActionClick("Ambulancia")} className="h-auto py-4 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-medium transition-all duration-300 transform hover:scale-105 shadow-lg">
-          <Ambulance className="mr-2" /> Ambulancia
-        </Button>
-        <Button onClick={() => handleActionClick("Bomberos")} className="h-auto py-4 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-medium transition-all duration-300 transform hover:scale-105 shadow-lg">
-          <Flame className="mr-2" /> Bomberos
-        </Button>
-        <Button onClick={() => handleActionClick("Policía")} className="h-auto py-4 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-medium transition-all duration-300 transform hover:scale-105 shadow-lg">
-          <Shield className="mr-2" /> Policía
+        <Button onClick={onShowAlerts} className="h-auto py-4 bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700 text-white font-medium transition-all duration-300 transform hover:scale-105 shadow-lg">
+          <History className="mr-2" /> Historial
         </Button>
         <Button
           onClick={onShowMedicalInfo}
           className="h-auto py-4 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-medium transition-all duration-300 transform hover:scale-105 shadow-lg"
         >
           <ClipboardList className="mr-2" /> Info Médica
+        </Button>
+        <Button onClick={() => handleActionClick("Ambulancia")} className="h-auto py-4 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-medium transition-all duration-300 transform hover:scale-105 shadow-lg col-span-2">
+          <Ambulance className="mr-2" /> Llamar Ambulancia
         </Button>
       </div>
     </div>
