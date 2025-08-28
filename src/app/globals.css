@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -65,3 +66,15 @@ body {
     @apply bg-background text-foreground;
   }
 }
+
+/* Custom styles for admin dashboard */
+.severity-critical { border-left: 4px solid #dc2626; }
+.severity-high { border-left: 4px solid #ea580c; }
+.severity-medium { border-left: 4px solid #d97706; }
+.severity-low { border-left: 4px solid #65a30d; }
+
+.status-active { background-color: #fef2f2; }
+.status-in-progress { background-color: #fffbeb; }
+.status-completed { background-color: #f0fdf4; }
+
+    
