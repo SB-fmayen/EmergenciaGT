@@ -52,7 +52,7 @@ export default function AdminDashboardPage() {
     const [statusFilter, setStatusFilter] = useState("new");
 
     const initialLoadDone = useRef(false);
-    const audioRef = useRef<HTMLAudioElement>(null);
+    const audioRef = useRef<HTMLAudioElement | null>(null);
 
     useEffect(() => {
         const savedTheme = localStorage.getItem("theme") || "dark";
@@ -63,7 +63,7 @@ export default function AdminDashboardPage() {
         setIsSoundOn(savedSoundPreference);
         
         if (typeof window !== 'undefined') {
-            (audioRef as React.MutableRefObject<HTMLAudioElement>).current = new Audio('/notification.mp3');
+            audioRef.current = new Audio('/notification.mp3');
         }
 
     }, []);
@@ -89,9 +89,9 @@ export default function AdminDashboardPage() {
 
             if (initialLoadDone.current && isSoundOn) {
                 const newAlerts = alertsData.filter(a => a.status === 'new' && !alerts.some(old => old.id === a.id));
-                if (newAlerts.length > 0) {
+                if (newAlerts.length > 0 && audioRef.current) {
                    toast({ title: "¡Nueva Alerta!", description: `${newAlerts.length} nueva(s) emergencia(s) recibida(s).` });
-                   audioRef.current?.play().catch(e => console.error("Error playing sound:", e));
+                   audioRef.current.play().catch(e => console.error("Error playing sound:", e));
                 }
             }
 
@@ -124,7 +124,7 @@ export default function AdminDashboardPage() {
         }, (error) => {
             console.error("Error fetching alerts:", error);
             if (error.code === 'permission-denied') {
-                toast({ title: "Error de Permisos", description: "Verifica las reglas de seguridad de Firestore para permitir la lectura de alertas.", variant: "destructive" });
+                toast({ title: "Error de Permisos", description: "No tienes permisos para ver las alertas.", variant: "destructive" });
             } else {
                  toast({ title: "Error de Conexión", description: "No se pudieron cargar las alertas en tiempo real.", variant: "destructive" });
             }
@@ -147,6 +147,7 @@ export default function AdminDashboardPage() {
 
     const handleCloseModal = () => {
         setIsModalOpen(false);
+        setSelectedAlert(null);
     }
 
     const handleLogout = async () => {

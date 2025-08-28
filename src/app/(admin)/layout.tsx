@@ -32,7 +32,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setUser(currentUser);
       if (currentUser) {
         try {
-            // Force refresh to get the latest claims.
+            // Force refresh to get the latest claims. This is crucial.
             const idTokenResult = await currentUser.getIdTokenResult(true); 
             const isAdmin = idTokenResult.claims.admin === true;
             setUserRole(isAdmin ? 'admin' : 'operator');
