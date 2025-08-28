@@ -1,7 +1,8 @@
 
+
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -10,13 +11,15 @@ import { auth, firestore } from "@/lib/firebase";
 import { signOut } from "firebase/auth";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
-import { LogOut, RefreshCw, Bell, Zap, CheckCircle, Clock, MapPin, Building, Loader2, Moon, Sun } from "lucide-react";
+import { LogOut, RefreshCw, Bell, Zap, CheckCircle, Clock, MapPin, Building, Loader2, Moon, Sun, LayoutDashboard } from "lucide-react";
 import dynamic from 'next/dynamic';
 import { collection, onSnapshot, query, getDoc, doc, where, orderBy } from "firebase/firestore";
 import type { AlertData, MedicalData } from "@/lib/types";
 import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { AlertDetailModal } from "@/components/admin/AlertDetailModal";
+import Link from 'next/link';
+import { SettingsDropdown } from '@/components/admin/SettingsDropdown';
 
 const AlertsMap = dynamic(() => import('@/components/admin/AlertsMap'), { 
   ssr: false,
@@ -42,14 +45,28 @@ export default function AdminDashboardPage() {
     const [loading, setLoading] = useState(true);
     const [selectedAlert, setSelectedAlert] = useState<EnrichedAlert | null>(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isSoundOn, setIsSoundOn] = useState(true);
 
     const [searchTerm, setSearchTerm] = useState("");
     const [statusFilter, setStatusFilter] = useState("new");
 
+    const audioRef = useRef<HTMLAudioElement | null>(null);
+    const initialLoadDone = useRef(false);
+
     useEffect(() => {
+        // Inicializa el tema desde localStorage
         const savedTheme = localStorage.getItem("theme") || "dark";
         setTheme(savedTheme);
         document.documentElement.className = savedTheme;
+
+        // Carga la preferencia de sonido
+        const savedSoundPreference = localStorage.getItem("sound") === "on";
+        setIsSoundOn(savedSoundPreference);
+        
+        // Asigna la referencia al elemento de audio
+        if (typeof window !== "undefined") {
+            audioRef.current = new Audio('/notification.mp3');
+        }
     }, []);
 
     const toggleTheme = () => {
@@ -70,6 +87,17 @@ export default function AdminDashboardPage() {
                 ...doc.data(),
                 timestamp: doc.data().timestamp?.toDate(),
             })) as AlertData;
+
+            if (initialLoadDone.current && isSoundOn) {
+                // Si ya pasó la carga inicial y hay nuevos datos, podría ser una nueva alerta.
+                // Una lógica más robusta verificaría si realmente hay una alerta 'new' que no existía antes.
+                const newAlerts = alertsData.filter(a => a.status === 'new' && !alerts.some(old => old.id === a.id));
+                if (newAlerts.length > 0) {
+                   audioRef.current?.play().catch(e => console.error("Error playing sound:", e));
+                   toast({ title: "¡Nueva Alerta!", description: `${newAlerts.length} nueva(s) emergencia(s) recibida(s).` });
+                }
+            }
+
 
             const enrichedAlerts = await Promise.all(
                 alertsData.map(async (alert) => {
@@ -96,14 +124,20 @@ export default function AdminDashboardPage() {
             
             setAlerts(enrichedAlerts);
             setLoading(false);
+            initialLoadDone.current = true; // Marcar la carga inicial como completada
         }, (error) => {
             console.error("Error fetching alerts:", error);
-            toast({ title: "Error de Conexión", description: "No se pudieron cargar las alertas en tiempo real.", variant: "destructive" });
+            if (error.code === 'permission-denied' || error.code === 'failed-precondition') {
+                toast({ title: "Error de Permisos", description: "Verifica las reglas de seguridad de Firestore para permitir la lectura de alertas.", variant: "destructive" });
+            } else {
+                 toast({ title: "Error de Conexión", description: "No se pudieron cargar las alertas en tiempo real.", variant: "destructive" });
+            }
             setLoading(false);
         });
 
         return () => unsubscribe();
-    }, [toast]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [toast, isSoundOn]);
 
     const handleAlertClick = (alert: EnrichedAlert) => {
         setSelectedAlert(alert);
@@ -179,21 +213,26 @@ export default function AdminDashboardPage() {
                     <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center shadow-lg">
                         <span className="text-primary-foreground font-bold text-xl">🚨</span>
                     </div>
-                    <h1 className="text-2xl font-bold text-foreground">Consola de Emergencias - EmergenciaGT</h1>
+                    <h1 className="text-2xl font-bold text-foreground">Consola de Emergencias</h1>
                 </div>
                 <div className="flex items-center space-x-4">
-                     <Button onClick={toggleTheme} variant="ghost" size="icon">
-                        <Sun className="h-5 w-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-                        <Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-                        <span className="sr-only">Toggle theme</span>
-                    </Button>
-                     <div className="text-right">
-                        <div className="font-semibold text-foreground">María González</div>
-                        <div className="text-sm text-primary">Administrador</div>
-                    </div>
+                    <Link href="/dashboard/analytics">
+                        <Button variant="outline">
+                            <LayoutDashboard className="mr-2 h-4 w-4"/>
+                            Analíticas
+                        </Button>
+                    </Link>
+                    <SettingsDropdown
+                         theme={theme}
+                         toggleTheme={toggleTheme}
+                         isSoundOn={isSoundOn}
+                         setIsSoundOn={setIsSoundOn}
+                         operatorName="María González"
+                         operatorRole="Administrador"
+                    />
                      <Button onClick={handleLogout} variant="destructive" size="sm">
                         <LogOut className="mr-2 h-4 w-4"/>
-                        Cerrar Sesión
+                        Salir
                     </Button>
                 </div>
             </div>
