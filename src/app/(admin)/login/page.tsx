@@ -9,7 +9,7 @@ import {
   sendPasswordResetEmail,
 } from "firebase/auth";
 import { auth, firestore } from "@/lib/firebase";
-import { doc, setDoc } from "firebase/firestore";
+import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
@@ -52,12 +52,12 @@ export default function AdminLoginPage() {
       setLoading(true);
       try {
           const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-          // TODO: Asignar rol de 'operador' por defecto en Firestore
-          // await setDoc(doc(firestore, "users", userCredential.user.uid), {
-          //   email: userCredential.user.email,
-          //   role: 'operator',
-          //   createdAt: new Date(),
-          // });
+          // Asigna el rol de 'operador' por defecto en Firestore
+          await setDoc(doc(firestore, "users", userCredential.user.uid), {
+            email: userCredential.user.email,
+            role: 'operator',
+            createdAt: serverTimestamp(),
+          });
           toast({
               title: "Registro Exitoso",
               description: "Tu cuenta de operador ha sido creada. Ahora puedes iniciar sesión.",
@@ -125,7 +125,7 @@ export default function AdminLoginPage() {
               <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" required />
             </div>
             <Button type="submit" className="w-full bg-blue-600 text-white py-3 h-auto text-lg hover:bg-blue-700" disabled={loading}>
-              {loading ? <Loader2 className="animate-spin" /> : "Crear Cuenta"}
+              {loading ? <Loader2 className="animate-spin" /> : "Crear Cuenta de Operador"}
             </Button>
         </form>
       );
