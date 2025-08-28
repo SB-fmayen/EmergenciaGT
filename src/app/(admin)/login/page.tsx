@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState } from "react";
@@ -62,17 +63,22 @@ export default function AdminLoginPage() {
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       
-      // We still write to firestore to keep a record of the user, but the role is now managed by custom claims.
+      // The user document is for storing non-sensitive, display data.
+      // Security is now handled by custom claims.
       await setDoc(doc(firestore, "users", userCredential.user.uid), {
         email: userCredential.user.email,
         lastLogin: serverTimestamp(),
       }, { merge: true });
+
+      // Force refresh of the token to get the latest custom claims.
+      await userCredential.user.getIdToken(true);
 
       toast({
         title: "Inicio de Sesión Exitoso",
         description: "Bienvenido a la Consola de Operaciones.",
       });
       router.push("/dashboard/admin");
+      router.refresh(); // Refresh the page to ensure layout re-evaluates role.
     } catch (error: any) {
       handleFirebaseAuthError(error);
     } finally {
@@ -85,7 +91,7 @@ export default function AdminLoginPage() {
       setLoading(true);
       try {
           const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-          // By default, a new user is an 'operator'. The role can be elevated to 'admin' via custom claims.
+          // By default, a new user is an 'operator'. They can be promoted to 'admin' via the users panel.
           await setDoc(doc(firestore, "users", userCredential.user.uid), {
             uid: userCredential.user.uid,
             email: userCredential.user.email,
@@ -218,3 +224,5 @@ export default function AdminLoginPage() {
     </div>
   );
 }
+
+    

@@ -31,10 +31,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
       if (currentUser) {
-        // Get custom claims from the ID token
-        const idTokenResult = await currentUser.getIdTokenResult();
-        const isAdmin = idTokenResult.claims.admin === true;
-        setUserRole(isAdmin ? 'admin' : 'operator');
+        try {
+            // Get custom claims from the ID token.
+            const idTokenResult = await currentUser.getIdTokenResult(true); // Force refresh
+            const isAdmin = idTokenResult.claims.admin === true;
+            setUserRole(isAdmin ? 'admin' : 'operator');
+        } catch (error) {
+            console.error("Error fetching user role from token:", error);
+            setUserRole('operator'); // Default to operator on error
+        }
       } else {
         setUserRole(null);
       }
@@ -77,8 +82,9 @@ function ProtectedLayout({ children }: { children: ReactNode }) {
       return;
     }
 
-    // Role-based protection for stations page
-    if (user && userRole === 'operator' && pathname === '/dashboard/stations') {
+    // Role-based protection for admin-only pages
+    const adminPages = ['/dashboard/stations', '/dashboard/users'];
+    if (user && userRole === 'operator' && adminPages.includes(pathname)) {
         router.push('/dashboard/admin'); // Redirect operators away from admin-only pages
     }
 
@@ -116,3 +122,5 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
         </AuthProvider>
     )
 }
+
+    

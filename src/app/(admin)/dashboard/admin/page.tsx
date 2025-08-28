@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, useEffect, useMemo, useRef } from "react";
@@ -10,7 +11,7 @@ import { auth, firestore } from "@/lib/firebase";
 import { signOut, type User } from "firebase/auth";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
-import { LogOut, RefreshCw, Bell, Zap, CheckCircle, Clock, MapPin, Building, Loader2, Moon, Sun, LayoutDashboard, HardHat } from "lucide-react";
+import { LogOut, RefreshCw, Bell, Zap, CheckCircle, Clock, MapPin, Building, Loader2, Moon, Sun, LayoutDashboard, HardHat, Users } from "lucide-react";
 import dynamic from 'next/dynamic';
 import { collection, onSnapshot, query, getDoc, doc, where, orderBy } from "firebase/firestore";
 import type { AlertData, MedicalData } from "@/lib/types";
@@ -212,12 +213,20 @@ export default function AdminDashboardPage() {
                         </Button>
                     </Link>
                     {userRole === 'admin' && (
+                       <>
                         <Link href="/dashboard/stations">
                             <Button variant="outline">
                                 <HardHat className="mr-2 h-4 w-4"/>
-                                Gestionar Estaciones
+                                Estaciones
                             </Button>
                         </Link>
+                        <Link href="/dashboard/users">
+                            <Button variant="outline">
+                                <Users className="mr-2 h-4 w-4"/>
+                                Usuarios
+                            </Button>
+                        </Link>
+                       </>
                     )}
                     <SettingsDropdown
                          theme={theme}
@@ -377,3 +386,5 @@ export default function AdminDashboardPage() {
     </>
   );
 }
+
+    
