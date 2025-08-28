@@ -62,7 +62,7 @@ export default function DashboardPage() {
         // Si no hay usuario, redirigir al login
         setCurrentUser(null);
         setLoading(false);
-        router.push('/');
+        router.push('/auth');
       }
     });
 
@@ -228,7 +228,7 @@ export default function DashboardPage() {
     try {
       await signOut(auth);
       toast({ title: "Sesión cerrada", description: "Has cerrado sesión correctamente." });
-      router.push('/');
+      router.push('/auth');
     } catch (error) {
       toast({ title: "Error", description: "No se pudo cerrar la sesión.", variant: "destructive" });
     }

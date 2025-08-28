@@ -78,7 +78,7 @@ export default function MedicalInfoPage() {
         setCurrentUser(user);
         fetchMedicalData(user.uid);
       } else {
-        router.push("/");
+        router.push("/auth");
       }
     });
 

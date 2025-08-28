@@ -40,7 +40,7 @@ export default function AlertsPage() {
         setCurrentUser(user);
         fetchAlerts(user.uid);
       } else {
-        router.push("/");
+        router.push("/auth");
       }
     });
 
