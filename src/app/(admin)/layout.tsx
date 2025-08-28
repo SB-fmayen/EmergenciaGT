@@ -30,9 +30,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (loading) return;
 
-    const isAdminLoginOrDashboard = pathname.startsWith('/login') || pathname.startsWith('/dashboard/admin');
-
-    // Si no hay usuario y se intenta acceder a una ruta de admin, redirigir al login de admin.
+    // Si no hay usuario y se intenta acceder a una ruta que no es de login, redirigir al login.
     if (!user && pathname !== '/login') {
       router.push('/login');
     }
@@ -50,7 +48,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     return (
       <div className="bg-slate-900 min-h-screen flex flex-col justify-center items-center text-white">
         <Loader2 className="w-12 h-12 animate-spin" />
-        <p className="mt-4 text-lg">Verificando acceso al panel...</p>
+        <p className="mt-4 text-lg">Verificando sesión...</p>
       </div>
     );
   }
