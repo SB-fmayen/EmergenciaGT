@@ -4,7 +4,6 @@
 import { firestore } from "@/lib/firebase";
 import type { StationData } from "@/lib/types";
 import { collection, addDoc, serverTimestamp, GeoPoint } from "firebase/firestore";
-import { revalidatePath } from "next/cache";
 
 export async function createStation(formData: FormData) {
   const name = formData.get("name") as string;
@@ -26,12 +25,11 @@ export async function createStation(formData: FormData) {
     
     await addDoc(collection(firestore, "stations"), stationData);
     
-    revalidatePath("/dashboard/stations"); // Actualiza la cache para que se muestre la nueva estación
+    // Se elimina revalidatePath ya que la página usa onSnapshot para las actualizaciones en tiempo real.
+    // Esto simplifica la acción y evita posibles conflictos en el lado del cliente.
     return { success: true };
   } catch (error) {
     console.error("Error creating station:", error);
     return { success: false, error: "No se pudo crear la estación." };
   }
 }
-
-    
