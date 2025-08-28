@@ -5,13 +5,15 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { MobileAppContainer } from "@/components/MobileAppContainer";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Loader2, Clock, MapPin, CheckCircle, AlertTriangle, Send } from "lucide-react";
+import { ArrowLeft, Loader2, Clock, MapPin, CheckCircle, AlertTriangle, Send, ShieldX } from "lucide-react";
 import { getAuth, onAuthStateChanged, type User as FirebaseUser } from "firebase/auth";
-import { getFirestore, collection, query, where, getDocs, orderBy, Timestamp } from "firebase/firestore";
+import { getFirestore, collection, query, where, getDocs, orderBy, Timestamp, doc, updateDoc } from "firebase/firestore";
 import { firebaseApp } from "@/lib/firebase";
 import type { AlertData, AlertStatus } from "@/lib/types";
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { CancelAlertModal } from "@/components/dashboard/CancelAlertModal";
+import { useToast } from "@/hooks/use-toast";
 
 /**
  * Página que muestra el historial de alertas de un usuario.
@@ -20,11 +22,16 @@ export default function AlertsPage() {
   const router = useRouter();
   const auth = getAuth(firebaseApp);
   const firestore = getFirestore(firebaseApp);
+  const { toast } = useToast();
 
   const [currentUser, setCurrentUser] = useState<FirebaseUser | null>(null);
   const [alerts, setAlerts] = useState<AlertData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const [isCancelModalOpen, setCancelModalOpen] = useState(false);
+  const [alertToCancel, setAlertToCancel] = useState<AlertData | null>(null);
+
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -79,6 +86,42 @@ export default function AlertsPage() {
     }
   };
 
+  const handleOpenCancelModal = (alert: AlertData) => {
+    setAlertToCancel(alert);
+    setCancelModalOpen(true);
+  }
+
+  const handleCloseCancelModal = () => {
+    setCancelModalOpen(false);
+    setAlertToCancel(null);
+  }
+  
+  const handleConfirmCancellation = async (reason: string) => {
+    if (!alertToCancel) return;
+
+    try {
+      const alertRef = doc(firestore, "alerts", alertToCancel.id);
+      await updateDoc(alertRef, {
+        status: 'cancelled',
+        cancellationReason: reason
+      });
+      toast({
+        title: "Alerta Cancelada",
+        description: "La alerta ha sido cancelada correctamente."
+      });
+      // Actualizar el estado local para reflejar el cambio inmediatamente
+      setAlerts(prevAlerts => 
+        prevAlerts.map(alert => 
+            alert.id === alertToCancel.id ? { ...alert, status: 'cancelled' } : alert
+        )
+      );
+      handleCloseCancelModal();
+    } catch(e) {
+      console.error("Error cancelling alert:", e);
+      toast({ title: "Error", description: "No se pudo cancelar la alerta.", variant: "destructive"})
+    }
+  }
+
   const getStatusInfo = (status: AlertStatus): { text: string; icon: React.ElementType; color: string } => {
     switch (status) {
       case 'new':
@@ -128,6 +171,17 @@ export default function AlertsPage() {
                 </a>
             </div>
         </div>
+        {alert.status === 'new' && (
+             <Button 
+                variant="destructive" 
+                size="sm" 
+                className="mt-2 bg-red-800/80 hover:bg-red-700/80 text-red-200 border-red-500/50 border"
+                onClick={() => handleOpenCancelModal(alert)}
+            >
+                <ShieldX className="w-4 h-4 mr-2" />
+                Cancelar Solicitud
+            </Button>
+        )}
       </div>
     );
   };
@@ -170,6 +224,11 @@ export default function AlertsPage() {
           )}
         </div>
       </div>
+       <CancelAlertModal
+        isOpen={isCancelModalOpen}
+        onClose={handleCloseCancelModal}
+        onConfirm={handleConfirmCancellation}
+      />
     </MobileAppContainer>
   );
 }

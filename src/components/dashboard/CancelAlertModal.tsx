@@ -1,7 +1,7 @@
 
 "use client"
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -32,6 +32,14 @@ export function CancelAlertModal({ isOpen, onClose, onConfirm }: CancelAlertModa
     const [isCancelling, setIsCancelling] = useState(false);
     const { toast } = useToast();
 
+    // Reset state when dialog opens
+    useEffect(() => {
+        if (isOpen) {
+            setSelectedReason(null);
+            setIsCancelling(false);
+        }
+    }, [isOpen]);
+
     const handleConfirm = async () => {
         if (!selectedReason) {
             toast({
@@ -44,14 +52,11 @@ export function CancelAlertModal({ isOpen, onClose, onConfirm }: CancelAlertModa
 
         setIsCancelling(true);
         await onConfirm(selectedReason);
-        setIsCancelling(false);
+        // El estado de cancelación se resetea en el useEffect o al cerrar
     }
 
-    // Reset state when dialog closes
     const handleOpenChange = (open: boolean) => {
         if (!open) {
-            setSelectedReason(null);
-            setIsCancelling(false);
             onClose();
         }
     }
@@ -81,7 +86,7 @@ export function CancelAlertModal({ isOpen, onClose, onConfirm }: CancelAlertModa
             <Button onClick={onClose} variant="outline" className="w-full border-slate-500 text-slate-300 hover:bg-slate-700 hover:text-white" disabled={isCancelling}>
                 Volver
             </Button>
-            <Button onClick={handleConfirm} className="w-full bg-yellow-500 hover:bg-yellow-600 text-slate-900 font-bold" disabled={isCancelling}>
+            <Button onClick={handleConfirm} className="w-full bg-yellow-500 hover:bg-yellow-600 text-slate-900 font-bold" disabled={isCancelling || !selectedReason}>
                 {isCancelling ? <Loader2 className="animate-spin" /> : "Confirmar Cancelación"}
             </Button>
         </DialogFooter>
