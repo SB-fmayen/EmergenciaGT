@@ -19,7 +19,7 @@ import { useToast } from '@/hooks/use-toast';
 interface CancelAlertModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onConfirm: (reason: string) => Promise<void>;
+  onConfirm: (reason: string) => void;
 }
 
 const cancellationReasons = [
@@ -40,7 +40,7 @@ export function CancelAlertModal({ isOpen, onClose, onConfirm }: CancelAlertModa
         }
     }, [isOpen]);
 
-    const handleConfirm = async () => {
+    const handleConfirm = () => {
         if (!selectedReason) {
             toast({
                 title: "Selecciona un motivo",
@@ -51,7 +51,7 @@ export function CancelAlertModal({ isOpen, onClose, onConfirm }: CancelAlertModa
         }
 
         setIsCancelling(true);
-        await onConfirm(selectedReason);
+        onConfirm(selectedReason);
         // El estado de cancelación se resetea en el useEffect o al cerrar
     }
 
