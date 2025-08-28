@@ -59,7 +59,7 @@ export default function AdminDashboardPage() {
         setTheme(savedTheme);
         document.documentElement.className = savedTheme;
 
-        const savedSoundPreference = localStorage.getItem("sound") === "on";
+        const savedSoundPreference = localStorage.getItem("sound") !== "off";
         setIsSoundOn(savedSoundPreference);
         
         if (typeof window !== 'undefined') {
@@ -294,7 +294,7 @@ export default function AdminDashboardPage() {
                 <div className="p-6 border-b border-border">
                     <div className="flex items-center justify-between mb-4">
                         <h2 className="text-xl font-bold text-foreground">Alertas de Emergencia</h2>
-                        <Button variant="outline">
+                        <Button variant="outline" onClick={() => window.location.reload()}>
                             <RefreshCw className="mr-2 h-4 w-4"/>
                             Actualizar
                         </Button>
@@ -390,4 +390,3 @@ export default function AdminDashboardPage() {
     </>
   );
 }
-

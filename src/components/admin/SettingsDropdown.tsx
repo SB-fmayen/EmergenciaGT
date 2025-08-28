@@ -38,6 +38,8 @@ export function SettingsDropdown({
         localStorage.setItem("sound", checked ? "on" : "off");
     };
 
+    const isAdmin = operatorRole === 'admin';
+
     return (
         <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -53,13 +55,13 @@ export function SettingsDropdown({
                 <DropdownMenuGroup>
                     <DropdownMenuItem className="focus:bg-transparent cursor-default">
                         <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
-                                <User className="w-5 h-5 text-primary" />
+                            <div className={`w-10 h-10 rounded-full flex items-center justify-center ${isAdmin ? 'bg-green-500/10' : 'bg-primary/10'}`}>
+                                <User className={`w-5 h-5 ${isAdmin ? 'text-green-500' : 'text-primary'}`} />
                             </div>
                             <div>
                                 <p className="font-semibold truncate">{operatorName}</p>
                                 <p className="text-xs text-muted-foreground flex items-center gap-1">
-                                    <ShieldCheck className="w-3 h-3 text-green-500" />
+                                    <ShieldCheck className={`w-3 h-3 ${isAdmin ? 'text-green-500' : 'text-muted-foreground'}`} />
                                     <span className="capitalize">{operatorRole}</span>
                                 </p>
                             </div>
@@ -98,5 +100,3 @@ export function SettingsDropdown({
         </DropdownMenu>
     );
 }
-
-    
