@@ -1,0 +1,32 @@
+
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Stations can only be read or written by authenticated admin users.
+    match /stations/{stationId} {
+      allow read, write: if request.auth != null && request.auth.token.admin == true;
+    }
+
+    // Alerts can be created by any authenticated user.
+    // They can be read, updated, or deleted only by authenticated users (admins/operators).
+    match /alerts/{alertId} {
+      allow create: if request.auth != null;
+      allow read, update, delete: if request.auth != null;
+    }
+
+    // Medical info can be created, read, or updated by the user who owns it.
+    match /medicalInfo/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // User profiles can be created by any authenticated user.
+    // They can be read by any authenticated user.
+    // They can only be updated by the user who owns it.
+    match /users/{userId} {
+       allow create, read: if request.auth != null;
+       allow update: if request.auth != null && request.auth.uid == userId;
+    }
+  }
+}
