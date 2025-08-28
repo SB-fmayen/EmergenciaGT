@@ -68,7 +68,7 @@ export default function DashboardPage() {
   }, [auth, firestore]);
 
   /**
-   * Obtiene la geolocalización del usuario.
+   * Obtiene la geolocalización del usuario y maneja errores específicos.
    * @returns Una promesa que resuelve con la posición o null si falla.
    */
   const getUserLocation = (): Promise<{ latitude: number; longitude: number } | null> => {
@@ -84,8 +84,24 @@ export default function DashboardPage() {
               longitude: position.coords.longitude,
             });
           },
-          () => {
-            toast({ title: "Error de Ubicación", description: "No se pudo obtener tu ubicación. Activa los permisos.", variant: "destructive"});
+          (error) => {
+            let title = "Error de Ubicación";
+            let description = "No se pudo obtener tu ubicación. Intenta de nuevo.";
+            
+            switch(error.code) {
+                case error.PERMISSION_DENIED:
+                    title = "Permiso de ubicación denegado";
+                    description = "Por favor, habilita los permisos de ubicación en los ajustes de tu navegador para poder enviar una alerta.";
+                    break;
+                case error.POSITION_UNAVAILABLE:
+                    description = "La información de ubicación no está disponible en este momento. Intenta moverte a un lugar con mejor señal.";
+                    break;
+                case error.TIMEOUT:
+                    description = "Se agotó el tiempo de espera para obtener la ubicación. Por favor, inténtalo de nuevo.";
+                    break;
+            }
+
+            toast({ title, description, variant: "destructive"});
             resolve(null);
           },
           { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
