@@ -37,13 +37,8 @@ const LoginForm = ({ setView, onFormSubmit, loading }: { setView: (view: AuthVie
     const [password, setPassword] = useState("");
     const [showPassword, setShowPassword] = useState(false);
 
-    const handleSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        onFormSubmit(email, password);
-    };
-
     return (
-        <form onSubmit={handleSubmit} className="space-y-6 animate-fade-in">
+        <form onSubmit={(e) => { e.preventDefault(); onFormSubmit(email, password); }} className="space-y-6 animate-fade-in">
             <div className="border border-white/10 bg-white/5 backdrop-blur-lg rounded-2xl p-6">
               <h2 className="text-xl font-bold text-white mb-6 text-center">Iniciar Sesión</h2>
               <div className="space-y-4">
@@ -79,13 +74,8 @@ const RegisterForm = ({ setView, onFormSubmit, loading }: { setView: (view: Auth
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-    const handleSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        onFormSubmit(email, password, confirmPassword);
-    };
-
     return (
-        <form onSubmit={handleSubmit} className="space-y-6 animate-fade-in">
+        <form onSubmit={(e) => { e.preventDefault(); onFormSubmit(email, password, confirmPassword);}} className="space-y-6 animate-fade-in">
         <div className="border border-white/10 bg-white/5 backdrop-blur-lg rounded-2xl p-6">
           <h2 className="text-xl font-bold text-white mb-6 text-center">Crear Cuenta</h2>
           <div className="space-y-4">
@@ -116,12 +106,9 @@ const RegisterForm = ({ setView, onFormSubmit, loading }: { setView: (view: Auth
 
 const ForgotPasswordForm = ({ setView, onFormSubmit, loading }: { setView: (view: AuthView) => void, onFormSubmit: (email: string) => void, loading: boolean }) => {
     const [email, setEmail] = useState("");
-    const handleSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        onFormSubmit(email);
-    };
+
     return (
-        <form onSubmit={handleSubmit} className="space-y-6 animate-fade-in">
+        <form onSubmit={(e) => {e.preventDefault(); onFormSubmit(email);}} className="space-y-6 animate-fade-in">
         <div className="border border-white/10 bg-white/5 backdrop-blur-lg rounded-2xl p-6">
           <h2 className="text-xl font-bold text-white mb-6 text-center">Recuperar Contraseña</h2>
           <p className="text-white/80 text-sm mb-4 text-center">Ingresa tu correo y te enviaremos un enlace para restablecerla.</p>
@@ -169,7 +156,9 @@ export default function AuthPage() {
     setLoading(true);
     try {
         await action();
-        if(successPath) router.push(successPath);
+        if(successPath) {
+          router.push(successPath);
+        }
     } catch (error: any) {
         handleFirebaseAuthError(error);
     } finally {
@@ -186,7 +175,7 @@ export default function AuthPage() {
   };
 
   const handleLogin = (email: string, password: string) => {
-    handleAuthAction(() => signInWithEmailAndPassword(auth, email, password), "/dashboard");
+    handleAuthAction(() => signInWithEmailAndPassword(auth, email, password));
   };
 
   const handlePasswordReset = (email: string) => {
@@ -198,7 +187,7 @@ export default function AuthPage() {
   };
 
   const handleAnonymousSignIn = () => {
-    handleAuthAction(() => signInAnonymously(auth), "/dashboard");
+    handleAuthAction(() => signInAnonymously(auth));
   }
 
   const handleFirebaseAuthError = (error: any) => {
@@ -268,8 +257,8 @@ export default function AuthPage() {
                 onClick={handleAnonymousSignIn}
                 disabled={loading}
             >
-                {loading && view === "login" ? null : <ShieldQuestion className="w-4 h-4 mr-2" />}
-                {loading && view !== "login" ? <Loader2 className="animate-spin" /> : "Ingresar como Invitado"}
+                {loading ? <Loader2 className="animate-spin" /> : <ShieldQuestion className="w-4 h-4 mr-2" />}
+                 Ingresar como Invitado
             </Button>
         </div>
 
@@ -277,3 +266,5 @@ export default function AuthPage() {
     </MobileAppContainer>
   );
 }
+
+    
