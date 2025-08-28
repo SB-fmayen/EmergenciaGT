@@ -35,7 +35,7 @@ export async function createStation(formData: FormData) {
     return { success: true };
   } catch (error: any) {
     console.error("Error creating station:", error);
-    // Devuelve un mensaje de error más específico para ayudar a depurar
+    // Devuelve un mensaje de error específico para ayudar a depurar en el cliente.
     return { success: false, error: `Error de Firestore: ${error.message}` };
   }
 }

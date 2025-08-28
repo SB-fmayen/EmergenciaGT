@@ -13,15 +13,23 @@ import { collection, onSnapshot, query, orderBy } from "firebase/firestore";
 import type { StationData } from "@/lib/types";
 import { createStation } from "./actions";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/app/(admin)/layout";
 
 export default function StationsPage() {
   const [stations, setStations] = useState<StationData[]>([]);
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
+  const { userRole } = useAuth();
   const formRef = useRef<HTMLFormElement>(null);
 
   useEffect(() => {
+    // No intentes cargar datos si el rol aún no es 'admin'
+    if (userRole !== 'admin') {
+      setLoading(false);
+      return;
+    }
+
     const stationsRef = collection(firestore, "stations");
     const q = query(stationsRef, orderBy("createdAt", "desc"));
 
@@ -35,11 +43,15 @@ export default function StationsPage() {
     }, (error) => {
       console.error("Error fetching stations:", error);
       setLoading(false);
-      toast({ title: "Error", description: "No se pudieron cargar las estaciones.", variant: "destructive"});
+      if (error.code === 'permission-denied') {
+        toast({ title: "Acceso Denegado", description: "No tienes permisos para ver las estaciones. Contacta a un administrador.", variant: "destructive"});
+      } else {
+        toast({ title: "Error", description: "No se pudieron cargar las estaciones.", variant: "destructive"});
+      }
     });
 
     return () => unsubscribe();
-  }, [toast]);
+  }, [toast, userRole]);
 
   const handleFormSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -52,7 +64,7 @@ export default function StationsPage() {
       toast({ title: "Éxito", description: "Estación creada correctamente." });
       formRef.current?.reset();
     } else {
-      toast({ title: "Error", description: result.error, variant: "destructive" });
+      toast({ title: "Error al crear la estación", description: result.error, variant: "destructive" });
     }
 
     setIsSubmitting(false);
@@ -141,7 +153,9 @@ export default function StationsPage() {
                         </TableRow>
                       )) : (
                         <TableRow>
-                          <TableCell colSpan={3} className="text-center text-muted-foreground">No hay estaciones registradas.</TableCell>
+                          <TableCell colSpan={3} className="text-center text-muted-foreground">
+                            {userRole === 'admin' ? "No hay estaciones registradas." : "No tienes permisos para ver esta información."}
+                          </TableCell>
                         </TableRow>
                       )}
                     </TableBody>

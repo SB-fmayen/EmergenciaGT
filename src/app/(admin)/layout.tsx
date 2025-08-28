@@ -32,8 +32,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setUser(currentUser);
       if (currentUser) {
         try {
-            // Get custom claims from the ID token.
-            const idTokenResult = await currentUser.getIdTokenResult(true); // Force refresh
+            // Get custom claims from the ID token. Force refresh to get the latest claims.
+            const idTokenResult = await currentUser.getIdTokenResult(true); 
             const isAdmin = idTokenResult.claims.admin === true;
             setUserRole(isAdmin ? 'admin' : 'operator');
         } catch (error) {
@@ -72,19 +72,19 @@ function ProtectedLayout({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (loading) return;
 
-    if (!user && pathname !== '/login') {
+    if (!user && !pathname.startsWith('/login')) {
       router.push('/login');
       return;
     }
     
-    if (user && pathname === '/login') {
+    if (user && pathname.startsWith('/login')) {
       router.push('/dashboard/admin');
       return;
     }
 
     // Role-based protection for admin-only pages
     const adminPages = ['/dashboard/stations', '/dashboard/users'];
-    if (user && userRole === 'operator' && adminPages.includes(pathname)) {
+    if (user && userRole === 'operator' && adminPages.some(page => pathname.startsWith(page))) {
         router.push('/dashboard/admin'); // Redirect operators away from admin-only pages
     }
 
@@ -99,17 +99,18 @@ function ProtectedLayout({ children }: { children: ReactNode }) {
     );
   }
 
-  if ((!user && pathname === '/login') || user) {
+  // Allow access to login page if no user, or to other pages if user exists.
+  if ((!user && pathname.startsWith('/login')) || user) {
      return <>{children}</>;
   }
 
+  // Fallback loading/redirecting state
   return (
        <div className="bg-slate-900 min-h-screen flex justify-center items-center">
             <Loader2 className="w-12 h-12 text-white animate-spin" />
        </div>
   );
 }
-
 
 /**
  * Layout principal para el panel de administración.
@@ -122,5 +123,3 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
         </AuthProvider>
     )
 }
-
-    

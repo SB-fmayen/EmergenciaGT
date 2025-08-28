@@ -10,6 +10,7 @@ import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
 import { getUsers, setUserRole, type UserRecordWithRole } from "./actions";
 import { Badge } from "@/components/ui/badge";
+import { auth } from "@/lib/firebase";
 
 export default function UsersPage() {
   const [users, setUsers] = useState<UserRecordWithRole[]>([]);
@@ -19,7 +20,10 @@ export default function UsersPage() {
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
-    const result = await getUsers();
+    // Para pasar el token de cliente al servidor de forma segura
+    const idToken = await auth.currentUser?.getIdToken();
+    const result = await getUsers(idToken);
+    
     if (result.success && result.users) {
       setUsers(result.users);
     } else {
@@ -29,14 +33,28 @@ export default function UsersPage() {
   }, [toast]);
 
   useEffect(() => {
-    fetchUsers();
+    // Espera a que el auth esté listo antes de llamar a fetchUsers
+    const unsubscribe = auth.onAuthStateChanged(user => {
+      if (user) {
+        fetchUsers();
+      } else {
+        setLoading(false);
+      }
+    });
+    return () => unsubscribe();
   }, [fetchUsers]);
 
   const handleRoleChange = async (uid: string, newRole: 'admin' | 'operator') => {
     setUpdatingId(uid);
-    const result = await setUserRole(uid, newRole);
+    const idToken = await auth.currentUser?.getIdToken();
+    const result = await setUserRole(uid, newRole, idToken);
+
     if (result.success) {
       toast({ title: "Éxito", description: `Rol de usuario actualizado a ${newRole}.` });
+      // Si el usuario se está cambiando a sí mismo, debe volver a iniciar sesión para ver los cambios.
+      if (auth.currentUser?.uid === uid) {
+          toast({ title: "Acción Requerida", description: "Cierra y vuelve a iniciar sesión para que tus nuevos permisos tomen efecto.", duration: 5000})
+      }
       fetchUsers(); // Refresh the list after updating
     } else {
       toast({ title: "Error", description: result.error, variant: "destructive" });
@@ -69,7 +87,10 @@ export default function UsersPage() {
         <Card>
           <CardHeader>
             <CardTitle>Operadores y Administradores</CardTitle>
-            <CardDescription>Lista de todos los usuarios registrados en el panel de emergencias.</CardDescription>
+            <CardDescription>
+                Asigna el rol de 'admin' a los usuarios que necesiten permisos para gestionar estaciones.
+                Un usuario recién registrado es 'operator' por defecto.
+            </CardDescription>
           </CardHeader>
           <CardContent>
             {loading && users.length === 0 ? (
@@ -89,7 +110,7 @@ export default function UsersPage() {
                 <TableBody>
                   {users.length > 0 ? users.map((user) => (
                     <TableRow key={user.uid}>
-                      <TableCell className="font-medium">{user.email}</TableCell>
+                      <TableCell className="font-medium">{user.email || 'N/A'}</TableCell>
                       <TableCell>
                         <Badge variant={user.role === 'admin' ? 'default' : 'secondary'} className={user.role === 'admin' ? 'bg-green-600' : ''}>
                           {user.role === 'admin' ? <ShieldCheck className="mr-1 h-3 w-3"/> : null}
@@ -106,7 +127,7 @@ export default function UsersPage() {
                             Actualizando...
                           </Button>
                         ) : user.role === 'admin' ? (
-                          <Button size="sm" variant="secondary" onClick={() => handleRoleChange(user.uid, 'operator')}>
+                          <Button size="sm" variant="secondary" onClick={() => handleRoleChange(user.uid, 'operator')} disabled={auth.currentUser?.uid === user.uid}>
                             <ShieldOff className="mr-2 h-4 w-4" />
                             Quitar Admin
                           </Button>
@@ -121,7 +142,7 @@ export default function UsersPage() {
                   )) : (
                     <TableRow>
                       <TableCell colSpan={4} className="text-center text-muted-foreground">
-                        No se encontraron usuarios o no se pudieron cargar.
+                        No se encontraron usuarios. Si eres el primer usuario, deberías verte a ti mismo aquí.
                       </TableCell>
                     </TableRow>
                   )}
@@ -134,5 +155,3 @@ export default function UsersPage() {
     </div>
   );
 }
-
-    

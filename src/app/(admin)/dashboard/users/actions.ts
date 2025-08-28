@@ -1,10 +1,9 @@
 
 "use server";
 
-import { headers } from 'next/headers';
-import { initializeApp, getApps, App } from 'firebase-admin/app';
+import { initializeApp, getApps, App, cert } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
-import { auth } from '@/lib/firebase'; // Client auth
+import { ServiceAccount } from 'firebase-admin';
 
 // This is a type for the data we send to the client to avoid sending the whole UserRecord
 export type UserRecordWithRole = {
@@ -17,26 +16,45 @@ export type UserRecordWithRole = {
     lastSignInTime: string;
 }
 
-// Initialize Firebase Admin SDK
+// --- Firebase Admin SDK Initialization ---
 let adminApp: App;
 if (!getApps().length) {
-    // IMPORTANT: This relies on GOOGLE_APPLICATION_CREDENTIALS being set in the deployment environment.
-    // In local development, you need to set this environment variable to the path of your service account key file.
-    adminApp = initializeApp();
+    try {
+        // Option 1: Use environment variables (Best for deployment)
+        if (process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
+            const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY) as ServiceAccount;
+            adminApp = initializeApp({ credential: cert(serviceAccount) });
+        } 
+        // Option 2: Use Application Default Credentials (For Google Cloud environments)
+        else if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+            adminApp = initializeApp();
+        }
+        else {
+            throw new Error("Firebase Admin SDK credentials not found. Please set FIREBASE_SERVICE_ACCOUNT_KEY or GOOGLE_APPLICATION_CREDENTIALS.");
+        }
+    } catch (e: any) {
+        console.error("Firebase Admin Init Error:", e.message);
+        // Avoid crashing the server during build, the error will be caught in the actions.
+    }
 } else {
     adminApp = getApps()[0];
 }
+// --- End of Initialization ---
 
-const adminAuth = getAuth(adminApp);
-
+const checkAdminApp = () => {
+    if (!adminApp) {
+        throw new Error("Firebase Admin SDK no está inicializado. Verifica las credenciales del servidor.");
+    }
+    return getAuth(adminApp);
+}
 
 /**
  * A server action to get a list of all users from Firebase Authentication.
  * Only an admin can perform this action.
  */
-export async function getUsers(): Promise<{ success: boolean, users?: UserRecordWithRole[], error?: string }> {
+export async function getUsers(idToken: string | undefined): Promise<{ success: boolean, users?: UserRecordWithRole[], error?: string }> {
     try {
-        const idToken = headers().get('Authorization')?.split('Bearer ')[1];
+        const adminAuth = checkAdminApp();
         if (!idToken) {
             return { success: false, error: 'No se proporcionó token de autenticación. Acceso denegado.' };
         }
@@ -71,9 +89,9 @@ export async function getUsers(): Promise<{ success: boolean, users?: UserRecord
  * A server action to set a user's role (admin or operator).
  * Only an admin can perform this action, with a special exception for the first admin.
  */
-export async function setUserRole(uid: string, role: 'admin' | 'operator'): Promise<{ success: boolean, error?: string }> {
+export async function setUserRole(uid: string, role: 'admin' | 'operator', idToken: string | undefined): Promise<{ success: boolean, error?: string }> {
      try {
-        const idToken = headers().get('Authorization')?.split('Bearer ')[1];
+        const adminAuth = checkAdminApp();
         if (!idToken) {
             return { success: false, error: 'No se proporcionó token de autenticación. Acceso denegado.' };
         }
@@ -90,15 +108,19 @@ export async function setUserRole(uid: string, role: 'admin' | 'operator'): Prom
              return { success: false, error: 'No tienes permisos de administrador para cambiar roles.' };
         }
         
+        // You can't demote yourself if you are the last admin
+        if (admins.length === 1 && admins[0].uid === uid && role === 'operator') {
+            return { success: false, error: 'No puedes quitar el rol al último administrador.'}
+        }
+        
         // Set the custom claim
         await adminAuth.setCustomUserClaims(uid, { admin: role === 'admin' });
+        // The client must re-authenticate (e.g., re-login or refresh token) to see the new role.
 
         return { success: true };
 
-    } catch (error: any)        {
+    } catch (error: any) {
         console.error(`Error setting role for UID ${uid}:`, error);
         return { success: false, error: `Error del servidor: ${error.code || error.message}` };
     }
 }
-
-    

@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { useState, useEffect, useMemo, useRef } from "react";
@@ -8,12 +7,12 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { auth, firestore } from "@/lib/firebase";
-import { signOut, type User } from "firebase/auth";
+import { signOut } from "firebase/auth";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
-import { LogOut, RefreshCw, Bell, Zap, CheckCircle, Clock, MapPin, Building, Loader2, Moon, Sun, LayoutDashboard, HardHat, Users } from "lucide-react";
+import { LogOut, RefreshCw, Bell, Zap, CheckCircle, Clock, MapPin, Building, Loader2, HardHat, Users, LayoutDashboard } from "lucide-react";
 import dynamic from 'next/dynamic';
-import { collection, onSnapshot, query, getDoc, doc, where, orderBy } from "firebase/firestore";
+import { collection, onSnapshot, query, getDoc, doc, orderBy } from "firebase/firestore";
 import type { AlertData, MedicalData } from "@/lib/types";
 import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -21,7 +20,6 @@ import { AlertDetailModal } from "@/components/admin/AlertDetailModal";
 import Link from 'next/link';
 import { SettingsDropdown } from '@/components/admin/SettingsDropdown';
 import { useAuth } from "@/app/(admin)/layout";
-
 
 const AlertsMap = dynamic(() => import('@/components/admin/AlertsMap'), { 
   ssr: false,
@@ -84,6 +82,7 @@ export default function AdminDashboardPage() {
                 timestamp: doc.data().timestamp?.toDate(),
             })) as AlertData;
 
+            // Notificación de nueva alerta (sin sonido)
             if (initialLoadDone.current && isSoundOn) {
                 const newAlerts = alertsData.filter(a => a.status === 'new' && !alerts.some(old => old.id === a.id));
                 if (newAlerts.length > 0) {
@@ -119,7 +118,7 @@ export default function AdminDashboardPage() {
             initialLoadDone.current = true;
         }, (error) => {
             console.error("Error fetching alerts:", error);
-            if (error.code === 'permission-denied' || error.code === 'failed-precondition') {
+            if (error.code === 'permission-denied') {
                 toast({ title: "Error de Permisos", description: "Verifica las reglas de seguridad de Firestore para permitir la lectura de alertas.", variant: "destructive" });
             } else {
                  toast({ title: "Error de Conexión", description: "No se pudieron cargar las alertas en tiempo real.", variant: "destructive" });
@@ -386,5 +385,3 @@ export default function AdminDashboardPage() {
     </>
   );
 }
-
-    

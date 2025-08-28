@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { useState } from "react";
@@ -15,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
+import type { UserProfile } from "@/lib/types";
 
 type AuthView = "login" | "register" | "forgotPassword";
 
@@ -63,14 +63,12 @@ export default function AdminLoginPage() {
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       
-      // The user document is for storing non-sensitive, display data.
-      // Security is now handled by custom claims.
+      // Actualiza el campo 'lastLogin' en el documento del usuario.
       await setDoc(doc(firestore, "users", userCredential.user.uid), {
-        email: userCredential.user.email,
         lastLogin: serverTimestamp(),
       }, { merge: true });
 
-      // Force refresh of the token to get the latest custom claims.
+      // Forzar la actualización del token para obtener los últimos custom claims.
       await userCredential.user.getIdToken(true);
 
       toast({
@@ -78,7 +76,8 @@ export default function AdminLoginPage() {
         description: "Bienvenido a la Consola de Operaciones.",
       });
       router.push("/dashboard/admin");
-      router.refresh(); // Refresh the page to ensure layout re-evaluates role.
+      // `router.refresh()` es clave para que el layout re-evalúe el rol del usuario.
+      router.refresh(); 
     } catch (error: any) {
       handleFirebaseAuthError(error);
     } finally {
@@ -91,13 +90,17 @@ export default function AdminLoginPage() {
       setLoading(true);
       try {
           const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-          // By default, a new user is an 'operator'. They can be promoted to 'admin' via the users panel.
-          await setDoc(doc(firestore, "users", userCredential.user.uid), {
+          // Por defecto, un nuevo usuario es un 'operator'. Se promueve desde el panel.
+          // El 'role' en el documento de Firestore es solo para fines informativos.
+          // La seguridad real se maneja mediante Custom Claims.
+          const newUserProfile: UserProfile = {
             uid: userCredential.user.uid,
-            email: userCredential.user.email,
-            role: 'operator', // This is just for display/record purposes, security is handled by claims
+            email: userCredential.user.email!,
+            role: 'operator', // Rol inicial por defecto
             createdAt: serverTimestamp(),
-          });
+          };
+          await setDoc(doc(firestore, "users", userCredential.user.uid), newUserProfile);
+          
           toast({
               title: "Registro Exitoso",
               description: "Tu cuenta de operador ha sido creada. Ahora puedes iniciar sesión.",
@@ -224,5 +227,3 @@ export default function AdminLoginPage() {
     </div>
   );
 }
-
-    
