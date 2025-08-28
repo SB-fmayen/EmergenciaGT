@@ -198,8 +198,7 @@ export default function AuthPage() {
   };
 
   const handleAnonymousSignIn = () => {
-    // La redirección será manejada por el onAuthStateChanged
-    handleAuthAction(() => signInAnonymously(auth));
+    handleAuthAction(() => signInAnonymously(auth), "/dashboard");
   }
 
   const handleFirebaseAuthError = (error: any) => {
@@ -269,8 +268,8 @@ export default function AuthPage() {
                 onClick={handleAnonymousSignIn}
                 disabled={loading}
             >
-                <ShieldQuestion className="w-4 h-4 mr-2" />
-                Ingresar como Invitado
+                {loading && view === "login" ? null : <ShieldQuestion className="w-4 h-4 mr-2" />}
+                {loading && view !== "login" ? <Loader2 className="animate-spin" /> : "Ingresar como Invitado"}
             </Button>
         </div>
 
@@ -278,5 +277,3 @@ export default function AuthPage() {
     </MobileAppContainer>
   );
 }
-
-    
