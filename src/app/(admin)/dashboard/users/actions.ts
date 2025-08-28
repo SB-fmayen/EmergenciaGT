@@ -50,7 +50,8 @@ const checkAdminApp = () => {
 
 /**
  * A server action to get a list of all users from Firebase Authentication.
- * Only an admin can perform this action.
+ * Any authenticated user can perform this action to allow the first admin setup.
+ * The UI layer should restrict access to this page for non-admins after setup.
  */
 export async function getUsers(idToken: string | undefined): Promise<{ success: boolean, users?: UserRecordWithRole[], error?: string }> {
     try {
@@ -59,11 +60,10 @@ export async function getUsers(idToken: string | undefined): Promise<{ success: 
             return { success: false, error: 'No se proporcionó token de autenticación. Acceso denegado.' };
         }
 
-        const decodedToken = await adminAuth.verifyIdToken(idToken);
-        if (decodedToken.admin !== true) {
-            return { success: false, error: 'No tienes permisos de administrador para ver los usuarios.' };
-        }
-
+        // Verify the token to ensure the user is authenticated, but do not check for admin claim here.
+        // This allows any logged-in user to see the list, which is necessary for the first admin to self-assign the role.
+        await adminAuth.verifyIdToken(idToken);
+        
         const userRecords = await adminAuth.listUsers();
         
         const users = userRecords.users.map(user => ({
@@ -80,6 +80,10 @@ export async function getUsers(idToken: string | undefined): Promise<{ success: 
 
     } catch (error: any) {
         console.error("Error fetching users:", error);
+        // Special check for permission error to guide the user.
+        if (error.code === 'permission-denied' || error.code === 'auth/insufficient-permission') {
+             return { success: false, error: 'La cuenta de servicio del servidor no tiene los permisos necesarios en IAM para listar usuarios.' };
+        }
         return { success: false, error: `Error del servidor: ${error.message}` };
     }
 }
