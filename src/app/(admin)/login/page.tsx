@@ -34,7 +34,16 @@ export default function AdminLoginPage() {
     setLoading(true);
 
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      
+      // Asegurarse de que el usuario exista en la colección 'users'
+      // Esto crea el documento si no existe, o lo actualiza si sí.
+      // Usamos { merge: true } para no sobrescribir el rol si ya fue asignado.
+      await setDoc(doc(firestore, "users", userCredential.user.uid), {
+        email: userCredential.user.email,
+        lastLogin: serverTimestamp(),
+      }, { merge: true });
+
       toast({
         title: "Inicio de Sesión Exitoso",
         description: "Bienvenido a la Consola de Operaciones.",
@@ -209,3 +218,5 @@ export default function AdminLoginPage() {
     </div>
   );
 }
+
+    
