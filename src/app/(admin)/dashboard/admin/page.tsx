@@ -16,13 +16,14 @@ import { collection, onSnapshot, query, getDoc, doc, where, orderBy } from "fire
 import type { AlertData, MedicalData } from "@/lib/types";
 import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { AlertDetailModal } from "@/components/admin/AlertDetailModal";
 
 const AlertsMap = dynamic(() => import('@/components/admin/AlertsMap'), { 
   ssr: false,
   loading: () => <p className="text-center text-gray-500">Cargando mapa...</p>
 });
 
-interface EnrichedAlert extends AlertData {
+export interface EnrichedAlert extends AlertData {
     userInfo?: MedicalData;
     eta?: string;
     stationInfo?: { name: string };
@@ -39,6 +40,7 @@ export default function AdminDashboardPage() {
     const [alerts, setAlerts] = useState<EnrichedAlert[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedAlert, setSelectedAlert] = useState<EnrichedAlert | null>(null);
+    const [isModalOpen, setIsModalOpen] = useState(false);
 
     const [searchTerm, setSearchTerm] = useState("");
     const [statusFilter, setStatusFilter] = useState("new");
@@ -88,6 +90,16 @@ export default function AdminDashboardPage() {
 
         return () => unsubscribe();
     }, [toast]);
+
+    const handleAlertClick = (alert: EnrichedAlert) => {
+        setSelectedAlert(alert);
+        setIsModalOpen(true);
+    };
+
+    const handleCloseModal = () => {
+        setIsModalOpen(false);
+        setSelectedAlert(null);
+    }
 
 
     const handleLogout = async () => {
@@ -139,6 +151,7 @@ export default function AdminDashboardPage() {
     };
 
   return (
+    <>
     <div className="flex flex-col min-h-screen bg-gray-50 text-gray-900">
       <header className="bg-red-600 text-white shadow-lg">
         <div className="container mx-auto px-6 py-4">
@@ -248,7 +261,7 @@ export default function AdminDashboardPage() {
                         filteredAlerts.map((alert) => (
                             <div key={alert.id} 
                                  className={`p-4 border-b border-gray-200 hover:bg-gray-50 transition-colors cursor-pointer ${alert.severityClass} ${alert.statusClass}`}
-                                 onClick={() => setSelectedAlert(alert)}
+                                 onClick={() => handleAlertClick(alert)}
                             >
                                  <div className="flex items-start justify-between mb-2">
                                     <div className="flex items-center gap-2 flex-wrap">
@@ -293,7 +306,13 @@ export default function AdminDashboardPage() {
         </div>
       </main>
     </div>
+     {selectedAlert && (
+        <AlertDetailModal 
+            isOpen={isModalOpen}
+            onClose={handleCloseModal}
+            alert={selectedAlert}
+        />
+     )}
+    </>
   );
 }
-
-    
