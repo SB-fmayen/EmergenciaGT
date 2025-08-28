@@ -7,11 +7,11 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
-  DialogClose,
+  DialogFooter,
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { X, Map, Zap, ChevronsRight } from "lucide-react";
+import { X, Map, Zap, ChevronsRight, User, Info, Ambulance } from "lucide-react";
 import type { EnrichedAlert } from "@/app/(admin)/dashboard/admin/page";
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -20,22 +20,23 @@ interface AlertDetailModalProps {
     isOpen: boolean;
     onClose: () => void;
     alert: EnrichedAlert;
+    onCenterMap: (alert: EnrichedAlert) => void;
 }
 
 const InfoRow = ({ label, value, valueClass }: { label: string, value?: string | number, valueClass?: string }) => (
     <div>
-        <span className="font-semibold text-gray-600">{label}:</span>
-        <span className={`ml-2 ${valueClass || 'text-gray-800'}`}>{value || 'No disponible'}</span>
+        <span className="font-semibold text-slate-400">{label}:</span>
+        <span className={`ml-2 ${valueClass || 'text-slate-200'}`}>{value || 'No disponible'}</span>
     </div>
 );
 
 const getStatusBadge = (status: string) => {
     switch (status) {
-        case 'new': return 'bg-red-100 text-red-800';
-        case 'dispatched': return 'bg-yellow-100 text-yellow-800';
-        case 'resolved': return 'bg-green-100 text-green-800';
-        case 'cancelled': return 'bg-gray-100 text-gray-800';
-        default: return 'bg-gray-100 text-gray-800';
+        case 'new': return 'bg-red-500/20 text-red-300';
+        case 'dispatched': return 'bg-yellow-500/20 text-yellow-300';
+        case 'resolved': return 'bg-green-500/20 text-green-300';
+        case 'cancelled': return 'bg-gray-500/20 text-gray-400';
+        default: return 'bg-gray-500/20 text-gray-400';
     }
 };
 
@@ -49,28 +50,29 @@ const getStatusText = (status: string) => {
     }
 };
 
-export function AlertDetailModal({ isOpen, onClose, alert }: AlertDetailModalProps) {
+export function AlertDetailModal({ isOpen, onClose, alert, onCenterMap }: AlertDetailModalProps) {
     if (!alert) return null;
+
+    const handleCenterMapClick = () => {
+        onCenterMap(alert);
+        onClose(); // Cierra el modal después de centrar
+    }
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent className="max-w-4xl w-full p-0">
-                <DialogHeader className="p-6 border-b">
-                    <div className="flex justify-between items-center">
-                        <DialogTitle className="text-xl font-bold text-gray-800">Detalle de Alerta</DialogTitle>
-                         <DialogClose asChild>
-                            <Button variant="ghost" size="icon" onClick={onClose}>
-                                <X className="h-5 w-5 text-gray-500" />
-                            </Button>
-                        </DialogClose>
-                    </div>
+            <DialogContent className="max-w-4xl w-full p-0 bg-slate-900 border-slate-700 text-white">
+                <DialogHeader className="p-6 border-b border-slate-700 flex flex-row items-center justify-between">
+                     <DialogTitle className="text-xl font-bold text-white">Detalle de Alerta: {alert.id.substring(0,8)}...</DialogTitle>
+                     <Button variant="ghost" size="icon" onClick={onClose} className="text-slate-400 hover:text-white">
+                        <X className="h-5 w-5" />
+                    </Button>
                 </DialogHeader>
 
                 <div className="p-6 max-h-[80vh] overflow-y-auto">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-6">
                         {/* User Info */}
-                        <div>
-                            <h3 className="font-bold text-lg mb-4 text-gray-700">Información del Usuario</h3>
+                        <div className="p-4 bg-slate-800/50 rounded-lg border border-slate-700">
+                            <h3 className="font-bold text-lg mb-4 flex items-center gap-2 text-slate-300"><User/>Información del Usuario</h3>
                             <div className="space-y-2 text-sm">
                                 <InfoRow label="Nombre" value={alert.isAnonymous ? "Usuario Anónimo" : alert.userInfo?.fullName} />
                                 <InfoRow label="Edad" value={alert.isAnonymous ? "N/A" : `${alert.userInfo?.age} años`} />
@@ -80,13 +82,13 @@ export function AlertDetailModal({ isOpen, onClose, alert }: AlertDetailModalPro
                             </div>
                         </div>
                         {/* Event Info */}
-                        <div>
-                             <h3 className="font-bold text-lg mb-4 text-gray-700">Información del Evento</h3>
+                        <div className="p-4 bg-slate-800/50 rounded-lg border border-slate-700">
+                             <h3 className="font-bold text-lg mb-4 flex items-center gap-2 text-slate-300"><Info />Información del Evento</h3>
                             <div className="space-y-2 text-sm">
-                                <InfoRow label="ID" value={alert.id.substring(0, 8) + '...'} />
+                                <InfoRow label="ID" value={alert.id} />
                                 <InfoRow label="Tipo" value="Accidente de Tránsito" />
                                 <InfoRow label="Hora" value={alert.timestamp ? format(alert.timestamp, "dd/MM/yyyy, hh:mm:ss a", { locale: es }) : 'N/A'} />
-                                <InfoRow label="Severidad" value={alert.severity} valueClass="px-2 py-0.5 text-xs rounded-full bg-orange-100 text-orange-800" />
+                                <InfoRow label="Severidad" value={alert.severity} valueClass="px-2 py-0.5 text-xs rounded-full bg-orange-500/20 text-orange-300" />
                                 <InfoRow label="Estado" value={getStatusText(alert.status)} valueClass={`px-2 py-0.5 text-xs rounded-full ${getStatusBadge(alert.status)}`} />
                                 <InfoRow label="Coordenadas" value={`${alert.location.latitude.toFixed(6)}, ${alert.location.longitude.toFixed(6)}`} />
                             </div>
@@ -94,16 +96,16 @@ export function AlertDetailModal({ isOpen, onClose, alert }: AlertDetailModalPro
                     </div>
 
                     {/* Description */}
-                    <div className="mb-6 p-4 bg-gray-50 rounded-lg border">
-                         <h3 className="font-bold text-lg mb-2 text-gray-700">Descripción</h3>
-                         <p className="text-gray-700 text-sm">
+                    <div className="mb-6 p-4 bg-slate-800/50 rounded-lg border border-slate-700">
+                         <h3 className="font-bold text-lg mb-2 text-slate-300">Descripción</h3>
+                         <p className="text-slate-200 text-sm">
                             Colisión múltiple en Zona 10. (Descripción simulada)
                          </p>
                     </div>
 
                     {/* Assigned Station */}
-                     <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
-                         <h3 className="font-bold text-lg mb-3 text-gray-700">Estación Asignada</h3>
+                     <div className="mb-6 p-4 bg-blue-900/40 rounded-lg border border-blue-500/50">
+                         <h3 className="font-bold text-lg mb-3 flex items-center gap-2 text-slate-300"><Ambulance />Estación Asignada</h3>
                         <div className="flex items-center justify-between">
                             <div>
                                 <p><span className="font-medium">Estación:</span> {alert.stationInfo?.name || "Pendiente"}</p>
@@ -120,8 +122,9 @@ export function AlertDetailModal({ isOpen, onClose, alert }: AlertDetailModalPro
                         </div>
                     </div>
 
-                    {/* Actions */}
-                     <div className="flex items-center space-x-4">
+                </div>
+                 <DialogFooter className="p-6 border-t border-slate-700 bg-slate-900/50">
+                    <div className="flex items-center space-x-4 w-full">
                         <Select defaultValue={alert.status}>
                             <SelectTrigger className="flex-1">
                                 <SelectValue placeholder="Actualizar estado" />
@@ -136,11 +139,11 @@ export function AlertDetailModal({ isOpen, onClose, alert }: AlertDetailModalPro
                         <Button className="bg-blue-600 hover:bg-blue-700">
                             Actualizar Estado
                         </Button>
-                        <Button className="bg-indigo-600 hover:bg-indigo-700">
+                        <Button onClick={handleCenterMapClick}>
                             Ver en Mapa
                         </Button>
                     </div>
-                </div>
+                </DialogFooter>
             </DialogContent>
         </Dialog>
     );

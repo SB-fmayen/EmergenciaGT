@@ -55,7 +55,7 @@ interface AlertsMapProps {
 export default function AlertsMap({ alerts, selectedAlert }: AlertsMapProps) {
     const mapRef = useRef<L.Map | null>(null);
     const containerRef = useRef<HTMLDivElement>(null);
-    const markersRef = useRef<L.Marker[]>([]);
+    const markersRef = useRef<{ [key: string]: L.Marker }>({});
 
     // Inicializa el mapa
     useEffect(() => {
@@ -68,38 +68,48 @@ export default function AlertsMap({ alerts, selectedAlert }: AlertsMapProps) {
 
             mapRef.current = map;
         }
-
-        return () => {
-            if (mapRef.current) {
-                mapRef.current.remove();
-                mapRef.current = null;
-            }
-        };
     }, []);
 
     // Actualiza los marcadores cuando cambian las alertas
     useEffect(() => {
         if (!mapRef.current) return;
+        
+        const currentMarkerIds = Object.keys(markersRef.current);
+        const alertIds = alerts.map(a => a.id);
 
-        // Limpiar marcadores antiguos
-        markersRef.current.forEach(marker => marker.remove());
-        markersRef.current = [];
-
-        // Añadir nuevos marcadores
-        alerts.forEach(alert => {
-            if (alert.status !== 'resolved' && alert.status !== 'cancelled') {
-                const marker = L.marker([alert.location.latitude, alert.location.longitude], {
-                    icon: createAlertIcon(alert.severity)
-                }).addTo(mapRef.current!);
-
-                marker.bindPopup(`
-                    <b>Alerta: ${alert.id.substring(0,8)}</b><br>
-                    Usuario: ${alert.userInfo?.fullName || 'Anónimo'}<br>
-                    Estado: ${alert.status}
-                `);
-
-                markersRef.current.push(marker);
+        // Remover marcadores de alertas que ya no están en la lista (resueltas, etc.)
+        currentMarkerIds.forEach(markerId => {
+            if (!alertIds.includes(markerId)) {
+                markersRef.current[markerId].remove();
+                delete markersRef.current[markerId];
             }
+        });
+
+
+        // Añadir o actualizar marcadores
+        alerts.forEach(alert => {
+             if (alert.status !== 'resolved' && alert.status !== 'cancelled') {
+                const popupContent = `
+                    <div style="color: #333;">
+                        <b>Alerta: ${alert.id.substring(0,8)}</b><br>
+                        Usuario: ${alert.userInfo?.fullName || 'Anónimo'}<br>
+                        Estado: ${alert.status}
+                    </div>
+                `;
+
+                if (markersRef.current[alert.id]) {
+                    // Actualizar posición y popup si ya existe
+                    markersRef.current[alert.id].setLatLng([alert.location.latitude, alert.location.longitude]);
+                    markersRef.current[alert.id].setPopupContent(popupContent);
+                } else {
+                    // Crear nuevo marcador si no existe
+                    const marker = L.marker([alert.location.latitude, alert.location.longitude], {
+                        icon: createAlertIcon(alert.severity)
+                    }).addTo(mapRef.current!);
+                    marker.bindPopup(popupContent);
+                    markersRef.current[alert.id] = marker;
+                }
+             }
         });
     }, [alerts]);
 
@@ -110,12 +120,14 @@ export default function AlertsMap({ alerts, selectedAlert }: AlertsMapProps) {
                 animate: true,
                 duration: 1
             });
-            // Abrir popup del marcador correspondiente
-             const marker = markersRef.current.find(m => {
-                const latLng = m.getLatLng();
-                return latLng.lat === selectedAlert.location.latitude && latLng.lng === selectedAlert.location.longitude;
-            });
-            marker?.openPopup();
+            
+            const marker = markersRef.current[selectedAlert.id];
+            if (marker) {
+                 // Pequeño delay para asegurar que el flyTo no sea interrumpido
+                 setTimeout(() => {
+                    marker.openPopup();
+                }, 500);
+            }
         }
     }, [selectedAlert]);
 
