@@ -6,14 +6,26 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ArrowLeft, PlusCircle, Loader2 } from "lucide-react";
+import { ArrowLeft, PlusCircle, Loader2, Edit, Trash2, MapPin } from "lucide-react";
 import Link from "next/link";
 import { firestore } from "@/lib/firebase";
 import { collection, onSnapshot, query, orderBy } from "firebase/firestore";
 import type { StationData } from "@/lib/types";
-import { createStation } from "./actions";
+import { createStation, deleteStation } from "./actions";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/app/(admin)/layout";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import { EditStationModal } from "@/components/admin/EditStationModal";
+
 
 export default function StationsPage() {
   const [stations, setStations] = useState<StationData[]>([]);
@@ -23,8 +35,11 @@ export default function StationsPage() {
   const { userRole } = useAuth();
   const formRef = useRef<HTMLFormElement>(null);
 
+  // Estados para los modales
+  const [stationToDelete, setStationToDelete] = useState<StationData | null>(null);
+  const [stationToEdit, setStationToEdit] = useState<StationData | null>(null);
+
   useEffect(() => {
-    // No intentes cargar datos si el rol aún no es 'admin'
     if (userRole !== 'admin') {
       setLoading(false);
       return;
@@ -74,8 +89,31 @@ export default function StationsPage() {
 
     setIsSubmitting(false);
   };
+  
+  const handleDeleteStation = async () => {
+    if (!stationToDelete) return;
+    if (userRole !== 'admin') {
+      toast({ title: "Acceso Denegado", variant: "destructive"});
+      return;
+    }
+    
+    const result = await deleteStation(stationToDelete.id);
+    
+    if(result.success) {
+        toast({ title: "Éxito", description: `La estación "${stationToDelete.name}" fue eliminada.`});
+    } else {
+        toast({ title: "Error", description: result.error, variant: "destructive" });
+    }
+    
+    setStationToDelete(null); // Cierra el modal
+  }
+
+  const openInGoogleMaps = (lat: number, lng: number) => {
+    window.open(`https://www.google.com/maps?q=${lat},${lng}`, '_blank');
+  };
 
   return (
+    <>
     <div className="flex flex-col min-h-screen bg-background text-foreground">
       <header className="bg-card border-b border-border shadow-md">
         <div className="container mx-auto px-6 py-4">
@@ -155,6 +193,7 @@ export default function StationsPage() {
                           <TableHead>Nombre</TableHead>
                           <TableHead>Dirección</TableHead>
                           <TableHead>Coordenadas</TableHead>
+                          <TableHead className="text-right">Acciones</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -163,10 +202,21 @@ export default function StationsPage() {
                             <TableCell className="font-medium">{station.name}</TableCell>
                             <TableCell>{station.address}</TableCell>
                             <TableCell className="font-mono text-xs">{station.location.latitude.toFixed(4)}, {station.location.longitude.toFixed(4)}</TableCell>
+                            <TableCell className="text-right space-x-2">
+                                <Button variant="ghost" size="icon" className="hover:bg-blue-500/10" onClick={() => openInGoogleMaps(station.location.latitude, station.location.longitude)}>
+                                    <MapPin className="h-4 w-4 text-blue-500"/>
+                                </Button>
+                                <Button variant="ghost" size="icon" className="hover:bg-yellow-500/10" onClick={() => setStationToEdit(station)}>
+                                    <Edit className="h-4 w-4 text-yellow-500"/>
+                                </Button>
+                                <Button variant="ghost" size="icon" className="hover:bg-destructive/10" onClick={() => setStationToDelete(station)}>
+                                    <Trash2 className="h-4 w-4 text-destructive"/>
+                                </Button>
+                            </TableCell>
                           </TableRow>
                         )) : (
                           <TableRow>
-                            <TableCell colSpan={3} className="text-center text-muted-foreground">
+                            <TableCell colSpan={4} className="text-center text-muted-foreground">
                               {userRole === 'admin' ? "No hay estaciones registradas." : "No tienes permisos para ver esta información."}
                             </TableCell>
                           </TableRow>
@@ -181,5 +231,32 @@ export default function StationsPage() {
         )}
       </main>
     </div>
+
+    {/* Modal de Edición */}
+    {stationToEdit && (
+        <EditStationModal 
+            station={stationToEdit}
+            isOpen={!!stationToEdit}
+            onClose={() => setStationToEdit(null)}
+        />
+    )}
+
+    {/* Diálogo de Confirmación para Eliminar */}
+    <AlertDialog open={!!stationToDelete} onOpenChange={() => setStationToDelete(null)}>
+        <AlertDialogContent>
+            <AlertDialogHeader>
+            <AlertDialogTitle>¿Estás seguro de que quieres eliminar esta estación?</AlertDialogTitle>
+            <AlertDialogDescription>
+                Esta acción no se puede deshacer. La estación <span className="font-bold">"{stationToDelete?.name}"</span> será eliminada permanentemente.
+            </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteStation} className="bg-destructive hover:bg-destructive/90">Eliminar</AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+    </AlertDialog>
+
+    </>
   );
 }
