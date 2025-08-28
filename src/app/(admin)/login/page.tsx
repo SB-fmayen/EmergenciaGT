@@ -42,6 +42,7 @@ export default function AdminLoginPage() {
       await setDoc(doc(firestore, "users", userCredential.user.uid), {
         email: userCredential.user.email,
         lastLogin: serverTimestamp(),
+        role: 'operator' // Asigna un rol por defecto si no lo tiene
       }, { merge: true });
 
       toast({
