@@ -29,6 +29,32 @@ export default function AdminLoginPage() {
   const router = useRouter();
   const { toast } = useToast();
 
+  const handleFirebaseAuthError = (error: any) => {
+    const errorCode = error.code;
+    let errorMessage = "Ocurrió un error desconocido.";
+    switch (errorCode) {
+      case 'auth/email-already-in-use':
+          errorMessage = "Este correo electrónico ya está en uso.";
+          break;
+      case 'auth/weak-password':
+          errorMessage = "La contraseña es muy débil. Debe tener al menos 6 caracteres.";
+          break;
+      case 'auth/invalid-email':
+          errorMessage = "El formato del correo electrónico no es válido.";
+          break;
+      case 'auth/user-not-found':
+      case 'auth/wrong-password':
+      case 'auth/invalid-credential':
+          errorMessage = "Credenciales incorrectas. Por favor, intenta de nuevo.";
+          break;
+      default:
+          errorMessage = `Ocurrió un error. Por favor, intenta de nuevo. (${errorCode})`;
+          console.error("Firebase Auth Error:", error);
+          break;
+    }
+    toast({ title: "Error de Autenticación", description: errorMessage, variant: "destructive" });
+  }
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -36,13 +62,11 @@ export default function AdminLoginPage() {
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       
-      // Asegurarse de que el usuario exista en la colección 'users'
-      // Esto crea el documento si no existe, o lo actualiza si sí.
-      // Usamos { merge: true } para no sobrescribir el rol si ya fue asignado.
+      // Upsert: crea el documento si no existe, o actualiza la fecha de último login si ya existe.
+      // El merge: true es crucial para no sobreescribir el rol si ya se asignó uno (ej. 'admin').
       await setDoc(doc(firestore, "users", userCredential.user.uid), {
         email: userCredential.user.email,
         lastLogin: serverTimestamp(),
-        role: 'operator' // Asigna un rol por defecto si no lo tiene
       }, { merge: true });
 
       toast({
@@ -62,8 +86,9 @@ export default function AdminLoginPage() {
       setLoading(true);
       try {
           const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-          // Asigna el rol de 'operador' por defecto en Firestore
+          // Asigna el rol de 'operador' por defecto en Firestore al registrarse
           await setDoc(doc(firestore, "users", userCredential.user.uid), {
+            uid: userCredential.user.uid,
             email: userCredential.user.email,
             role: 'operator',
             createdAt: serverTimestamp(),
@@ -95,31 +120,6 @@ export default function AdminLoginPage() {
     } finally {
         setLoading(false);
     }
-  }
-
-   const handleFirebaseAuthError = (error: any) => {
-      const errorCode = error.code;
-      let errorMessage = "Ocurrió un error desconocido.";
-      switch (errorCode) {
-        case 'auth/email-already-in-use':
-            errorMessage = "Este correo electrónico ya está en uso.";
-            break;
-        case 'auth/weak-password':
-            errorMessage = "La contraseña es muy débil. Debe tener al menos 6 caracteres.";
-            break;
-        case 'auth/invalid-email':
-            errorMessage = "El formato del correo electrónico no es válido.";
-            break;
-        case 'auth/user-not-found':
-        case 'auth/wrong-password':
-        case 'auth/invalid-credential':
-            errorMessage = "Credenciales incorrectas. Por favor, intenta de nuevo.";
-            break;
-        default:
-            errorMessage = "Ocurrió un error. Por favor, intenta de nuevo.";
-            break;
-      }
-      toast({ title: "Error de Autenticación", description: errorMessage, variant: "destructive" });
   }
 
   const renderForm = () => {
@@ -219,3 +219,5 @@ export default function AdminLoginPage() {
     </div>
   );
 }
+
+    
