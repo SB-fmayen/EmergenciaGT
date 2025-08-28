@@ -39,7 +39,7 @@ export interface EnrichedAlert extends AlertData {
 export default function AdminDashboardPage() {
     const router = useRouter();
     const { toast } = useToast();
-    const { user, userRole } = useAuth();
+    const { user, userRole } = useAuth(); // Use the centralized auth state
     
     const [theme, setTheme] = useState("dark");
     const [alerts, setAlerts] = useState<EnrichedAlert[]>([]);

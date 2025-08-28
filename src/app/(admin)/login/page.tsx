@@ -67,20 +67,24 @@ export default function AdminLoginPage() {
         lastLogin: serverTimestamp(),
       }, { merge: true });
 
+      // This is crucial to get the latest custom claims after login
       await userCredential.user.getIdToken(true);
 
       toast({
         title: "Inicio de Sesión Exitoso",
         description: "Bienvenido a la Consola de Operaciones.",
       });
+      
+      // Redirect first
       router.push("/dashboard/admin");
-      // `router.refresh()` es clave para que el layout re-evalúe el rol del usuario.
+      // Then force a refresh of the layout to re-check auth state and roles
       router.refresh(); 
+
     } catch (error: any) {
       handleFirebaseAuthError(error);
-    } finally {
-      setLoading(false);
-    }
+      setLoading(false); // Only set loading to false on error
+    } 
+    // Do not set loading to false on success, as the page will redirect and unmount.
   };
   
   const handleRegister = async (e: React.FormEvent) => {

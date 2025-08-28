@@ -7,6 +7,8 @@ import { Loader2 } from 'lucide-react';
 import 'leaflet/dist/leaflet.css';
 import { onAuthStateChanged, type User } from "firebase/auth";
 import { auth } from "@/lib/firebase";
+import { useToast } from '@/hooks/use-toast';
+
 
 type UserRole = 'admin' | 'operator' | null;
 
@@ -29,8 +31,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-      setUser(currentUser);
+      setLoading(true); // Always start in a loading state on auth change
       if (currentUser) {
+        setUser(currentUser);
         try {
             // Force refresh to get the latest claims. This is crucial for roles.
             const idTokenResult = await currentUser.getIdTokenResult(true); 
@@ -41,9 +44,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             setUserRole('operator'); // Default to operator on error
         }
       } else {
+        setUser(null);
         setUserRole(null);
       }
-      setLoading(false);
+      setLoading(false); // Set loading to false only after all async operations are done
     });
 
     return () => unsubscribe();
@@ -68,9 +72,11 @@ function ProtectedLayout({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const { user, userRole, loading } = useAuth();
+  const { toast } = useToast();
 
   useEffect(() => {
-    if (loading) return; // Wait until loading is false
+    // Wait until loading is complete before running any logic
+    if (loading) return; 
 
     const isAuthPage = pathname.startsWith('/login');
 
@@ -93,9 +99,10 @@ function ProtectedLayout({ children }: { children: ReactNode }) {
         router.push('/dashboard/admin'); // Redirect operators away from admin-only pages
     }
 
-  }, [user, userRole, loading, router, pathname]);
+  }, [user, userRole, loading, router, pathname, toast]);
 
   // If we are loading, show a full-screen spinner.
+  // This is the key change: we prevent rendering of children until auth state is fully resolved.
   if (loading) {
     return (
       <div className="bg-slate-900 min-h-screen flex flex-col justify-center items-center text-white">
