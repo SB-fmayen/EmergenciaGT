@@ -130,9 +130,19 @@ export default function MedicalInfoPage() {
   // --- Manejo de Contactos de Emergencia ---
   
   const handleContactChange = (index: number, field: keyof EmergencyContact, value: string) => {
-    const newContacts = [...formData.emergencyContacts];
-    newContacts[index] = { ...newContacts[index], [field]: value };
-    setFormData(prev => ({ ...prev, emergencyContacts: newContacts }));
+    if (field === 'phone') {
+        // Solo permitir números y limitar a 8 dígitos
+        const numericValue = value.replace(/[^0-9]/g, '');
+        if (numericValue.length <= 8) {
+            const newContacts = [...formData.emergencyContacts];
+            newContacts[index] = { ...newContacts[index], [field]: numericValue };
+            setFormData(prev => ({ ...prev, emergencyContacts: newContacts }));
+        }
+    } else {
+        const newContacts = [...formData.emergencyContacts];
+        newContacts[index] = { ...newContacts[index], [field]: value };
+        setFormData(prev => ({ ...prev, emergencyContacts: newContacts }));
+    }
   };
 
   const addContact = () => {
