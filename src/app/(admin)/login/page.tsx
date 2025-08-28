@@ -7,17 +7,15 @@ import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { MobileAppContainer } from "@/components/MobileAppContainer";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, LogIn, ShieldCheck } from "lucide-react";
-import { EmergencyLogoIcon } from "@/components/icons/EmergencyLogoIcon";
+import { Loader2 } from "lucide-react";
 
 /**
- * Página de inicio de sesión exclusiva para administradores y operadores.
+ * Página de inicio de sesión para la consola de operadores (vista de escritorio).
  */
 export default function AdminLoginPage() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [email, setEmail] = useState("operador@emergenciagt.com");
+  const [password, setPassword] = useState("operador123");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
@@ -27,14 +25,12 @@ export default function AdminLoginPage() {
     setLoading(true);
 
     try {
-      // Por ahora, cualquier inicio de sesión exitoso es considerado un admin.
-      // En el futuro, se podría verificar un rol específico en Firestore.
       await signInWithEmailAndPassword(auth, email, password);
       toast({
         title: "Inicio de Sesión Exitoso",
-        description: "Bienvenido al panel de administración.",
+        description: "Bienvenido a la Consola de Operaciones.",
       });
-      router.push("/dashboard/admin"); // Redirigir al dashboard de admin
+      router.push("/dashboard/admin");
     } catch (error: any) {
       let errorMessage = "Credenciales incorrectas o error de conexión.";
       if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
@@ -51,47 +47,44 @@ export default function AdminLoginPage() {
   };
 
   return (
-    <MobileAppContainer className="bg-slate-900 justify-center">
-       <div className="flex-1 flex flex-col justify-center px-8 py-12">
-        <div className="text-center mb-12">
-            <div className="w-20 h-20 bg-white rounded-full mx-auto mb-6 flex items-center justify-center shadow-lg">
-                <ShieldCheck className="w-10 h-10 text-slate-800" />
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-gray-900 flex items-center justify-center p-4">
+        <div className="bg-white rounded-xl shadow-2xl p-8 w-full max-w-md">
+            <div className="text-center mb-8">
+                <div className="w-20 h-20 bg-red-600 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
+                    <span className="text-white text-4xl">🚨</span>
+                </div>
+                <h1 className="text-3xl font-bold text-gray-800">EmergenciaGT</h1>
+                <p className="text-gray-600 text-xl">Consola de Operadores</p>
             </div>
-            <h1 className="text-3xl font-bold text-white mb-2">Panel de Control</h1>
-            <p className="text-slate-300 text-lg font-medium">Acceso para Operadores</p>
-        </div>
-        
-        <form onSubmit={handleLogin} className="space-y-6">
-            <div className="border border-white/10 bg-white/5 backdrop-blur-lg rounded-2xl p-8">
-              <h2 className="text-xl font-bold text-white mb-6 text-center">Iniciar Sesión</h2>
-              <div className="space-y-4">
-                <Input 
-                    type="email" 
-                    placeholder="Correo de operador" 
-                    value={email} 
-                    onChange={(e) => setEmail(e.target.value)} 
-                    required 
-                    className="bg-white/90 text-slate-900 placeholder:text-slate-500 border-0 rounded-xl focus:ring-2 focus:ring-white focus:bg-white"
-                />
-                <Input 
-                    type="password" 
-                    placeholder="Contraseña" 
-                    value={password} 
-                    onChange={(e) => setPassword(e.target.value)} 
-                    required 
-                    className="bg-white/90 text-slate-900 placeholder:text-slate-500 border-0 rounded-xl focus:ring-2 focus:ring-white focus:bg-white"
-                />
-                <Button
-                    type="submit"
-                    disabled={loading}
-                    className="w-full bg-white text-slate-800 py-3 h-auto rounded-xl font-bold text-lg hover:bg-gray-200 transition-all duration-300 transform hover:scale-105"
-                    >
-                    {loading ? <Loader2 className="animate-spin" /> : <><LogIn className="mr-2"/> Ingresar</>}
+            
+            <form id="login-form" className="space-y-6" onSubmit={handleLogin}>
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Correo de Operador</label>
+                    <Input type="email" id="login-email" required
+                           className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                           placeholder="operador@emergenciagt.com"
+                           value={email}
+                           onChange={(e) => setEmail(e.target.value)}
+                    />
+                </div>
+                
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Contraseña</label>
+                    <Input type="password" id="login-password" required
+                           className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                           placeholder="••••••••"
+                           value={password}
+                           onChange={(e) => setPassword(e.target.value)}
+                    />
+                </div>
+                
+                <Button type="submit" 
+                        className="w-full bg-red-600 text-white py-3 h-auto text-lg rounded-lg hover:bg-red-700 transition-colors font-semibold"
+                        disabled={loading}>
+                    {loading ? <Loader2 className="animate-spin" /> : "Iniciar Sesión"}
                 </Button>
-              </div>
-            </div>
-          </form>
-       </div>
-    </MobileAppContainer>
+            </form>
+        </div>
+    </div>
   );
 }

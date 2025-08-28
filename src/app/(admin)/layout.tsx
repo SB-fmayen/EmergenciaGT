@@ -1,26 +1,18 @@
 
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { onAuthStateChanged, type User } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
-import { MobileAppContainer } from '@/components/MobileAppContainer';
 import { Loader2 } from 'lucide-react';
-
-// Importar los estilos de Leaflet
 import 'leaflet/dist/leaflet.css';
 
 /**
  * Layout principal para el panel de administración.
- * Protege las rutas de administración, redirigiendo a los usuarios no autenticados
- * a la página de login de administrador.
+ * Protege las rutas de administración y proporciona un diseño de página completa.
  */
-export default function AdminLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function AdminLayout({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
@@ -38,12 +30,14 @@ export default function AdminLayout({
   useEffect(() => {
     if (loading) return;
 
-    // Si no hay usuario y no estamos en la página de login, redirigir al login.
+    const isAdminLoginOrDashboard = pathname.startsWith('/login') || pathname.startsWith('/dashboard/admin');
+
+    // Si no hay usuario y se intenta acceder a una ruta de admin, redirigir al login de admin.
     if (!user && pathname !== '/login') {
       router.push('/login');
     }
     
-    // Si hay un usuario y está intentando acceder a la página de login,
+    // Si hay usuario y está intentando acceder a la página de login,
     // lo redirigimos al dashboard de administrador.
     if (user && pathname === '/login') {
       router.push('/dashboard/admin');
@@ -51,13 +45,13 @@ export default function AdminLayout({
 
   }, [user, loading, router, pathname]);
 
-  // Mientras se verifica la sesión, mostramos un loader.
+  // Mientras se verifica la sesión, mostramos un loader a pantalla completa.
   if (loading) {
     return (
-      <MobileAppContainer className="bg-slate-900 justify-center items-center">
-        <Loader2 className="w-12 h-12 text-white animate-spin" />
-        <p className="text-white mt-4">Verificando acceso...</p>
-      </MobileAppContainer>
+      <div className="bg-slate-900 min-h-screen flex flex-col justify-center items-center text-white">
+        <Loader2 className="w-12 h-12 animate-spin" />
+        <p className="mt-4 text-lg">Verificando acceso al panel...</p>
+      </div>
     );
   }
 
@@ -67,10 +61,10 @@ export default function AdminLayout({
       return <>{children}</>;
   }
 
-  // Fallback por si algo falla, muestra un loader en lugar de una página en blanco.
+  // Fallback por si algo falla.
   return (
-       <MobileAppContainer className="bg-slate-900 justify-center items-center">
+       <div className="bg-slate-900 min-h-screen flex justify-center items-center">
             <Loader2 className="w-12 h-12 text-white animate-spin" />
-       </MobileAppContainer>
+       </div>
   );
 }

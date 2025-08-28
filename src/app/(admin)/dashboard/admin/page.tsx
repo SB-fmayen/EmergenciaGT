@@ -2,7 +2,6 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { MobileAppContainer } from "@/components/MobileAppContainer";
 import { auth } from "@/lib/firebase";
 import { signOut } from "firebase/auth";
 import { useRouter } from "next/navigation";
@@ -10,16 +9,15 @@ import { useToast } from "@/hooks/use-toast";
 import { LogOut } from "lucide-react";
 import dynamic from 'next/dynamic';
 
-// Carga dinámica del mapa para evitar problemas de renderizado en el servidor (SSR)
 const AlertsMap = dynamic(() => import('@/components/admin/AlertsMap'), { 
   ssr: false,
-  loading: () => <p className="text-white text-center">Cargando mapa...</p>
+  loading: () => <p className="text-center text-gray-500">Cargando mapa...</p>
 });
 
 
 /**
  * Página principal del dashboard de administración.
- * Mostrará el mapa de alertas en tiempo real.
+ * Mostrará el mapa de alertas en tiempo real en una vista de escritorio.
  */
 export default function AdminDashboardPage() {
     const router = useRouter();
@@ -36,19 +34,31 @@ export default function AdminDashboardPage() {
     };
 
   return (
-    <MobileAppContainer className="bg-slate-800 p-0">
-      <div className="flex flex-col h-full">
-        <header className="bg-slate-900 p-4 flex justify-between items-center shadow-md z-10 flex-shrink-0">
-          <h1 className="text-xl font-bold text-white">Panel de Operador</h1>
-          <Button onClick={handleLogout} variant="ghost" size="sm" className="text-white hover:bg-slate-700">
-              <LogOut className="mr-2 h-4 w-4"/>
-              Cerrar Sesión
-          </Button>
-        </header>
-        <main className="flex-1 relative">
-            <AlertsMap />
-        </main>
-      </div>
-    </MobileAppContainer>
+    <div className="flex flex-col h-screen bg-gray-100">
+      <header className="bg-slate-900 text-white shadow-md z-20">
+        <div class="container mx-auto px-6 py-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 bg-white rounded-full flex items-center justify-center">
+                        <span class="text-red-600 font-bold text-xl">🚨</span>
+                    </div>
+                    <h1 class="text-2xl font-bold">Consola de Operaciones - EmergenciaGT</h1>
+                </div>
+                <div class="flex items-center space-x-4">
+                     <Button onClick={handleLogout} variant="destructive" size="sm" className="bg-red-600 hover:bg-red-700">
+                        <LogOut className="mr-2 h-4 w-4"/>
+                        Cerrar Sesión
+                    </Button>
+                </div>
+            </div>
+        </div>
+      </header>
+      
+      <main className="flex-1 flex flex-col p-6 overflow-hidden">
+          <div className="bg-white rounded-lg shadow-lg flex-1 border border-gray-200">
+             <AlertsMap />
+          </div>
+      </main>
+    </div>
   );
 }
