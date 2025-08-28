@@ -20,6 +20,7 @@ interface CancelAlertModalProps {
   isOpen: boolean;
   onClose: () => void;
   onConfirm: (reason: string) => void;
+  isCancelling: boolean;
 }
 
 const cancellationReasons = [
@@ -27,16 +28,14 @@ const cancellationReasons = [
     { id: "reason-2", label: "Ya no será necesaria la unidad" },
 ]
 
-export function CancelAlertModal({ isOpen, onClose, onConfirm }: CancelAlertModalProps) {
+export function CancelAlertModal({ isOpen, onClose, onConfirm, isCancelling }: CancelAlertModalProps) {
     const [selectedReason, setSelectedReason] = useState<string | null>(null);
-    const [isCancelling, setIsCancelling] = useState(false);
     const { toast } = useToast();
 
     // Reset state when dialog opens
     useEffect(() => {
         if (isOpen) {
             setSelectedReason(null);
-            setIsCancelling(false);
         }
     }, [isOpen]);
 
@@ -49,10 +48,7 @@ export function CancelAlertModal({ isOpen, onClose, onConfirm }: CancelAlertModa
             });
             return;
         }
-
-        setIsCancelling(true);
         onConfirm(selectedReason);
-        // El estado de cancelación se resetea en el useEffect o al cerrar
     }
 
     const handleOpenChange = (open: boolean) => {

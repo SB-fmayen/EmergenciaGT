@@ -31,6 +31,7 @@ export default function DashboardPage() {
   const [alertData, setAlertData] = useState<AlertData | null>(null);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isCancelling, setIsCancelling] = useState(false);
 
   const auth = getAuth(firebaseApp);
   const firestore = getFirestore(firebaseApp);
@@ -196,6 +197,7 @@ export default function DashboardPage() {
   
   const handleConfirmCancellation = async (reason: string) => {
     if (!alertData) return;
+    setIsCancelling(true);
 
     try {
       const alertRef = doc(firestore, "alerts", alertData.id);
@@ -211,6 +213,8 @@ export default function DashboardPage() {
     } catch(e) {
       console.error("Error cancelling alert:", e);
       toast({ title: "Error", description: "No se pudo cancelar la alerta.", variant: "destructive"})
+    } finally {
+      setIsCancelling(false);
     }
   }
 
@@ -288,6 +292,7 @@ export default function DashboardPage() {
         isOpen={isCancelModalOpen}
         onClose={handleCloseCancelModal}
         onConfirm={handleConfirmCancellation}
+        isCancelling={isCancelling}
       />
 
       <MedicalInfoModal

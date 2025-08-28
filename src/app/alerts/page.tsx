@@ -31,6 +31,7 @@ export default function AlertsPage() {
 
   const [isCancelModalOpen, setCancelModalOpen] = useState(false);
   const [alertToCancel, setAlertToCancel] = useState<AlertData | null>(null);
+  const [isCancelling, setIsCancelling] = useState(false);
 
 
   useEffect(() => {
@@ -98,6 +99,7 @@ export default function AlertsPage() {
   
   const handleConfirmCancellation = async (reason: string) => {
     if (!alertToCancel) return;
+    setIsCancelling(true);
 
     try {
       const alertRef = doc(firestore, "alerts", alertToCancel.id);
@@ -119,6 +121,8 @@ export default function AlertsPage() {
     } catch(e) {
       console.error("Error cancelling alert:", e);
       toast({ title: "Error", description: "No se pudo cancelar la alerta.", variant: "destructive"})
+    } finally {
+      setIsCancelling(false);
     }
   }
 
@@ -228,6 +232,7 @@ export default function AlertsPage() {
         isOpen={isCancelModalOpen}
         onClose={handleCloseCancelModal}
         onConfirm={handleConfirmCancellation}
+        isCancelling={isCancelling}
       />
     </MobileAppContainer>
   );
