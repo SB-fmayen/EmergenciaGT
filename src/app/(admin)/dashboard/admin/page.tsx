@@ -52,7 +52,6 @@ export default function AdminDashboardPage() {
     const [searchTerm, setSearchTerm] = useState("");
     const [statusFilter, setStatusFilter] = useState("new");
 
-    const audioRef = useRef<HTMLAudioElement | null>(null);
     const initialLoadDone = useRef(false);
 
     useEffect(() => {
@@ -63,9 +62,6 @@ export default function AdminDashboardPage() {
         const savedSoundPreference = localStorage.getItem("sound") === "on";
         setIsSoundOn(savedSoundPreference);
         
-        if (typeof window !== "undefined") {
-            audioRef.current = new Audio('/notification.mp3');
-        }
     }, []);
 
     const toggleTheme = () => {
@@ -90,7 +86,6 @@ export default function AdminDashboardPage() {
             if (initialLoadDone.current && isSoundOn) {
                 const newAlerts = alertsData.filter(a => a.status === 'new' && !alerts.some(old => old.id === a.id));
                 if (newAlerts.length > 0) {
-                   audioRef.current?.play().catch(e => console.error("Error playing sound:", e));
                    toast({ title: "¡Nueva Alerta!", description: `${newAlerts.length} nueva(s) emergencia(s) recibida(s).` });
                 }
             }
