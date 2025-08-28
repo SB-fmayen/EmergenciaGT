@@ -14,14 +14,13 @@ import { Button } from "@/components/ui/button";
 import { Settings, User, Sun, Moon, Volume2, VolumeX, ShieldCheck } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { useAuth } from "@/app/(admin)/layout"; // Import useAuth
 
 interface SettingsDropdownProps {
     theme: string;
     toggleTheme: () => void;
     isSoundOn: boolean;
     setIsSoundOn: (isOn: boolean) => void;
-    operatorName: string;
-    operatorRole: string;
 }
 
 export function SettingsDropdown({ 
@@ -29,16 +28,15 @@ export function SettingsDropdown({
     toggleTheme, 
     isSoundOn, 
     setIsSoundOn,
-    operatorName,
-    operatorRole
 }: SettingsDropdownProps) {
+    const { user, userRole } = useAuth(); // Get user and role from context
 
     const handleSoundToggle = (checked: boolean) => {
         setIsSoundOn(checked);
         localStorage.setItem("sound", checked ? "on" : "off");
     };
 
-    const isAdmin = operatorRole === 'admin';
+    const isAdmin = userRole === 'admin';
 
     return (
         <DropdownMenu>
@@ -59,10 +57,10 @@ export function SettingsDropdown({
                                 <User className={`w-5 h-5 ${isAdmin ? 'text-green-500' : 'text-primary'}`} />
                             </div>
                             <div>
-                                <p className="font-semibold truncate">{operatorName}</p>
+                                <p className="font-semibold truncate">{user?.email || "Operador"}</p>
                                 <p className="text-xs text-muted-foreground flex items-center gap-1">
                                     <ShieldCheck className={`w-3 h-3 ${isAdmin ? 'text-green-500' : 'text-muted-foreground'}`} />
-                                    <span className="capitalize">{operatorRole}</span>
+                                    <span className="capitalize">{userRole || "Cargando..."}</span>
                                 </p>
                             </div>
                         </div>

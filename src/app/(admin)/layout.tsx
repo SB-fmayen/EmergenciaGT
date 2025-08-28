@@ -32,7 +32,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setUser(currentUser);
       if (currentUser) {
         try {
-            // Force refresh to get the latest claims. This is crucial.
+            // Force refresh to get the latest claims. This is crucial for roles.
             const idTokenResult = await currentUser.getIdTokenResult(true); 
             const isAdmin = idTokenResult.claims.admin === true;
             setUserRole(isAdmin ? 'admin' : 'operator');
@@ -70,14 +70,18 @@ function ProtectedLayout({ children }: { children: ReactNode }) {
   const { user, userRole, loading } = useAuth();
 
   useEffect(() => {
-    if (loading) return;
+    if (loading) return; // Wait until loading is false
 
-    if (!user && !pathname.startsWith('/login')) {
+    const isAuthPage = pathname.startsWith('/login');
+
+    // If no user, redirect to login page, unless they are already there
+    if (!user && !isAuthPage) {
       router.push('/login');
       return;
     }
     
-    if (user && pathname.startsWith('/login')) {
+    // If user is logged in, redirect away from login page
+    if (user && isAuthPage) {
       router.push('/dashboard/admin');
       return;
     }
@@ -85,11 +89,13 @@ function ProtectedLayout({ children }: { children: ReactNode }) {
     // Role-based protection for admin-only pages
     const adminPages = ['/dashboard/stations', '/dashboard/users'];
     if (user && userRole === 'operator' && adminPages.some(page => pathname.startsWith(page))) {
+        toast({ title: "Acceso Denegado", description: "No tienes permisos para acceder a esta página.", variant: "destructive" });
         router.push('/dashboard/admin'); // Redirect operators away from admin-only pages
     }
 
   }, [user, userRole, loading, router, pathname]);
 
+  // If we are loading, show a full-screen spinner.
   if (loading) {
     return (
       <div className="bg-slate-900 min-h-screen flex flex-col justify-center items-center text-white">
@@ -99,23 +105,20 @@ function ProtectedLayout({ children }: { children: ReactNode }) {
     );
   }
 
-  // Allow access to login page if no user, or to other pages if user exists.
-  if ((!user && pathname.startsWith('/login')) || user) {
-     return <>{children}</>;
-  }
-
-  // Fallback loading/redirecting state
-  return (
+  // If user is not logged in and not on login page, they are being redirected. Show spinner.
+  if (!user && !pathname.startsWith('/login')) {
+     return (
        <div className="bg-slate-900 min-h-screen flex justify-center items-center">
             <Loader2 className="w-12 h-12 text-white animate-spin" />
        </div>
-  );
+    );
+  }
+
+  // Render children only when not loading and user state is confirmed
+  return <>{children}</>;
 }
 
-/**
- * Layout principal para el panel de administración.
- * Protege las rutas de administración y proporciona un diseño de página completa.
- */
+
 export default function AdminLayout({ children }: { children: ReactNode }) {
     return (
         <AuthProvider>

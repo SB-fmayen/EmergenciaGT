@@ -238,8 +238,6 @@ export default function AdminDashboardPage() {
                          toggleTheme={toggleTheme}
                          isSoundOn={isSoundOn}
                          setIsSoundOn={setIsSoundOn}
-                         operatorName={user?.email || "Operador"}
-                         operatorRole={userRole || "Cargando..."}
                     />
                      <Button onClick={handleLogout} variant="destructive" size="sm">
                         <LogOut className="mr-2 h-4 w-4"/>
