@@ -8,6 +8,9 @@ import { auth } from '@/lib/firebase';
 import { MobileAppContainer } from '@/components/MobileAppContainer';
 import { Loader2 } from 'lucide-react';
 
+// Importar los estilos de Leaflet
+import 'leaflet/dist/leaflet.css';
+
 /**
  * Layout principal para el panel de administración.
  * Protege las rutas de administración, redirigiendo a los usuarios no autenticados
