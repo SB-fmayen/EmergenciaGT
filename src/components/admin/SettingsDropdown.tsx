@@ -11,7 +11,7 @@ import {
   DropdownMenuGroup
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-import { Settings, User, Sun, Moon, Volume2, VolumeX } from "lucide-react";
+import { Settings, User, Sun, Moon, Volume2, VolumeX, ShieldCheck } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 
@@ -57,8 +57,11 @@ export function SettingsDropdown({
                                 <User className="w-5 h-5 text-primary" />
                             </div>
                             <div>
-                                <p className="font-semibold">{operatorName}</p>
-                                <p className="text-xs text-muted-foreground">{operatorRole}</p>
+                                <p className="font-semibold truncate">{operatorName}</p>
+                                <p className="text-xs text-muted-foreground flex items-center gap-1">
+                                    <ShieldCheck className="w-3 h-3 text-green-500" />
+                                    <span className="capitalize">{operatorRole}</span>
+                                </p>
                             </div>
                         </div>
                     </DropdownMenuItem>
@@ -96,3 +99,4 @@ export function SettingsDropdown({
     );
 }
 
+    

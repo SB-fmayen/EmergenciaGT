@@ -29,3 +29,23 @@ export type AlertData = {
     isAnonymous?: boolean;
     cancellationReason?: string;
 }
+
+export type StationData = {
+    id: string;
+    name: string;
+    address: string;
+    location: GeoPoint;
+    createdAt: Timestamp | Date | any;
+}
+
+export type UserRole = 'admin' | 'operator';
+
+export type UserProfile = {
+    uid: string;
+    email: string;
+    role: UserRole;
+    createdAt: Timestamp | Date | any;
+    lastLogin?: Timestamp | Date | any;
+};
+
+    
