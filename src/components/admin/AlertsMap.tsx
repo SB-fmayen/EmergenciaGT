@@ -50,25 +50,39 @@ const createAlertIcon = (severity: string | undefined) => {
 interface AlertsMapProps {
     alerts: EnrichedAlert[];
     selectedAlert: EnrichedAlert | null;
+    theme: string;
 }
 
-export default function AlertsMap({ alerts, selectedAlert }: AlertsMapProps) {
+const mapThemes = {
+    light: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
+    dark: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+};
+
+export default function AlertsMap({ alerts, selectedAlert, theme }: AlertsMapProps) {
     const mapRef = useRef<L.Map | null>(null);
     const containerRef = useRef<HTMLDivElement>(null);
     const markersRef = useRef<{ [key: string]: L.Marker }>({});
+    const tileLayerRef = useRef<L.TileLayer | null>(null);
 
     // Inicializa el mapa
     useEffect(() => {
         if (containerRef.current && !mapRef.current) {
             const map = L.map(containerRef.current!).setView([14.6349, -90.5069], 13);
             
-            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+            tileLayerRef.current = L.tileLayer(mapThemes[theme as keyof typeof mapThemes] || mapThemes.dark, {
                 attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
             }).addTo(map);
 
             mapRef.current = map;
         }
     }, []);
+
+    // Cambia el tema del mapa cuando el tema global cambia
+    useEffect(() => {
+        if (tileLayerRef.current) {
+            tileLayerRef.current.setUrl(mapThemes[theme as keyof typeof mapThemes] || mapThemes.dark);
+        }
+    }, [theme]);
 
     // Actualiza los marcadores cuando cambian las alertas
     useEffect(() => {
@@ -80,11 +94,12 @@ export default function AlertsMap({ alerts, selectedAlert }: AlertsMapProps) {
         // Remover marcadores de alertas que ya no están en la lista (resueltas, etc.)
         currentMarkerIds.forEach(markerId => {
             if (!alertIds.includes(markerId)) {
-                markersRef.current[markerId].remove();
-                delete markersRef.current[markerId];
+                if (markersRef.current[markerId]) {
+                    markersRef.current[markerId].remove();
+                    delete markersRef.current[markerId];
+                }
             }
         });
-
 
         // Añadir o actualizar marcadores
         alerts.forEach(alert => {
@@ -92,7 +107,7 @@ export default function AlertsMap({ alerts, selectedAlert }: AlertsMapProps) {
                 const popupContent = `
                     <div style="color: #333;">
                         <b>Alerta: ${alert.id.substring(0,8)}</b><br>
-                        Usuario: ${alert.userInfo?.fullName || 'Anónimo'}<br>
+                        Usuario: ${alert.isAnonymous ? 'Anónimo' : (alert.userInfo?.fullName || 'Registrado')}<br>
                         Estado: ${alert.status}
                     </div>
                 `;
@@ -108,6 +123,12 @@ export default function AlertsMap({ alerts, selectedAlert }: AlertsMapProps) {
                     }).addTo(mapRef.current!);
                     marker.bindPopup(popupContent);
                     markersRef.current[alert.id] = marker;
+                }
+             } else {
+                // Si la alerta está resuelta o cancelada y tiene un marcador, removerlo
+                if (markersRef.current[alert.id]) {
+                    markersRef.current[alert.id].remove();
+                    delete markersRef.current[alert.id];
                 }
              }
         });
@@ -136,3 +157,4 @@ export default function AlertsMap({ alerts, selectedAlert }: AlertsMapProps) {
     );
 }
 
+    
