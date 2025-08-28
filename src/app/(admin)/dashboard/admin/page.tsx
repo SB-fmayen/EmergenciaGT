@@ -39,7 +39,7 @@ export interface EnrichedAlert extends AlertData {
 export default function AdminDashboardPage() {
     const router = useRouter();
     const { toast } = useToast();
-    const { userRole } = useAuth();
+    const { user, userRole } = useAuth();
     
     const [theme, setTheme] = useState("dark");
     const [alerts, setAlerts] = useState<EnrichedAlert[]>([]);
@@ -52,6 +52,7 @@ export default function AdminDashboardPage() {
     const [statusFilter, setStatusFilter] = useState("new");
 
     const initialLoadDone = useRef(false);
+    const audioRef = useRef<HTMLAudioElement>(null);
 
     useEffect(() => {
         const savedTheme = localStorage.getItem("theme") || "dark";
@@ -61,6 +62,10 @@ export default function AdminDashboardPage() {
         const savedSoundPreference = localStorage.getItem("sound") === "on";
         setIsSoundOn(savedSoundPreference);
         
+        if (typeof window !== 'undefined') {
+            (audioRef as React.MutableRefObject<HTMLAudioElement>).current = new Audio('/notification.mp3');
+        }
+
     }, []);
 
     const toggleTheme = () => {
@@ -82,11 +87,11 @@ export default function AdminDashboardPage() {
                 timestamp: doc.data().timestamp?.toDate(),
             })) as AlertData;
 
-            // Notificación de nueva alerta (sin sonido)
             if (initialLoadDone.current && isSoundOn) {
                 const newAlerts = alertsData.filter(a => a.status === 'new' && !alerts.some(old => old.id === a.id));
                 if (newAlerts.length > 0) {
                    toast({ title: "¡Nueva Alerta!", description: `${newAlerts.length} nueva(s) emergencia(s) recibida(s).` });
+                   audioRef.current?.play().catch(e => console.error("Error playing sound:", e));
                 }
             }
 
@@ -232,7 +237,7 @@ export default function AdminDashboardPage() {
                          toggleTheme={toggleTheme}
                          isSoundOn={isSoundOn}
                          setIsSoundOn={setIsSoundOn}
-                         operatorName={auth.currentUser?.email || "Operador"}
+                         operatorName={user?.email || "Operador"}
                          operatorRole={userRole || "Cargando..."}
                     />
                      <Button onClick={handleLogout} variant="destructive" size="sm">
@@ -385,3 +390,4 @@ export default function AdminDashboardPage() {
     </>
   );
 }
+

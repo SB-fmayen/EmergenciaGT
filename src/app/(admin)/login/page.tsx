@@ -63,12 +63,10 @@ export default function AdminLoginPage() {
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       
-      // Actualiza el campo 'lastLogin' en el documento del usuario.
       await setDoc(doc(firestore, "users", userCredential.user.uid), {
         lastLogin: serverTimestamp(),
       }, { merge: true });
 
-      // Forzar la actualización del token para obtener los últimos custom claims.
       await userCredential.user.getIdToken(true);
 
       toast({
@@ -90,13 +88,10 @@ export default function AdminLoginPage() {
       setLoading(true);
       try {
           const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-          // Por defecto, un nuevo usuario es un 'operator'. Se promueve desde el panel.
-          // El 'role' en el documento de Firestore es solo para fines informativos.
-          // La seguridad real se maneja mediante Custom Claims.
           const newUserProfile: UserProfile = {
             uid: userCredential.user.uid,
             email: userCredential.user.email!,
-            role: 'operator', // Rol inicial por defecto
+            role: 'operator', 
             createdAt: serverTimestamp(),
           };
           await setDoc(doc(firestore, "users", userCredential.user.uid), newUserProfile);
@@ -166,7 +161,7 @@ export default function AdminLoginPage() {
     return (
       <form id="login-form" className="space-y-6" onSubmit={handleLogin}>
           <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Correo de Operador</label>
+              <label htmlFor="login-email" className="block text-sm font-medium text-gray-700 mb-2">Correo de Operador</label>
               <Input type="email" id="login-email" required
                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
                      placeholder="operador@emergenciagt.com"
@@ -175,7 +170,7 @@ export default function AdminLoginPage() {
               />
           </div>
           <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Contraseña</label>
+              <label htmlFor="login-password" className="block text-sm font-medium text-gray-700 mb-2">Contraseña</label>
               <Input type="password" id="login-password" required
                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
                      placeholder="••••••••"
