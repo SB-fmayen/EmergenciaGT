@@ -62,8 +62,7 @@ export default function AdminLoginPage() {
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       
-      // Upsert: crea el documento si no existe, o actualiza la fecha de último login si ya existe.
-      // El merge: true es crucial para no sobreescribir el rol si ya se asignó uno (ej. 'admin').
+      // We still write to firestore to keep a record of the user, but the role is now managed by custom claims.
       await setDoc(doc(firestore, "users", userCredential.user.uid), {
         email: userCredential.user.email,
         lastLogin: serverTimestamp(),
@@ -86,11 +85,11 @@ export default function AdminLoginPage() {
       setLoading(true);
       try {
           const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-          // Asigna el rol de 'operador' por defecto en Firestore al registrarse
+          // By default, a new user is an 'operator'. The role can be elevated to 'admin' via custom claims.
           await setDoc(doc(firestore, "users", userCredential.user.uid), {
             uid: userCredential.user.uid,
             email: userCredential.user.email,
-            role: 'operator',
+            role: 'operator', // This is just for display/record purposes, security is handled by claims
             createdAt: serverTimestamp(),
           });
           toast({
@@ -219,5 +218,3 @@ export default function AdminLoginPage() {
     </div>
   );
 }
-
-    

@@ -19,7 +19,7 @@ import { es } from 'date-fns/locale';
 import { AlertDetailModal } from "@/components/admin/AlertDetailModal";
 import Link from 'next/link';
 import { SettingsDropdown } from '@/components/admin/SettingsDropdown';
-import { useAdmin } from "@/hooks/useAdmin";
+import { useAuth } from "@/app/(admin)/layout";
 
 
 const AlertsMap = dynamic(() => import('@/components/admin/AlertsMap'), { 
@@ -40,7 +40,7 @@ export interface EnrichedAlert extends AlertData {
 export default function AdminDashboardPage() {
     const router = useRouter();
     const { toast } = useToast();
-    const { userRole } = useAdmin();
+    const { userRole } = useAuth();
     
     const [theme, setTheme] = useState("dark");
     const [alerts, setAlerts] = useState<EnrichedAlert[]>([]);
@@ -377,5 +377,3 @@ export default function AdminDashboardPage() {
     </>
   );
 }
-
-    

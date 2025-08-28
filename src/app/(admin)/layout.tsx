@@ -1,27 +1,80 @@
 
 "use client";
 
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode, createContext, useContext } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 import 'leaflet/dist/leaflet.css';
-import { useAdmin, AdminProvider } from '@/hooks/useAdmin';
+import { onAuthStateChanged, type User } from "firebase/auth";
+import { auth } from "@/lib/firebase";
 
+type UserRole = 'admin' | 'operator' | null;
+
+interface AuthContextType {
+  user: User | null;
+  userRole: UserRole;
+  loading: boolean;
+}
+
+const AuthContext = createContext<AuthContextType>({
+  user: null,
+  userRole: null,
+  loading: true,
+});
+
+export const AuthProvider = ({ children }: { children: ReactNode }) => {
+  const [user, setUser] = useState<User | null>(null);
+  const [userRole, setUserRole] = useState<UserRole>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      setUser(currentUser);
+      if (currentUser) {
+        // Get custom claims from the ID token
+        const idTokenResult = await currentUser.getIdTokenResult();
+        const isAdmin = idTokenResult.claims.admin === true;
+        setUserRole(isAdmin ? 'admin' : 'operator');
+      } else {
+        setUserRole(null);
+      }
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  return (
+    <AuthContext.Provider value={{ user, userRole, loading }}>
+      {children}
+    </AuthContext.Provider>
+  );
+};
+
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+};
 
 function ProtectedLayout({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
-  const { user, userRole, loading } = useAdmin();
+  const { user, userRole, loading } = useAuth();
 
   useEffect(() => {
     if (loading) return;
 
     if (!user && pathname !== '/login') {
       router.push('/login');
+      return;
     }
     
     if (user && pathname === '/login') {
       router.push('/dashboard/admin');
+      return;
     }
 
     // Role-based protection for stations page
@@ -40,13 +93,7 @@ function ProtectedLayout({ children }: { children: ReactNode }) {
     );
   }
 
-  // Allow access to login page for unauthenticated users, or any page for authenticated users.
-  // The role check above will handle redirection for unauthorized roles.
-  if (!user && pathname === '/login') {
-     return <>{children}</>;
-  }
-
-  if (user) {
+  if ((!user && pathname === '/login') || user) {
      return <>{children}</>;
   }
 
@@ -64,10 +111,8 @@ function ProtectedLayout({ children }: { children: ReactNode }) {
  */
 export default function AdminLayout({ children }: { children: ReactNode }) {
     return (
-        <AdminProvider>
+        <AuthProvider>
             <ProtectedLayout>{children}</ProtectedLayout>
-        </AdminProvider>
+        </AuthProvider>
     )
 }
-
-    
