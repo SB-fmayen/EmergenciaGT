@@ -36,15 +36,15 @@ export default function AdminDashboardPage() {
   return (
     <div className="flex flex-col h-screen bg-gray-100">
       <header className="bg-slate-900 text-white shadow-md z-20">
-        <div class="container mx-auto px-6 py-4">
-            <div class="flex items-center justify-between">
-                <div class="flex items-center space-x-3">
-                    <div class="w-10 h-10 bg-white rounded-full flex items-center justify-center">
-                        <span class="text-red-600 font-bold text-xl">🚨</span>
+        <div className="container mx-auto px-6 py-4">
+            <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                    <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center">
+                        <span className="text-red-600 font-bold text-xl">🚨</span>
                     </div>
-                    <h1 class="text-2xl font-bold">Consola de Operaciones - EmergenciaGT</h1>
+                    <h1 className="text-2xl font-bold">Consola de Operaciones - EmergenciaGT</h1>
                 </div>
-                <div class="flex items-center space-x-4">
+                <div className="flex items-center space-x-4">
                      <Button onClick={handleLogout} variant="destructive" size="sm" className="bg-red-600 hover:bg-red-700">
                         <LogOut className="mr-2 h-4 w-4"/>
                         Cerrar Sesión
