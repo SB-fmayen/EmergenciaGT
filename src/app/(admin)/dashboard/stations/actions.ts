@@ -1,9 +1,9 @@
 
 "use server";
 
-import { firestore } from "@/lib/firebase";
+import { firestore } from "@/lib/firebase-admin"; // Usar el SDK de Admin
 import type { StationData } from "@/lib/types";
-import { collection, addDoc, serverTimestamp, GeoPoint } from "firebase/firestore";
+import { GeoPoint, Timestamp } from "firebase-admin/firestore";
 
 export async function createStation(formData: FormData) {
   const name = formData.get("name") as string;
@@ -27,15 +27,15 @@ export async function createStation(formData: FormData) {
       name,
       address,
       location: new GeoPoint(latitude, longitude),
-      createdAt: serverTimestamp(),
+      createdAt: Timestamp.now(),
     };
     
-    await addDoc(collection(firestore, "stations"), stationData);
+    // La escritura se realiza con privilegios de administrador desde el backend
+    await firestore.collection("stations").add(stationData);
     
     return { success: true };
   } catch (error: any) {
-    console.error("Error creating station:", error);
-    // Devuelve un mensaje de error específico para ayudar a depurar en el cliente.
-    return { success: false, error: `Error de Firestore: ${error.message}` };
+    console.error("Error creating station (admin action):", error);
+    return { success: false, error: `Error de Servidor/Firestore: ${error.message}` };
   }
 }
