@@ -27,4 +27,5 @@ export type AlertData = {
     location: GeoPoint;
     status: AlertStatus;
     isAnonymous?: boolean;
+    cancellationReason?: string;
 }

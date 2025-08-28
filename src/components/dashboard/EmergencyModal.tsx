@@ -9,7 +9,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { CheckCircle, Clock } from "lucide-react";
+import { CheckCircle, Clock, ShieldX } from "lucide-react";
 
 
 interface EmergencyModalProps {
@@ -17,6 +17,8 @@ interface EmergencyModalProps {
   isOpen: boolean;
   /** Función para cerrar el modal. */
   onClose: () => void;
+  /** Función para abrir el modal de cancelación. */
+  onCancel: () => void;
 }
 
 /**
@@ -24,7 +26,7 @@ interface EmergencyModalProps {
  * Confirma al usuario que la alerta fue enviada y muestra un tiempo estimado de llegada.
  * @param {EmergencyModalProps} props - Propiedades del componente.
  */
-export function EmergencyModal({ isOpen, onClose }: EmergencyModalProps) {
+export function EmergencyModal({ isOpen, onClose, onCancel }: EmergencyModalProps) {
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -53,6 +55,10 @@ export function EmergencyModal({ isOpen, onClose }: EmergencyModalProps) {
             <div className="space-y-4">
               <Button onClick={onClose} className="w-full bg-red-600 text-white px-12 py-4 h-auto rounded-xl font-bold text-xl hover:bg-red-700 transition-all duration-300 transform hover:scale-105 shadow-lg">
                   Entendido
+              </Button>
+               <Button onClick={onCancel} variant="outline" className="w-full border-slate-500 text-slate-300 hover:bg-slate-700 hover:text-white">
+                  <ShieldX className="mr-2 h-4 w-4"/>
+                  Cancelar Alerta
               </Button>
             </div>
         </div>

@@ -6,10 +6,11 @@ import { MobileAppContainer } from "@/components/MobileAppContainer";
 import { PanicButton } from "@/components/dashboard/PanicButton";
 import { EmergencyModal } from "@/components/dashboard/EmergencyModal";
 import { MedicalInfoModal } from "@/components/dashboard/MedicalInfoModal";
+import { CancelAlertModal } from "@/components/dashboard/CancelAlertModal";
 import { QuickActions } from "@/components/dashboard/QuickActions";
 import type { MedicalData, AlertData } from "@/lib/types";
 import { getAuth, onAuthStateChanged, signOut, type User } from "firebase/auth";
-import { getFirestore, doc, getDoc, setDoc, serverTimestamp, collection, GeoPoint } from "firebase/firestore";
+import { getFirestore, doc, getDoc, setDoc, serverTimestamp, collection, GeoPoint, updateDoc } from "firebase/firestore";
 import { firebaseApp } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, LogOut, User as UserIcon } from "lucide-react";
@@ -24,6 +25,7 @@ import { Button } from "@/components/ui/button";
  */
 export default function DashboardPage() {
   const [isEmergencyModalOpen, setEmergencyModalOpen] = useState(false);
+  const [isCancelModalOpen, setCancelModalOpen] = useState(false);
   const [isMedicalInfoModalOpen, setMedicalInfoModalOpen] = useState(false);
   const [medicalData, setMedicalData] = useState<MedicalData | null>(null);
   const [alertData, setAlertData] = useState<AlertData | null>(null);
@@ -182,6 +184,37 @@ export default function DashboardPage() {
     router.push('/alerts');
   };
 
+  const handleOpenCancelModal = () => {
+    setEmergencyModalOpen(false);
+    setCancelModalOpen(true);
+  }
+
+  const handleCloseCancelModal = () => {
+    setCancelModalOpen(false);
+    setAlertData(null);
+  }
+  
+  const handleConfirmCancellation = async (reason: string) => {
+    if (!alertData) return;
+
+    try {
+      const alertRef = doc(firestore, "alerts", alertData.id);
+      await updateDoc(alertRef, {
+        status: 'cancelled',
+        cancellationReason: reason
+      });
+      toast({
+        title: "Alerta Cancelada",
+        description: "La alerta ha sido cancelada correctamente."
+      })
+      handleCloseCancelModal();
+    } catch(e) {
+      console.error("Error cancelling alert:", e);
+      toast({ title: "Error", description: "No se pudo cancelar la alerta.", variant: "destructive"})
+    }
+  }
+
+
   const handleCloseEmergencyModal = () => {
     setEmergencyModalOpen(false);
     setAlertData(null);
@@ -248,6 +281,13 @@ export default function DashboardPage() {
       <EmergencyModal
         isOpen={isEmergencyModalOpen}
         onClose={handleCloseEmergencyModal}
+        onCancel={handleOpenCancelModal}
+      />
+
+      <CancelAlertModal
+        isOpen={isCancelModalOpen}
+        onClose={handleCloseCancelModal}
+        onConfirm={handleConfirmCancellation}
       />
 
       <MedicalInfoModal
