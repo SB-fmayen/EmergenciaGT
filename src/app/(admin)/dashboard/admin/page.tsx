@@ -28,6 +28,7 @@ interface EnrichedAlert extends AlertData {
     stationInfo?: { name: string };
     statusClass?: string;
     severityClass?: string;
+    severity?: string;
 }
 
 
@@ -40,7 +41,7 @@ export default function AdminDashboardPage() {
     const [selectedAlert, setSelectedAlert] = useState<EnrichedAlert | null>(null);
 
     const [searchTerm, setSearchTerm] = useState("");
-    const [statusFilter, setStatusFilter] = useState("active");
+    const [statusFilter, setStatusFilter] = useState("new");
 
     useEffect(() => {
         setLoading(true);
@@ -65,14 +66,13 @@ export default function AdminDashboardPage() {
                          }
                     }
                     
-                    // Lógica de clases y datos adicionales
                     const severity = 'Crítica'; // Simulado por ahora
                     return {
                         ...alert,
                         userInfo,
                         stationInfo: { name: "Estación Central" }, // Simulado
                         statusClass: `status-${alert.status}`,
-                        severityClass: `severity-${severity.toLowerCase()}`,
+                        severityClass: `severity-critical`, // Forzado a critico para que se vea
                         severity,
                     };
                 })
@@ -105,7 +105,7 @@ export default function AdminDashboardPage() {
             const matchesStatus = statusFilter === "all" || alert.status === statusFilter;
             const matchesSearch = searchTerm === "" || 
                                   alert.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                  alert.userInfo?.fullName?.toLowerCase().includes(searchTerm.toLowerCase());
+                                  (alert.userInfo?.fullName && alert.userInfo.fullName.toLowerCase().includes(searchTerm.toLowerCase()));
             return matchesStatus && matchesSearch;
         });
     }, [alerts, statusFilter, searchTerm]);
@@ -117,6 +117,26 @@ export default function AdminDashboardPage() {
             resolved: alerts.filter(a => a.status === 'resolved').length,
         }
     }, [alerts]);
+
+    const getStatusBadge = (status: string) => {
+        switch (status) {
+            case 'new': return 'bg-red-100 text-red-800';
+            case 'dispatched': return 'bg-yellow-100 text-yellow-800';
+            case 'resolved': return 'bg-green-100 text-green-800';
+            case 'cancelled': return 'bg-gray-100 text-gray-800';
+            default: return 'bg-gray-100 text-gray-800';
+        }
+    };
+
+    const getStatusText = (status: string) => {
+        switch (status) {
+            case 'new': return 'Activa';
+            case 'dispatched': return 'En Curso';
+            case 'resolved': return 'Finalizada';
+            case 'cancelled': return 'Cancelada';
+            default: return status;
+        }
+    };
 
   return (
     <div className="flex flex-col min-h-screen bg-gray-50 text-gray-900">
@@ -184,7 +204,7 @@ export default function AdminDashboardPage() {
         </div>
         
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <div className="bg-white rounded-lg shadow-md border border-gray-200">
+            <div className="bg-white rounded-lg shadow-md border border-gray-200 flex flex-col">
                 <div className="p-6 border-b border-gray-200">
                     <div className="flex items-center justify-between mb-4">
                         <h2 className="text-xl font-bold text-gray-800">Alertas de Emergencia</h2>
@@ -233,7 +253,7 @@ export default function AdminDashboardPage() {
                                  <div className="flex items-start justify-between mb-2">
                                     <div className="flex items-center gap-2 flex-wrap">
                                         <span className="font-bold text-gray-800">{alert.id.substring(0, 8)}...</span>
-                                        <span className={`px-2 py-0.5 text-xs rounded-full bg-red-100 text-red-800`}>{alert.status}</span>
+                                        <span className={`px-2 py-0.5 text-xs rounded-full ${getStatusBadge(alert.status)}`}>{getStatusText(alert.status)}</span>
                                         <span className={`px-2 py-0.5 text-xs rounded-full bg-orange-100 text-orange-800`}>{alert.severity}</span>
                                     </div>
                                     <span className="text-sm text-gray-500">{alert.timestamp ? formatDistanceToNow(alert.timestamp, { addSuffix: true, locale: es }) : 'hace un momento'}</span>
@@ -275,3 +295,5 @@ export default function AdminDashboardPage() {
     </div>
   );
 }
+
+    
