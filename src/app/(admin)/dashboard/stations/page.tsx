@@ -41,15 +41,20 @@ export default function StationsPage() {
     return () => unsubscribe();
   }, [toast]);
 
-  const handleFormSubmit = async (formData: FormData) => {
+  const handleFormSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
     setIsSubmitting(true);
+    
+    const formData = new FormData(event.currentTarget);
     const result = await createStation(formData);
+
     if (result.success) {
       toast({ title: "Éxito", description: "Estación creada correctamente." });
       formRef.current?.reset();
     } else {
       toast({ title: "Error", description: result.error, variant: "destructive" });
     }
+
     setIsSubmitting(false);
   };
 
@@ -79,7 +84,7 @@ export default function StationsPage() {
                 <CardDescription>Añade una nueva estación de bomberos o paramédicos al sistema.</CardDescription>
               </CardHeader>
               <CardContent>
-                <form ref={formRef} action={handleFormSubmit} className="space-y-4">
+                <form ref={formRef} onSubmit={handleFormSubmit} className="space-y-4">
                   <div>
                     <label htmlFor="name" className="block text-sm font-medium text-muted-foreground mb-1">Nombre de la Estación</label>
                     <Input id="name" name="name" type="text" placeholder="Ej: Estación Central Zona 1" required />
@@ -150,5 +155,3 @@ export default function StationsPage() {
     </div>
   );
 }
-
-    
