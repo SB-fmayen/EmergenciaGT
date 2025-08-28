@@ -38,20 +38,21 @@ export function EditStationModal({ isOpen, onClose, station }: EditStationModalP
     });
 
     useEffect(() => {
-        setFormData({
-            name: station.name,
-            address: station.address,
-            latitude: station.location.latitude.toString(),
-            longitude: station.location.longitude.toString()
-        });
-    }, [station]);
+        if (isOpen) {
+            setFormData({
+                name: station.name,
+                address: station.address,
+                latitude: station.location.latitude.toString(),
+                longitude: station.location.longitude.toString()
+            });
+        }
+    }, [isOpen, station]);
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
         setFormData(prev => ({ ...prev, [name]: value }));
     }
 
-_FORM_HANDLER_
     const handleFormSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
         setIsSubmitting(true);

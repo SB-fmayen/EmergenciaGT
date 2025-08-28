@@ -31,8 +31,17 @@ export async function createStation(formData: FormData) {
       createdAt: Timestamp.now(),
     };
     
-    await firestore.collection("stations").add(stationData);
+    // Crear la estación
+    const newStationRef = await firestore.collection("stations").add(stationData);
     
+    // Crear la subcolección 'unidades' con un documento de ejemplo
+    const unitsCollectionRef = newStationRef.collection("unidades");
+    await unitsCollectionRef.doc("unidad_01").set({
+        nombre: "Unidad de Rescate 1",
+        tipo: "Ambulancia",
+        disponible: true
+    });
+
     revalidatePath("/dashboard/stations"); // Actualiza la vista
     return { success: true };
   } catch (error: any) {
