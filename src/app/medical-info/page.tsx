@@ -111,7 +111,14 @@ export default function MedicalInfoPage() {
   }
   
   const handleInputChange = (field: keyof Omit<MedicalData, 'medications' | 'conditions' | 'emergencyContacts'>, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    if (field === 'age') {
+        const numericValue = value.replace(/[^0-9]/g, '');
+        if (numericValue.length <= 3) {
+            setFormData(prev => ({ ...prev, [field]: numericValue }));
+        }
+    } else {
+        setFormData(prev => ({ ...prev, [field]: value }));
+    }
   };
 
   const handleSelectChange = (field: keyof MedicalData, value: string) => {
@@ -249,7 +256,7 @@ export default function MedicalInfoPage() {
               <div className="space-y-4">
                 <Input type="text" placeholder="Nombre Completo" value={formData.fullName} onChange={e => handleInputChange('fullName', e.target.value)} required />
                 <div className="grid grid-cols-2 gap-4">
-                  <Input type="number" placeholder="Edad" value={formData.age} onChange={e => handleInputChange('age', e.target.value)} required />
+                  <Input type="text" inputMode="numeric" placeholder="Edad" value={formData.age} onChange={e => handleInputChange('age', e.target.value)} required />
                   <Select onValueChange={value => handleSelectChange('bloodType', value)} value={formData.bloodType}>
                     <SelectTrigger>
                       <SelectValue placeholder="Tipo de Sangre" />

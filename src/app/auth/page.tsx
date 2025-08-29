@@ -8,7 +8,8 @@ import {
   signInWithEmailAndPassword,
   sendPasswordResetEmail,
   onAuthStateChanged,
-  signInAnonymously
+  signInAnonymously,
+  fetchSignInMethodsForEmail
 } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
@@ -180,6 +181,13 @@ export default function AuthPage() {
 
   const handlePasswordReset = (email: string) => {
     handleAuthAction(async () => {
+        // Verificar si el correo existe primero
+        const signInMethods = await fetchSignInMethodsForEmail(auth, email);
+        if (signInMethods.length === 0) {
+            toast({ title: "Error", description: "El correo proporcionado no se encuentra registrado.", variant: "destructive" });
+            return;
+        }
+
         await sendPasswordResetEmail(auth, email);
         toast({ title: "¡Enlace enviado!", description: "Revisa tu correo para restablecer tu contraseña." });
         setView("login");
