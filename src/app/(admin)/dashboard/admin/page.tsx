@@ -12,8 +12,8 @@ import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import { LogOut, RefreshCw, Bell, Zap, CheckCircle, Clock, MapPin, Building, Loader2, HardHat, Users, LayoutDashboard } from "lucide-react";
 import dynamic from 'next/dynamic';
-import { collection, onSnapshot, query, getDoc, doc, orderBy } from "firebase/firestore";
-import type { AlertData, MedicalData } from "@/lib/types";
+import { collection, onSnapshot, query, where, getDoc, doc, orderBy, Query } from "firebase/firestore";
+import type { AlertData, MedicalData, StationData } from "@/lib/types";
 import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { AlertDetailModal } from "@/components/admin/AlertDetailModal";
@@ -39,17 +39,18 @@ export interface EnrichedAlert extends AlertData {
 export default function AdminDashboardPage() {
     const router = useRouter();
     const { toast } = useToast();
-    const { user, userRole } = useAuth(); // Use the centralized auth state
+    const { user, userRole, stationId } = useAuth();
     
     const [theme, setTheme] = useState("dark");
     const [alerts, setAlerts] = useState<EnrichedAlert[]>([]);
+    const [stations, setStations] = useState<StationData[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedAlert, setSelectedAlert] = useState<EnrichedAlert | null>(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isSoundOn, setIsSoundOn] = useState(true);
 
     const [searchTerm, setSearchTerm] = useState("");
-    const [statusFilter, setStatusFilter] = useState("new");
+    const [statusFilter, setStatusFilter] = useState("all");
 
     const initialLoadDone = useRef(false);
 
@@ -60,6 +61,14 @@ export default function AdminDashboardPage() {
 
         const savedSoundPreference = localStorage.getItem("sound") !== "off";
         setIsSoundOn(savedSoundPreference);
+
+        // Fetch stations for the assignment modal
+        const stationsUnsub = onSnapshot(collection(firestore, "stations"), (snapshot) => {
+            const stationsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as StationData));
+            setStations(stationsData);
+        });
+
+        return () => stationsUnsub();
     }, []);
 
     const toggleTheme = () => {
@@ -70,9 +79,22 @@ export default function AdminDashboardPage() {
     };
 
     useEffect(() => {
+        if (!userRole) return; // Wait for role to be determined
+
         setLoading(true);
         const alertsRef = collection(firestore, "alerts");
-        const q = query(alertsRef, orderBy("timestamp", "desc"));
+        
+        let q: Query;
+        // If operator, filter by their assigned station. If admin, get all.
+        if (userRole === 'operator' && stationId) {
+             q = query(alertsRef, where("assignedStationId", "==", stationId), orderBy("timestamp", "desc"));
+        } else if (userRole === 'operator' && !stationId) {
+            // Operator not assigned to any station, they see nothing.
+             q = query(alertsRef, where("assignedStationId", "==", "non_existent_id"));
+        } else { // Admin sees all
+             q = query(alertsRef, orderBy("timestamp", "desc"));
+        }
+
 
         const unsubscribe = onSnapshot(q, async (querySnapshot) => {
             const alertsData: AlertData[] = querySnapshot.docs.map(doc => ({
@@ -99,13 +121,13 @@ export default function AdminDashboardPage() {
                          }
                     }
                     
-                    const severity = 'Crítica'; // Simulado por ahora
+                    const severity = 'Crítica';
                     return {
                         ...alert,
                         userInfo,
-                        stationInfo: { name: "Estación Central" }, // Simulado
+                        stationInfo: alert.assignedStationName ? { name: alert.assignedStationName } : undefined,
                         statusClass: `status-${alert.status}`,
-                        severityClass: `severity-critical`, // Forzado a critico para que se vea
+                        severityClass: `severity-critical`,
                         severity,
                     };
                 })
@@ -125,8 +147,7 @@ export default function AdminDashboardPage() {
         });
 
         return () => unsubscribe();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [toast, isSoundOn]);
+    }, [userRole, stationId, toast, isSoundOn]);
 
     const handleAlertClick = (alert: EnrichedAlert) => {
         setSelectedAlert(alert);
@@ -204,14 +225,14 @@ export default function AdminDashboardPage() {
                     <h1 className="text-2xl font-bold text-foreground">Consola de Emergencias</h1>
                 </div>
                 <div className="flex items-center space-x-4">
-                    <Link href="/dashboard/analytics">
-                        <Button variant="outline">
-                            <LayoutDashboard className="mr-2 h-4 w-4"/>
-                            Analíticas
-                        </Button>
-                    </Link>
                     {userRole === 'admin' && (
                        <>
+                        <Link href="/dashboard/analytics">
+                            <Button variant="outline">
+                                <LayoutDashboard className="mr-2 h-4 w-4"/>
+                                Analíticas
+                            </Button>
+                        </Link>
                         <Link href="/dashboard/stations">
                             <Button variant="outline">
                                 <HardHat className="mr-2 h-4 w-4"/>
@@ -321,6 +342,7 @@ export default function AdminDashboardPage() {
                     ) : filteredAlerts.length === 0 ? (
                         <div className="text-center py-10 text-muted-foreground">
                             <p>No hay alertas que coincidan con los filtros.</p>
+                            {userRole === 'operator' && !stationId && <p className="text-sm mt-1">No tienes una estación asignada.</p>}
                         </div>
                     ) : (
                         filteredAlerts.map((alert) => (
@@ -338,7 +360,7 @@ export default function AdminDashboardPage() {
                                 </div>
                                 <div className="mb-3">
                                     <p className="font-medium text-foreground">{alert.isAnonymous ? "Usuario Anónimo" : alert.userInfo?.fullName || "Usuario Registrado"}</p>
-                                    <p className="text-sm text-muted-foreground">Incidente reportado, pendiente de asignación</p>
+                                    <p className="text-sm text-muted-foreground">Incidente reportado, {alert.assignedStationId ? "asignado" : "pendiente de asignación"}</p>
                                 </div>
                                  <div className="flex items-center justify-between text-sm">
                                     <div className="text-muted-foreground flex items-center gap-2">
@@ -347,7 +369,7 @@ export default function AdminDashboardPage() {
                                     </div>
                                     <div className="text-muted-foreground flex items-center gap-2">
                                          <Building className="h-4 w-4"/>
-                                        <span>{alert.stationInfo?.name || "Pendiente"}</span>
+                                        <span>{alert.stationInfo?.name || "Sin asignar"}</span>
                                     </div>
                                     <Button variant="link" className="p-0 h-auto text-primary hover:text-primary/80">Ver Detalle</Button>
                                 </div>
@@ -376,11 +398,11 @@ export default function AdminDashboardPage() {
             isOpen={isModalOpen}
             onClose={handleCloseModal}
             alert={selectedAlert}
+            stations={stations}
             onCenterMap={handleMapCentering}
+            userRole={userRole}
         />
      )}
     </>
   );
 }
-
-    

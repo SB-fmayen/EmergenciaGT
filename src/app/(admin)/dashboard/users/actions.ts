@@ -4,6 +4,7 @@
 import { initializeApp, getApps, App, cert } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { ServiceAccount } from 'firebase-admin';
+import { firestore } from '@/lib/firebase-admin';
 
 // This is a type for the data we send to the client to avoid sending the whole UserRecord
 export type UserRecordWithRole = {
@@ -14,6 +15,7 @@ export type UserRecordWithRole = {
     disabled: boolean;
     creationTime: string;
     lastSignInTime: string;
+    stationId?: string;
 }
 
 // --- Firebase Admin SDK Initialization ---
@@ -60,27 +62,33 @@ export async function getUsers(idToken: string | undefined): Promise<{ success: 
             return { success: false, error: 'No se proporcionó token de autenticación. Acceso denegado.' };
         }
 
-        // Verify the token to ensure the user is authenticated, but do not check for admin claim here.
-        // This allows any logged-in user to see the list, which is necessary for the first admin to self-assign the role.
         await adminAuth.verifyIdToken(idToken);
         
         const userRecords = await adminAuth.listUsers();
         
-        const users = userRecords.users.map(user => ({
-            uid: user.uid,
-            email: user.email,
-            displayName: user.displayName,
-            role: user.customClaims?.admin === true ? 'admin' : 'operator' as 'admin' | 'operator',
-            disabled: user.disabled,
-            creationTime: user.metadata.creationTime,
-            lastSignInTime: user.metadata.lastSignInTime,
+        const users = await Promise.all(userRecords.users.map(async (user) => {
+            let stationId: string | undefined;
+            const userDoc = await firestore.collection('users').doc(user.uid).get();
+            if (userDoc.exists) {
+                stationId = userDoc.data()?.stationId;
+            }
+
+            return {
+                uid: user.uid,
+                email: user.email,
+                displayName: user.displayName,
+                role: user.customClaims?.admin === true ? 'admin' : 'operator' as 'admin' | 'operator',
+                disabled: user.disabled,
+                creationTime: user.metadata.creationTime,
+                lastSignInTime: user.metadata.lastSignInTime,
+                stationId,
+            };
         }));
         
         return { success: true, users };
 
     } catch (error: any) {
         console.error("Error fetching users:", error);
-        // Special check for permission error to guide the user.
         if (error.code === 'permission-denied' || error.code === 'auth/insufficient-permission') {
              return { success: false, error: 'La cuenta de servicio del servidor no tiene los permisos necesarios en IAM para listar usuarios.' };
         }
@@ -90,10 +98,14 @@ export async function getUsers(idToken: string | undefined): Promise<{ success: 
 
 
 /**
- * A server action to set a user's role (admin or operator).
+ * A server action to set a user's role and/or assigned station.
  * Only an admin can perform this action, with a special exception for the first admin.
  */
-export async function setUserRole(uid: string, role: 'admin' | 'operator', idToken: string | undefined): Promise<{ success: boolean, error?: string }> {
+export async function updateUser(
+    uid: string, 
+    idToken: string | undefined, 
+    updates: { role?: 'admin' | 'operator', stationId?: string | null }
+): Promise<{ success: boolean, error?: string }> {
      try {
         const adminAuth = checkAdminApp();
         if (!idToken) {
@@ -102,29 +114,36 @@ export async function setUserRole(uid: string, role: 'admin' | 'operator', idTok
 
         const decodedToken = await adminAuth.verifyIdToken(idToken);
 
-        // Special logic: Allow a user to make themselves the first admin if no admins exist
-        const listUsersResult = await adminAuth.listUsers(1000); // Check up to 1000 users
+        const listUsersResult = await adminAuth.listUsers(1000);
         const admins = listUsersResult.users.filter(user => user.customClaims?.admin === true);
-        const isFirstAdminSetup = admins.length === 0 && decodedToken.uid === uid && role === 'admin';
         
-        // Regular check: Only allow if the caller is an admin
-        if (decodedToken.admin !== true && !isFirstAdminSetup) {
-             return { success: false, error: 'No tienes permisos de administrador para cambiar roles.' };
+        if (updates.role) {
+            const isFirstAdminSetup = admins.length === 0 && decodedToken.uid === uid && updates.role === 'admin';
+            if (decodedToken.admin !== true && !isFirstAdminSetup) {
+                 return { success: false, error: 'No tienes permisos de administrador para cambiar roles.' };
+            }
+            if (admins.length === 1 && admins[0].uid === uid && updates.role === 'operator') {
+                return { success: false, error: 'No puedes quitar el rol al último administrador.'}
+            }
+            await adminAuth.setCustomUserClaims(uid, { admin: updates.role === 'admin' });
         }
         
-        // You can't demote yourself if you are the last admin
-        if (admins.length === 1 && admins[0].uid === uid && role === 'operator') {
-            return { success: false, error: 'No puedes quitar el rol al último administrador.'}
+        if (typeof updates.stationId !== 'undefined') {
+             if (decodedToken.admin !== true) {
+                 return { success: false, error: 'No tienes permisos de administrador para asignar estaciones.' };
+            }
+            const userDocRef = firestore.collection('users').doc(uid);
+            if (updates.stationId === null) {
+                await userDocRef.update({ stationId: null });
+            } else {
+                await userDocRef.set({ stationId: updates.stationId }, { merge: true });
+            }
         }
-        
-        // Set the custom claim
-        await adminAuth.setCustomUserClaims(uid, { admin: role === 'admin' });
-        // The client must re-authenticate (e.g., re-login or refresh token) to see the new role.
 
         return { success: true };
 
     } catch (error: any) {
-        console.error(`Error setting role for UID ${uid}:`, error);
+        console.error(`Error updating user ${uid}:`, error);
         return { success: false, error: `Error del servidor: ${error.code || error.message}` };
     }
 }

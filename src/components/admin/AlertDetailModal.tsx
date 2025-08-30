@@ -11,11 +11,11 @@ import {
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { X, Map, User, Info, Ambulance, Loader2 } from "lucide-react";
+import { X, Map, User, Info, Ambulance, Loader2, HardHat } from "lucide-react";
 import type { EnrichedAlert } from "@/app/(admin)/dashboard/admin/page";
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import type { AlertStatus } from "@/lib/types";
+import type { AlertStatus, StationData } from "@/lib/types";
 import { doc, updateDoc } from "firebase/firestore";
 import { firestore } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
@@ -25,7 +25,9 @@ interface AlertDetailModalProps {
     isOpen: boolean;
     onClose: () => void;
     alert: EnrichedAlert;
+    stations: StationData[];
     onCenterMap: (alert: EnrichedAlert) => void;
+    userRole: 'admin' | 'operator' | null;
 }
 
 const InfoRow = ({ label, value, valueClass }: { label: string, value?: string | number, valueClass?: string }) => (
@@ -55,16 +57,18 @@ const getStatusText = (status: string) => {
     }
 };
 
-export function AlertDetailModal({ isOpen, onClose, alert, onCenterMap }: AlertDetailModalProps) {
+export function AlertDetailModal({ isOpen, onClose, alert, stations, onCenterMap, userRole }: AlertDetailModalProps) {
     const { toast } = useToast();
     const [isUpdating, setIsUpdating] = useState(false);
+    const [isAssigning, setIsAssigning] = useState(false);
     const [selectedStatus, setSelectedStatus] = useState<AlertStatus>(alert.status);
+    const [selectedStation, setSelectedStation] = useState<string | undefined>(alert.assignedStationId);
 
     if (!alert) return null;
 
     const handleCenterMapClick = () => {
         onCenterMap(alert);
-        onClose(); // Cierra el modal después de centrar
+        onClose();
     }
 
     const handleUpdateStatus = async () => {
@@ -79,15 +83,35 @@ export function AlertDetailModal({ isOpen, onClose, alert, onCenterMap }: AlertD
             onClose();
         } catch (error) {
             console.error("Error updating status:", error);
-            toast({
-                title: "Error",
-                description: "No se pudo actualizar el estado de la alerta.",
-                variant: "destructive"
-            });
+            toast({ title: "Error", description: "No se pudo actualizar el estado de la alerta.", variant: "destructive" });
         } finally {
             setIsUpdating(false);
         }
     };
+
+    const handleAssignStation = async () => {
+        if (!selectedStation) {
+            toast({ title: "Error", description: "Debes seleccionar una estación para asignar.", variant: "destructive"});
+            return;
+        }
+        setIsAssigning(true);
+        try {
+            const station = stations.find(s => s.id === selectedStation);
+            const alertRef = doc(firestore, "alerts", alert.id);
+            await updateDoc(alertRef, { 
+                assignedStationId: selectedStation,
+                assignedStationName: station?.name || "Desconocido",
+                status: 'dispatched' // Automatically set to dispatched
+            });
+            toast({ title: "Estación Asignada", description: `La alerta ha sido asignada a ${station?.name}.`});
+            onClose();
+        } catch (error) {
+            console.error("Error assigning station:", error);
+            toast({ title: "Error", description: "No se pudo asignar la estación.", variant: "destructive"});
+        } finally {
+            setIsAssigning(false);
+        }
+    }
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
@@ -114,44 +138,44 @@ export function AlertDetailModal({ isOpen, onClose, alert, onCenterMap }: AlertD
                              <h3 className="font-bold text-lg mb-4 flex items-center gap-2 text-muted-foreground"><Info />Información del Evento</h3>
                             <div className="space-y-3 text-sm">
                                 <InfoRow label="ID de Evento" value={alert.id} />
-                                <InfoRow label="Tipo de Incidente" value="Accidente de Tránsito" />
                                 <InfoRow label="Hora de Reporte" value={alert.timestamp ? format(alert.timestamp, "dd/MM/yyyy, hh:mm:ss a", { locale: es }) : 'N/A'} />
                                 <InfoRow label="Severidad (IA)" value={alert.severity} valueClass="px-2 py-0.5 inline-block text-xs rounded-full bg-orange-500/20 text-orange-600 dark:text-orange-300" />
                                 <InfoRow label="Estado Actual" value={getStatusText(alert.status)} valueClass={`px-2 py-0.5 inline-block text-xs rounded-full ${getStatusBadge(alert.status)}`} />
                                 <InfoRow label="Coordenadas" value={`${alert.location.latitude.toFixed(6)}, ${alert.location.longitude.toFixed(6)}`} />
+                                <InfoRow label="Razón Cancelación" value={alert.cancellationReason} />
                             </div>
                         </div>
                     </div>
 
-                    {/* Description */}
-                    <div className="mb-6 p-4 bg-background rounded-lg border border-border">
-                         <h3 className="font-bold text-lg mb-2 text-muted-foreground">Descripción del Incidente</h3>
-                         <p className="text-foreground text-sm">
-                            Colisión múltiple en Zona 10. (Descripción simulada)
-                         </p>
-                    </div>
-
-                    {/* Assigned Station */}
+                    {/* Assigned Station - Only for Admins */}
+                    {userRole === 'admin' && (
                      <div className="mb-6 p-4 bg-primary/10 rounded-lg border border-primary/50">
-                         <h3 className="font-bold text-lg mb-3 flex items-center gap-2 text-primary"><Ambulance />Unidad Asignada</h3>
+                         <h3 className="font-bold text-lg mb-3 flex items-center gap-2 text-primary"><HardHat />Asignar Estación</h3>
                         <div className="flex items-center justify-between">
-                            <div>
-                                <p><span className="font-medium">Estación:</span> {alert.stationInfo?.name || "Pendiente"}</p>
-                                <p><span className="font-medium">ETA:</span> 8-12 minutos (simulado)</p>
-                            </div>
-                             <div className="flex space-x-2">
-                                <Button className="bg-green-600 hover:bg-green-700 text-white">
-                                    <Map className="mr-2 h-4 w-4"/> Ver Ruta
-                                </Button>
-                                <Button className="bg-purple-600 hover:bg-purple-700 text-white" disabled>
-                                    Trasladar
-                                </Button>
+                            <div className="flex-1 pr-4">
+                                <p className="font-medium text-primary/80 mb-2">Estación Asignada: <span className="font-bold text-primary">{alert.assignedStationName || "Pendiente de Asignación"}</span></p>
+                                <div className="flex gap-2">
+                                     <Select onValueChange={setSelectedStation} defaultValue={selectedStation}>
+                                        <SelectTrigger className="w-full">
+                                            <SelectValue placeholder="Seleccionar estación..." />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {stations.map(station => (
+                                                <SelectItem key={station.id} value={station.id}>{station.name}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                     <Button className="bg-primary hover:bg-primary/90" onClick={handleAssignStation} disabled={isAssigning || !selectedStation}>
+                                        {isAssigning ? <Loader2 className="animate-spin" /> : "Asignar"}
+                                    </Button>
+                                </div>
                             </div>
                         </div>
                     </div>
-
+                    )}
                 </div>
                  <DialogFooter className="p-6 border-t border-border bg-background/50 flex-col sm:flex-row gap-2">
+                    {userRole === 'admin' && (
                     <div className="flex items-center space-x-4 w-full">
                         <Select defaultValue={alert.status} onValueChange={(v) => setSelectedStatus(v as AlertStatus)}>
                             <SelectTrigger className="flex-1">
@@ -169,6 +193,7 @@ export function AlertDetailModal({ isOpen, onClose, alert, onCenterMap }: AlertD
                             Actualizar Estado
                         </Button>
                     </div>
+                    )}
                      <div className="w-full sm:w-auto">
                         <Button onClick={handleCenterMapClick} variant="outline" className="w-full">
                            <Map className="mr-2 h-4 w-4" /> Ver en Mapa
@@ -179,5 +204,3 @@ export function AlertDetailModal({ isOpen, onClose, alert, onCenterMap }: AlertD
         </Dialog>
     );
 }
-
-    

@@ -28,6 +28,8 @@ export type AlertData = {
     status: AlertStatus;
     isAnonymous?: boolean;
     cancellationReason?: string;
+    assignedStationId?: string;
+    assignedStationName?: string;
 }
 
 export type StationData = {
@@ -46,6 +48,7 @@ export type UserProfile = {
     role: UserRole;
     createdAt: Timestamp | Date | any;
     lastLogin?: Timestamp | Date | any;
+    stationId?: string;
 };
 
     

@@ -5,22 +5,26 @@ import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ArrowLeft, Loader2, RefreshCw, ShieldCheck, ShieldOff } from "lucide-react";
+import { ArrowLeft, Loader2, RefreshCw, ShieldCheck, ShieldOff, Building } from "lucide-react";
 import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
-import { getUsers, setUserRole, type UserRecordWithRole } from "./actions";
+import { getUsers, updateUser, type UserRecordWithRole } from "./actions";
 import { Badge } from "@/components/ui/badge";
-import { auth } from "@/lib/firebase";
+import { auth, firestore } from "@/lib/firebase";
+import { collection, onSnapshot, query } from "firebase/firestore";
+import type { StationData } from "@/lib/types";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
 
 export default function UsersPage() {
   const [users, setUsers] = useState<UserRecordWithRole[]>([]);
+  const [stations, setStations] = useState<StationData[]>([]);
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const { toast } = useToast();
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
-    // Para pasar el token de cliente al servidor de forma segura
     const idToken = await auth.currentUser?.getIdToken();
     const result = await getUsers(idToken);
     
@@ -33,34 +37,65 @@ export default function UsersPage() {
   }, [toast]);
 
   useEffect(() => {
-    // Espera a que el auth esté listo antes de llamar a fetchUsers
     const unsubscribe = auth.onAuthStateChanged(user => {
       if (user) {
         fetchUsers();
       } else {
-        setLoading(false);
+        setLoading(false); // No user, stop loading
       }
     });
-    return () => unsubscribe();
+
+    // Fetch stations for the dropdown
+    const stationsRef = collection(firestore, "stations");
+    const q = query(stationsRef);
+    const unsubscribeStations = onSnapshot(q, (snapshot) => {
+        const stationsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as StationData[];
+        setStations(stationsData);
+    });
+
+    return () => {
+      unsubscribe();
+      unsubscribeStations();
+    };
   }, [fetchUsers]);
+
 
   const handleRoleChange = async (uid: string, newRole: 'admin' | 'operator') => {
     setUpdatingId(uid);
     const idToken = await auth.currentUser?.getIdToken();
-    const result = await setUserRole(uid, newRole, idToken);
+    const result = await updateUser(uid, idToken, { role: newRole });
 
     if (result.success) {
       toast({ title: "Éxito", description: `Rol de usuario actualizado a ${newRole}.` });
-      // Si el usuario se está cambiando a sí mismo, debe volver a iniciar sesión para ver los cambios.
       if (auth.currentUser?.uid === uid) {
           toast({ title: "Acción Requerida", description: "Cierra y vuelve a iniciar sesión para que tus nuevos permisos tomen efecto.", duration: 5000})
       }
-      fetchUsers(); // Refresh the list after updating
+      fetchUsers(); // Refresh the list
     } else {
       toast({ title: "Error", description: result.error, variant: "destructive" });
     }
     setUpdatingId(null);
   };
+
+  const handleStationChange = async (uid: string, newStationId: string | null) => {
+    setUpdatingId(uid);
+    const idToken = await auth.currentUser?.getIdToken();
+    const result = await updateUser(uid, idToken, { stationId: newStationId });
+
+    if(result.success) {
+        toast({ title: "Éxito", description: "Estación del usuario actualizada."});
+        fetchUsers(); // Refresh list
+    } else {
+        toast({ title: "Error", description: result.error, variant: "destructive"});
+    }
+    setUpdatingId(null);
+  }
+
+  const getStationName = (stationId?: string) => {
+    if (!stationId) return <span className="text-muted-foreground">Ninguna</span>;
+    const station = stations.find(s => s.id === stationId);
+    return station ? station.name : "Estación Desconocida";
+  }
 
   return (
     <div className="flex flex-col min-h-screen bg-background text-foreground">
@@ -88,8 +123,7 @@ export default function UsersPage() {
           <CardHeader>
             <CardTitle>Operadores y Administradores</CardTitle>
             <CardDescription>
-                Asigna el rol de 'admin' a los usuarios que necesiten permisos para gestionar estaciones.
-                Un usuario recién registrado es 'operator' por defecto.
+                Asigna roles y estaciones a los usuarios. Los operadores solo verán las alertas de su estación asignada.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -102,14 +136,15 @@ export default function UsersPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Correo Electrónico</TableHead>
-                    <TableHead>Rol Actual</TableHead>
-                    <TableHead>Último Inicio de Sesión</TableHead>
+                    <TableHead>Rol</TableHead>
+                    <TableHead>Estación Asignada</TableHead>
+                    <TableHead>Último Inicio</TableHead>
                     <TableHead className="text-right">Acciones</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {users.length > 0 ? users.map((user) => (
-                    <TableRow key={user.uid}>
+                    <TableRow key={user.uid} className={updatingId === user.uid ? "opacity-50" : ""}>
                       <TableCell className="font-medium">{user.email || 'N/A'}</TableCell>
                       <TableCell>
                         <Badge variant={user.role === 'admin' ? 'default' : 'secondary'} className={user.role === 'admin' ? 'bg-green-600' : ''}>
@@ -118,14 +153,34 @@ export default function UsersPage() {
                         </Badge>
                       </TableCell>
                       <TableCell>
+                          {user.role === 'operator' ? (
+                               <Select 
+                                value={user.stationId || ''} 
+                                onValueChange={(value) => handleStationChange(user.uid, value === 'none' ? null : value)}
+                                disabled={updatingId === user.uid}
+                               >
+                                <SelectTrigger className="w-[200px]">
+                                    <SelectValue placeholder="Asignar estación..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="none">
+                                        <span className="text-muted-foreground">Ninguna</span>
+                                    </SelectItem>
+                                    {stations.map(station => (
+                                        <SelectItem key={station.id} value={station.id}>{station.name}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                          ) : (
+                              <span className="text-muted-foreground italic">N/A (Admin)</span>
+                          )}
+                      </TableCell>
+                      <TableCell>
                         {user.lastSignInTime ? new Date(user.lastSignInTime).toLocaleString('es-GT') : 'Nunca'}
                       </TableCell>
                       <TableCell className="text-right">
                         {updatingId === user.uid ? (
-                          <Button size="sm" disabled>
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            Actualizando...
-                          </Button>
+                           <Loader2 className="h-5 w-5 animate-spin ml-auto" />
                         ) : user.role === 'admin' ? (
                           <Button size="sm" variant="secondary" onClick={() => handleRoleChange(user.uid, 'operator')} disabled={auth.currentUser?.uid === user.uid}>
                             <ShieldOff className="mr-2 h-4 w-4" />
@@ -141,8 +196,8 @@ export default function UsersPage() {
                     </TableRow>
                   )) : (
                     <TableRow>
-                      <TableCell colSpan={4} className="text-center text-muted-foreground">
-                        No se encontraron usuarios. Si eres el primer usuario, deberías verte a ti mismo aquí.
+                      <TableCell colSpan={5} className="text-center text-muted-foreground">
+                        No se encontraron usuarios.
                       </TableCell>
                     </TableRow>
                   )}
