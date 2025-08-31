@@ -72,7 +72,6 @@ export default function AdminDashboardPage() {
             q = query(alertsRef, where("assignedStationId", "==", stationId));
         } else {
             // OPERATOR WITHOUT STATION: Do not query.
-            // Firestore rules will deny any query on 'alerts' if stationId is not provided for an operator.
             setAlerts([]);
             setLoading(false);
             return;
@@ -434,7 +433,5 @@ export default function AdminDashboardPage() {
     </>
   );
 }
-
-    
 
     

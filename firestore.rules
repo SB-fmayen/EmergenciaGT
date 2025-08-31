@@ -3,47 +3,43 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Los usuarios pueden crear su propio perfil al registrarse,
-    // y luego leer y actualizar su propio documento.
+    // Reglas para la colección de usuarios (perfiles de admin/operador)
     match /users/{userId} {
-      allow create: if request.auth != null;
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      // Un usuario puede crear y actualizar su propio documento (ej: al registrarse o al hacer login por primera vez)
+      // Un admin puede leer y actualizar cualquier perfil de usuario para asignar roles y estaciones.
+      allow read, write: if request.auth != null && (request.auth.uid == userId || request.auth.token.admin == true);
     }
     
-    // Solo los administradores pueden gestionar las estaciones.
+    // REGLA PARA ESTACIONES: Solo los administradores pueden leer o escribir en la colección de estaciones.
     match /stations/{stationId} {
       allow read, write: if request.auth != null && request.auth.token.admin == true;
     }
     
-    // Un usuario solo puede escribir en su propia información médica,
-    // pero cualquier usuario autenticado (como un operador) puede leerla.
+    // Reglas para la información médica de los usuarios de la app
     match /medicalInfo/{userId} {
+      // Un usuario puede escribir su propia información médica.
       allow write: if request.auth != null && request.auth.uid == userId;
+      // Cualquier usuario autenticado en el sistema (operadores/admins) puede leer la info médica
+      // Esto es necesario para que el panel de administración pueda obtener los detalles en una emergencia.
       allow read: if request.auth != null;
     }
     
-    // --- REGLAS DETALLADAS Y SEGURAS PARA ALERTAS ---
+    // Reglas para las alertas
     match /alerts/{alertId} {
-      // Cualquier usuario (incluido anónimo) puede crear una alerta.
-      allow create: if request.auth != null;
+      // Cualquier persona (incluso anónima) puede crear una alerta de emergencia.
+      allow create;
 
-      // Un usuario puede LEER una alerta si:
-      // 1. Es un administrador.
-      // 2. Es un operador y la alerta está asignada a su estación.
-      // 3. Es el usuario que creó la alerta.
+      // Lectura (GET y LIST) unificada y segura.
       allow read: if request.auth != null && 
                   (request.auth.token.admin == true || 
-                   resource.data.assignedStationId == request.auth.token.stationId ||
-                   resource.data.userId == request.auth.uid);
+                  (resource.data.assignedStationId != null && resource.data.assignedStationId == request.auth.token.stationId));
 
-      // Un usuario puede ACTUALIZAR una alerta si:
-      // 1. Es un administrador.
-      // 2. Es un operador y la alerta está asignada a su estación.
-      // 3. Es el usuario que la creó y la va a cancelar (status == 'new').
+      // Un administrador o un operador asignado a la alerta pueden actualizarla.
       allow update: if request.auth != null &&
                     (request.auth.token.admin == true ||
-                     resource.data.assignedStationId == request.auth.token.stationId ||
-                     (resource.data.userId == request.auth.uid && resource.data.status == 'new'));
+                     (resource.data.assignedStationId != null && resource.data.assignedStationId == request.auth.token.stationId));
     }
   }
 }
+
+    
