@@ -68,10 +68,13 @@ export default function AdminDashboardPage() {
         let q: Query;
 
         if (userRole === 'operator' && stationId) {
+            // Operator Query: Simple filter by station ID. No ordering to prevent needing a composite index.
             q = query(alertsRef, where("assignedStationId", "==", stationId));
         } else if (userRole === 'operator' && !stationId) {
+            // Operator without a station assigned sees nothing.
             q = query(alertsRef, where("assignedStationId", "==", "non_existent_id"));
         } else {
+            // Admin Query: See all alerts, ordered by most recent.
             q = query(alertsRef, orderBy("timestamp", "desc"));
         }
         
@@ -112,6 +115,7 @@ export default function AdminDashboardPage() {
                 })
             );
             
+            // For operators, sort client-side since we can't order in the query without a composite index.
             if (userRole === 'operator') {
                 enrichedAlerts.sort((a, b) => (b.timestamp?.getTime() || 0) - (a.timestamp?.getTime() || 0));
             }

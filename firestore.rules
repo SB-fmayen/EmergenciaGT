@@ -1,63 +1,56 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // --- Users Collection ---
-    // User profile for admins/operators.
-    match /users/{userId} {
-      // A user can read/write their own profile.
-      allow read, write: if request.auth.uid == userId;
-      // An authenticated user can create their own profile document during registration.
-      allow create: if request.auth != null;
+    
+    function isUserAuthenticated() {
+      return request.auth != null;
     }
 
+    function isUserAdmin() {
+      return isUserAuthenticated() && request.auth.token.admin == true;
+    }
+
+    function isUserOwner(userId) {
+      return isUserAuthenticated() && request.auth.uid == userId;
+    }
+
+    // --- Users Collection ---
+    match /users/{userId} {
+      allow get: if isUserAuthenticated();
+      allow list: if isUserAdmin();
+      allow create: if isUserAuthenticated();
+      allow write: if isUserAdmin() || isUserOwner(userId);
+    }
+    
     // --- Stations Collection ---
-    // Only admins can manage stations and their subcollections.
     match /stations/{stationId} {
-      allow read, write: if request.auth.token.admin == true;
+      allow read, write: if isUserAdmin();
       
-      // Rule for the 'unidades' subcollection.
+      // Allow access to subcollections for admins
       match /unidades/{unitId} {
-        allow read, write: if request.auth.token.admin == true;
+        allow read, write: if isUserAdmin();
       }
     }
     
     // --- MedicalInfo Collection ---
-    // This data belongs to the mobile app users.
     match /medicalInfo/{userId} {
-      // The user can create/update their own medical info.
-      allow write: if request.auth.uid == userId;
-      // Any authenticated operator/admin can read it to provide help.
-      allow read: if request.auth != null;
+      // The owner can write their own data.
+      allow write: if isUserOwner(userId);
+      // Any authenticated user (admin, operator reading an alert) can read medical info.
+      allow read: if isUserAuthenticated();
     }
     
     // --- Alerts Collection ---
-    // This is the most critical collection.
     match /alerts/{alertId} {
-      // Allow reading a single document if authenticated.
-      // This is used by both mobile app users to check their alert status,
-      // and by the admin panel to get details.
-      allow get: if request.auth != null;
-      
-      // Allow listing documents with specific restrictions.
-      // This is the key rule to fix the permission denied error for queries.
-      allow list: if 
-          // An admin can list all alerts without restriction.
-          request.auth.token.admin == true ||
-          // An operator can list alerts if the query explicitly filters by their stationId.
-          request.query.where.assignedStationId == request.auth.token.stationId;
-
       // Any user (including anonymous) can create an alert.
-      allow create: if request.auth != null;
+      allow create: if isUserAuthenticated();
+      
+      // Admins can read/update any alert.
+      // Operators can read/update an alert assigned to their station.
+      allow read, update: if isUserAdmin() || (resource.data.assignedStationId == request.auth.token.stationId);
 
-      // Allow updates under specific conditions.
-      allow update: if 
-          // An admin can update any alert.
-          request.auth.token.admin == true ||
-          // An operator can update an alert assigned to their station.
-          resource.data.assignedStationId == request.auth.token.stationId ||
-          // The user who created the alert can update it (e.g., to cancel it).
-          request.auth.uid == resource.data.userId;
+      // A user can list alerts if they are an admin OR if they are an operator querying for their station.
+      allow list: if isUserAdmin() || (request.query.where.keys().hasAny(['assignedStationId']));
     }
   }
 }
