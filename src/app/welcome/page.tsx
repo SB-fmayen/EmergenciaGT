@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { MobileAppContainer } from "@/components/MobileAppContainer";
 import { ClipboardList, ShieldAlert } from "lucide-react";
 import Image from 'next/image';
+import logoBomberos from '@/assets/cuerpo-bomberos-logo.png';
 
 
 /**
@@ -18,7 +19,7 @@ export default function WelcomePage() {
       <div className="flex-1 flex flex-col justify-center px-8 py-12 animate-fade-in">
         <div className="text-center mb-12">
           <div className="w-24 h-24 mx-auto mb-6 flex items-center justify-center">
-            <Image src="/cuerpo-bomberos-logo.png" alt="Logo de Bomberos Voluntarios" width={96} height={96} />
+            <Image src={logoBomberos} alt="Logo de Bomberos Voluntarios" width={96} height={96} />
           </div>
           <h1 className="text-4xl font-bold text-white mb-3">¡Cuenta Creada!</h1>
           <p className="text-red-100 text-lg font-medium mb-2">
@@ -56,5 +57,3 @@ export default function WelcomePage() {
     </MobileAppContainer>
   );
 }
-
-    
