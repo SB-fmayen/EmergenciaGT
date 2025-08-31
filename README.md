@@ -1,4 +1,3 @@
-
 # EmergenciaGT - Documentación del Proyecto
 
 ## 1. Visión General del Proyecto
@@ -10,18 +9,69 @@
 
 ---
 
-## 2. Arquitectura de la Solución
+## 2. Instalación y Ejecución Local
+
+Para trabajar en el proyecto desde tu computadora, sigue estos pasos.
+
+### 2.1. Prerrequisitos
+
+Asegúrate de tener instalado **[Node.js](https://nodejs.org/en)** (se recomienda la versión LTS). Esto instalará automáticamente `npm`.
+
+### 2.2. Pasos de Instalación
+
+1.  **Descargar el Código:** Descarga el proyecto como un archivo ZIP y descomprímelo en una carpeta de tu elección.
+
+2.  **Instalar Dependencias:** Abre una terminal o línea de comandos en la carpeta del proyecto y ejecuta el siguiente comando. Esto descargará todas las librerías necesarias.
+    ```bash
+    npm install
+    ```
+
+3.  **Configurar Variables de Entorno (Clave de Admin):** Este es el paso más importante para que las funciones de administrador funcionen localmente.
+    *   **Crea un archivo:** En la raíz del proyecto, crea un nuevo archivo llamado `.env.local`.
+    *   **Obtén tu clave de servicio de Firebase:**
+        *   Ve a la [Consola de Firebase](https://console.firebase.google.com/).
+        *   Selecciona tu proyecto `emergenciagt`.
+        *   Haz clic en el ícono de engranaje (Configuración) y ve a **Configuración del proyecto**.
+        *   Ve a la pestaña **Cuentas de servicio**.
+        *   Haz clic en el botón **"Generar nueva clave privada"**. Se descargará un archivo JSON.
+    *   **Añade la clave al archivo `.env.local`:** Abre el archivo JSON que descargaste, copia todo su contenido y pégalo en tu archivo `.env.local` dentro de comillas simples, de la siguiente manera:
+        ```env
+        FIREBASE_SERVICE_ACCOUNT_KEY='{
+          "type": "service_account",
+          "project_id": "emergenciagt",
+          "private_key_id": "...",
+          "private_key": "-----BEGIN PRIVATE KEY-----\\n...\\n-----END PRIVATE KEY-----\\n",
+          "client_email": "...",
+          "client_id": "...",
+          "auth_uri": "...",
+          "token_uri": "...",
+          "auth_provider_x509_cert_url": "...",
+          "client_x509_cert_url": "..."
+        }'
+        ```
+        > **Importante:** El archivo `.env.local` nunca debe compartirse ni subirse a repositorios públicos como GitHub.
+
+4.  **Ejecutar el Servidor de Desarrollo:** Una vez configurado, ejecuta el siguiente comando en tu terminal:
+    ```bash
+    npm run dev
+    ```
+
+5.  **Abrir la Aplicación:** Abre tu navegador web y visita **http://localhost:9002**. Verás el panel de administración listo para usar, conectado a tu base de datos de Firebase en la nube.
+
+---
+
+## 3. Arquitectura de la Solución
 
 Esta sección cubre la arquitectura del software, la infraestructura del sistema y la arquitectura técnica.
 
-### 2.1. Arquitectura General y de Software
+### 3.1. Arquitectura General y de Software
 
 La plataforma utiliza una arquitectura moderna basada en **Next.js** y **Firebase**, lo que garantiza escalabilidad, rendimiento y desarrollo rápido.
 
 - **Frontend (App Móvil y Panel Web):** Ambas interfaces están construidas con Next.js (usando el App Router), React, TypeScript y Tailwind CSS para el estilo, con componentes pre-construidos de shadcn/ui.
 - **Backend y Base de Datos (BaaS - Backend as a Service):** Firebase es el núcleo de la solución, proveyendo toda la infraestructura de backend de manera serverless.
 
-### 2.2. Infraestructura del Sistema
+### 3.2. Infraestructura del Sistema
 
 La infraestructura es completamente serverless, alojada y gestionada por Google a través de Firebase:
 
@@ -29,7 +79,7 @@ La infraestructura es completamente serverless, alojada y gestionada por Google 
 - **Firebase Authentication:** Servicio gestionado para la autenticación segura de usuarios (email/contraseña, anónimo) y la gestión de roles mediante Custom Claims.
 - **Firestore:** Base de datos NoSQL, serverless, distribuida globalmente y con capacidades de tiempo real.
 
-### 2.3. Diagrama de Arquitectura
+### 3.3. Diagrama de Arquitectura
 
 ```
 +--------------------------+        +--------------------------+
@@ -51,7 +101,7 @@ La infraestructura es completamente serverless, alojada y gestionada por Google 
 
 ```
 
-### 2.4. Arquitectura Técnica Detallada
+### 3.4. Arquitectura Técnica Detallada
 
 - **Next.js App Router:** Se utiliza el enrutador de aplicación de Next.js para una mejor organización de rutas y layouts anidados. Las rutas se dividen en grupos: `(admin)` para el panel y `(mobile)` para la PWA.
 - **Componentes de Servidor y Cliente:** Se favorece el uso de Componentes de Servidor (`"use server"`) en Next.js para la lógica de negocio y las acciones que interactúan con Firebase Admin (ej: `users/actions.ts`), reduciendo la cantidad de JavaScript enviado al cliente. Los componentes interactivos (`"use client"`) se usan para la UI que requiere estado o eventos del navegador (ej: los dashboards).
@@ -60,7 +110,7 @@ La infraestructura es completamente serverless, alojada y gestionada por Google 
 
 ---
 
-## 3. Modelo de Base de Datos (Firestore)
+## 4. Modelo de Base de Datos (Firestore)
 
 La base de datos está organizada en colecciones principales que separan las distintas entidades de la aplicación.
 
@@ -141,11 +191,11 @@ La base de datos está organizada en colecciones principales que separan las dis
 
 ---
 
-## 4. Diagrama de Procesos (Flujos de Lógica de Negocio)
+## 5. Diagrama de Procesos (Flujos de Lógica de Negocio)
 
 Esta sección detalla los procesos clave que conectan la App Móvil, el Panel Web y Firebase.
 
-### 4.1. Flujo de Generación de Alerta de Emergencia
+### 5.1. Flujo de Generación de Alerta de Emergencia
 
 Este es el flujo más crítico de la plataforma.
 
@@ -178,7 +228,7 @@ Este es el flujo más crítico de la plataforma.
     *   Dentro de la función `processAlerts`, si la alerta entrante no es anónima (`isAnonymous == false`), el sistema toma el `userId` de la alerta y realiza una consulta a la colección `medicalInfo` para buscar el documento con ese mismo ID.
     *   Si se encuentra, los datos médicos del usuario se adjuntan al objeto de la alerta en el estado del panel (`EnrichedAlert`). Esto permite que el operador, al hacer clic en la alerta, vea inmediatamente la información médica relevante del paciente en el modal `<AlertDetailModal />`.
 
-### 4.2. Flujo de Gestión de Roles (Admin y Operator)
+### 5.2. Flujo de Gestión de Roles (Admin y Operator)
 
 El sistema utiliza **Custom Claims** de Firebase Authentication para gestionar los roles, lo que proporciona una seguridad robusta a nivel de backend.
 
@@ -201,7 +251,7 @@ El sistema utiliza **Custom Claims** de Firebase Authentication para gestionar l
     *   Este token contiene los Custom Claims. El layout extrae el claim `admin` y lo guarda en el estado del contexto `AuthContext` (`userRole`).
     *   Componentes como `AdminDashboardPage` y `SettingsDropdown` usan el hook `useAuth()` para acceder a este rol y decidir si muestran (`userRole === 'admin'`) u ocultan (`userRole === 'operator'`) los botones de "Estaciones" y "Usuarios".
 
-### 4.3. Flujo de Despacho y Asignación de Alertas (Admin/Operator)
+### 5.3. Flujo de Despacho y Asignación de Alertas (Admin/Operator)
 
 Este flujo describe cómo las alertas se asignan a estaciones específicas y cómo los operadores ven solo lo que les corresponde.
 
@@ -227,7 +277,7 @@ Este flujo describe cómo las alertas se asignan a estaciones específicas y có
 
 ---
 
-## 5. Estructura de Archivos del Proyecto
+## 6. Estructura de Archivos del Proyecto
 
 El proyecto está organizado siguiendo las convenciones de Next.js App Router.
 
