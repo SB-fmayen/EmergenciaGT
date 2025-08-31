@@ -5,6 +5,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Check, ShieldAlert } from "lucide-react";
+import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 
 interface PanicButtonProps {
   /** Función a ejecutar cuando el botón se activa completamente. */
@@ -23,6 +24,7 @@ export function PanicButton({ onActivate }: PanicButtonProps) {
   const [progress, setProgress] = useState(0);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const isOnline = useOnlineStatus();
 
   /**
    * Limpia todos los temporizadores y estados.
@@ -121,7 +123,9 @@ export function PanicButton({ onActivate }: PanicButtonProps) {
       </div>
       
       <p className="text-white text-xl font-medium mb-6">
-        {isActivated ? "La ayuda está en camino" : "Mantén presionado por 2 segundos"}
+        {isActivated
+          ? isOnline ? "La ayuda está en camino" : "Alerta guardada, se enviará al reconectar"
+          : "Mantén presionado por 2 segundos"}
       </p>
 
       <div className="w-72 mx-auto h-8">

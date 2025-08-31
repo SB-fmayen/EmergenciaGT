@@ -13,9 +13,10 @@ import { getAuth, onAuthStateChanged, signOut, type User } from "firebase/auth";
 import { getFirestore, doc, getDoc, setDoc, serverTimestamp, collection, GeoPoint, updateDoc } from "firebase/firestore";
 import { firebaseApp } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, LogOut, User as UserIcon } from "lucide-react";
+import { Loader2, LogOut, User as UserIcon, WifiOff } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 
 
 /**
@@ -37,6 +38,7 @@ export default function DashboardPage() {
   const firestore = getFirestore(firebaseApp);
   const { toast } = useToast();
   const router = useRouter();
+  const isOnline = useOnlineStatus();
 
   /**
    * Efecto para observar cambios en el estado de autenticación
@@ -115,40 +117,46 @@ export default function DashboardPage() {
 
   /**
    * Se ejecuta cuando el botón de pánico es activado.
-   * Obtiene la ubicación del usuario, crea una nueva alerta en Firestore
-   * y muestra el modal de confirmación de emergencia.
+   * Obtiene la ubicación, verifica la conexión y crea la alerta en Firestore.
    */
   const handleActivateEmergency = async () => {
-    // Usar auth.currentUser para obtener el usuario más reciente y evitar problemas de estado.
     const user = auth.currentUser;
     if (!user) {
-      toast({ title: "Error de Autenticación", description: "No se pudo verificar tu sesión. Por favor, intenta de nuevo.", variant: "destructive"});
+      toast({ title: "Error de Autenticación", description: "No se pudo verificar tu sesión.", variant: "destructive"});
       return;
     }
     
-    // Muestra un toast mientras se obtiene la ubicación
-    const { id, dismiss } = toast({ 
-      description: (
-        <div className="flex items-center gap-2 text-white">
-          <Loader2 className="animate-spin" />
-          <span>Activando Alerta: Obteniendo tu ubicación...</span>
-        </div>
-      ),
+    // Toast de carga inicial
+    const { id: loadingToastId, dismiss: dismissLoadingToast } = toast({ 
+      description: <div className="flex items-center gap-2 text-white"><Loader2 className="animate-spin" /> Obteniendo tu ubicación...</div>,
       duration: Infinity,
     });
     
     const location = await getUserLocation();
-    dismiss(id);
+    dismissLoadingToast();
 
     if (!location) {
         toast({ title: "Activación Cancelada", description: "No se pudo activar la alerta sin tu ubicación.", variant: "destructive" });
         return;
     }
 
-    try {
-      // Crea un ID de documento único para la nueva alerta
-      const alertDocRef = doc(collection(firestore, "alerts"));
+    // Comportamiento si la app está Offline
+    if (!isOnline) {
+      toast({
+        title: "Estás sin conexión",
+        description: (
+          <div className="flex items-start gap-2">
+            <WifiOff className="h-6 w-6 mt-1 text-orange-400"/>
+            <p>Tu alerta se ha guardado y se enviará automáticamente cuando recuperes la conexión a internet.</p>
+          </div>
+        ),
+        variant: "destructive",
+        duration: 10000
+      });
+    }
 
+    try {
+      const alertDocRef = doc(collection(firestore, "alerts"));
       const newAlert: AlertData = {
         id: alertDocRef.id,
         userId: user.uid,
@@ -158,10 +166,15 @@ export default function DashboardPage() {
         isAnonymous: user.isAnonymous,
       };
 
+      // setDoc se encargará de la escritura offline si no hay conexión
       await setDoc(alertDocRef, newAlert);
       
       setAlertData(newAlert);
-      setEmergencyModalOpen(true);
+      
+      // Solo mostrar el modal de "ayuda en camino" si hay conexión
+      if (isOnline) {
+        setEmergencyModalOpen(true);
+      }
 
     } catch (error) {
       console.error("Error creating alert:", error);
