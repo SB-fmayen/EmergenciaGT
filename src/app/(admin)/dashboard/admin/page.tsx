@@ -100,9 +100,10 @@ export default function AdminDashboardPage() {
          }
 
         const alertsRef = collection(firestore, "alerts");
+        let q: Query;
         
         if (userRole === 'admin') {
-            const q = query(alertsRef, orderBy("timestamp", "desc"));
+            q = query(alertsRef, orderBy("timestamp", "desc"));
             unsubscribeFromAlerts.current = onSnapshot(q, async (querySnapshot) => {
                 const alertsData: AlertData[] = querySnapshot.docs.map(doc => ({
                     id: doc.id,
@@ -128,13 +129,15 @@ export default function AdminDashboardPage() {
                 setLoading(false);
             });
         } else if (userRole === 'operator') {
-            if (!stationId) {
+             if (!stationId) {
                 setAlerts([]);
                 setLoading(false);
                 return;
             }
+            q = query(alertsRef, where("assignedStationId", "==", stationId));
+
+            // Para operadores, usamos getDocs en lugar de onSnapshot para evitar problemas de permisos en tiempo real.
             try {
-                const q = query(alertsRef, where("assignedStationId", "==", stationId));
                 const querySnapshot = await getDocs(q);
                 const alertsData: AlertData[] = querySnapshot.docs.map(doc => ({
                     id: doc.id,
@@ -145,7 +148,7 @@ export default function AdminDashboardPage() {
             } catch (error: any) {
                  console.error("Error en getDocs de Firestore (Operator):", error);
                  if (error.code === 'permission-denied') {
-                    toast({ title: "Error de Permisos", description: "No tienes permisos para ver las alertas de esta estación.", variant: "destructive", duration: 10000 });
+                    toast({ title: "Error de Permisos", description: "No tienes permisos para ver las alertas de esta estación. Esto puede deberse a la falta de un índice en la base de datos.", variant: "destructive", duration: 10000 });
                 } else {
                      toast({ title: "Error al Cargar", description: "No se pudieron cargar las alertas.", variant: "destructive" });
                 }
@@ -160,22 +163,37 @@ export default function AdminDashboardPage() {
         setTheme(savedTheme);
         document.documentElement.className = savedTheme;
 
-        const stationsUnsub = onSnapshot(collection(firestore, "stations"), (snapshot) => {
-            const stationsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as StationData));
-            setStations(stationsData);
-        });
+        let stationsUnsub: (() => void) | undefined;
+        if (userRole === 'admin') {
+            stationsUnsub = onSnapshot(collection(firestore, "stations"), 
+                (snapshot) => {
+                    const stationsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as StationData));
+                    setStations(stationsData);
+                },
+                (error) => {
+                    console.error("Error al cargar estaciones:", error);
+                    toast({ title: "Error de Estaciones", description: "No se pudieron cargar los datos de las estaciones.", variant: "destructive" });
+                }
+            );
+        } else {
+            // Los operadores no necesitan cargar todas las estaciones, se evita la llamada.
+            setStations([]);
+        }
         
         if (userRole) {
             fetchAlerts(); 
         }
 
         return () => {
-             stationsUnsub();
+             if (stationsUnsub) {
+                stationsUnsub();
+             }
              if(unsubscribeFromAlerts.current) {
                 unsubscribeFromAlerts.current();
              }
         }
-    }, [userRole, stationId, fetchAlerts]); 
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [userRole, stationId]); 
 
 
     const toggleTheme = () => {
@@ -445,3 +463,4 @@ export default function AdminDashboardPage() {
     </>
   );
 }
+
