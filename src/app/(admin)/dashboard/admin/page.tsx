@@ -52,6 +52,7 @@ export default function AdminDashboardPage() {
     const [searchTerm, setSearchTerm] = useState("");
     const [statusFilter, setStatusFilter] = useState("all");
 
+    const audioRef = useRef<HTMLAudioElement | null>(null);
     const initialLoadDone = useRef(false);
 
     useEffect(() => {

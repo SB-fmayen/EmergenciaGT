@@ -4,36 +4,56 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Reglas para la colección 'stations'
-    // Solo los administradores pueden gestionar las estaciones
-    match /stations/{stationId} {
-      allow get, list: if request.auth != null && request.auth.token.admin == true;
-      allow create, update, delete: if request.auth != null && request.auth.token.admin == true;
-    }
-
-    // Reglas para la colección de 'users'
-    // Solo los administradores pueden leer perfiles y los usuarios su propio perfil.
-    // Los roles se manejan con 'custom claims' desde el backend.
+    // ===== Users (Admin Panel) =====
+    // Admins can read the whole collection to manage users.
+    // Any authenticated user can read their own document to get their info (like stationId).
+    // Admins can update any user document (to change roles/stations).
     match /users/{userId} {
-      allow read: if request.auth != null && (request.auth.token.admin == true || request.auth.uid == userId);
-      allow create, update: if request.auth != null && request.auth.uid == userId;
+      allow read: if request.auth != null && (request.auth.uid == userId || request.auth.token.admin == true);
+      allow list: if request.auth != null && request.auth.token.admin == true;
+      allow write: if request.auth != null && request.auth.token.admin == true;
     }
 
-    // Reglas para la información médica
-    // Los usuarios solo pueden ver y editar su propia información.
-    // El personal de emergencia (admins/operators) accede a esta info a través de una función de servidor segura.
+    // ===== Medical Info (Mobile App Users) =====
+    // Users can only create, read, or update their own medical info.
+    // No one can see anyone else's data.
     match /medicalInfo/{userId} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
+
+    // ===== Alerts =====
+    // Mobile app users can create new alerts.
+    // Mobile app users can read and update (e.g., cancel) their own alerts.
+    // Admin users can read/write any alert.
+    // **NEW RULE**: Operators can READ an alert if its assignedStationId matches their own stationId.
+    function isOperatorForAlert() {
+      let userStationId = get(/databases/$(database)/documents/users/$(request.auth.uid)).data.stationId;
+      return resource.data.assignedStationId == userStationId;
+    }
     
-    // Reglas para las alertas
-    // Cualquier usuario autenticado puede crear alertas.
-    // Solo los operadores o administradores pueden actualizar el estado de una alerta.
     match /alerts/{alertId} {
       allow create: if request.auth != null;
-      allow read: if request.auth != null && (request.auth.uid == resource.data.userId || request.auth.token.admin == true);
-      allow update: if request.auth != null && (request.auth.uid == resource.data.userId || request.auth.token.admin == true);
+      allow read: if request.auth != null && (
+                      (request.auth.uid == resource.data.userId) || // Owner of the alert
+                      (request.auth.token.admin == true) || // Admin
+                      (request.auth.token.admin != true && isOperatorForAlert()) // Operator for assigned station
+                    );
+      allow update: if request.auth != null && (
+                      (request.auth.uid == resource.data.userId) || // Owner can update (cancel)
+                      (request.auth.token.admin == true) // Admin can update (assign/change status)
+                    );
+      allow delete: if request.auth.token.admin == true;
+    }
+    
+    // ===== Stations =====
+    // Only admins can manage stations (create, read, update, delete).
+    match /stations/{stationId} {
+      allow get, list: if request.auth != null; // Allow any authenticated user to read station list for modals
+      allow write, delete: if request.auth.token.admin == true;
     }
 
+    match /stations/{stationId}/unidades/{unitId} {
+        allow read, write: if request.auth.token.admin == true;
+    }
   }
 }
