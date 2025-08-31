@@ -108,10 +108,6 @@ export default function StationsPage() {
     setStationToDelete(null); // Cierra el modal
   }
 
-  const openInGoogleMaps = (lat: number, lng: number) => {
-    window.open(`https://www.google.com/maps?q=${lat},${lng}`, '_blank');
-  };
-
   return (
     <>
     <div className="flex flex-col min-h-screen bg-background text-foreground">
@@ -203,7 +199,7 @@ export default function StationsPage() {
                             <TableCell>{station.address}</TableCell>
                             <TableCell className="font-mono text-xs">{station.location.latitude.toFixed(4)}, {station.location.longitude.toFixed(4)}</TableCell>
                             <TableCell className="text-right space-x-2">
-                                <Button variant="ghost" size="icon" className="hover:bg-blue-500/10" onClick={() => openInGoogleMaps(station.location.latitude, station.location.longitude)}>
+                                <Button variant="ghost" size="icon" className="hover:bg-blue-500/10" onClick={() => window.open(`https://www.google.com/maps?q=${station.location.latitude},${station.location.longitude}`, '_blank')}>
                                     <MapPin className="h-4 w-4 text-blue-500"/>
                                 </Button>
                                 <Button variant="ghost" size="icon" className="hover:bg-yellow-500/10" onClick={() => setStationToEdit(station)}>
