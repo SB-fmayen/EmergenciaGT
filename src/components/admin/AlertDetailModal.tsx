@@ -175,7 +175,6 @@ export function AlertDetailModal({ isOpen, onClose, alert, stations, onCenterMap
                     )}
                 </div>
                  <DialogFooter className="p-6 border-t border-border bg-background/50 flex-col sm:flex-row gap-2">
-                    {userRole === 'admin' && (
                     <div className="flex items-center space-x-4 w-full">
                         <Select defaultValue={alert.status} onValueChange={(v) => setSelectedStatus(v as AlertStatus)}>
                             <SelectTrigger className="flex-1">
@@ -193,7 +192,6 @@ export function AlertDetailModal({ isOpen, onClose, alert, stations, onCenterMap
                             Actualizar Estado
                         </Button>
                     </div>
-                    )}
                      <div className="w-full sm:w-auto">
                         <Button onClick={handleCenterMapClick} variant="outline" className="w-full">
                            <Map className="mr-2 h-4 w-4" /> Ver en Mapa
