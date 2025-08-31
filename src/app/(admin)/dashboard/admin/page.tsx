@@ -79,61 +79,75 @@ export default function AdminDashboardPage() {
         }
         
         unsubscribeFromAlerts.current = onSnapshot(q, async (querySnapshot) => {
-            const alertsData: AlertData[] = querySnapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data(),
-                timestamp: doc.data().timestamp?.toDate(),
-            })) as AlertData;
+            try {
+                const alertsData: AlertData[] = querySnapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data(),
+                    timestamp: doc.data().timestamp?.toDate(),
+                })) as AlertData;
 
-             if (initialLoadDone.current) {
-                const newAlerts = alertsData.filter(a => a.status === 'new' && !alerts.some(old => old.id === a.id));
-                if (newAlerts.length > 0) {
-                   toast({ title: "¡Nueva Alerta!", description: `${newAlerts.length} nueva(s) emergencia(s) recibida(s).` });
-                }
-            }
-
-            const enrichedAlerts = await Promise.all(
-                alertsData.map(async (alert) => {
-                    let userInfo: MedicalData | undefined = undefined;
-                    if (alert.userId && !alert.isAnonymous) {
-                         const userDocRef = doc(firestore, "medicalInfo", alert.userId);
-                         const userDocSnap = await getDoc(userDocRef);
-                         if (userDocSnap.exists()) {
-                             userInfo = userDocSnap.data() as MedicalData;
-                         }
+                 if (initialLoadDone.current) {
+                    const newAlerts = alertsData.filter(a => a.status === 'new' && !alerts.some(old => old.id === a.id));
+                    if (newAlerts.length > 0) {
+                       toast({ title: "¡Nueva Alerta!", description: `${newAlerts.length} nueva(s) emergencia(s) recibida(s).` });
                     }
-                    
-                    const severity = 'Crítica';
-                    return {
-                        ...alert,
-                        userInfo,
-                        stationInfo: alert.assignedStationName ? { name: alert.assignedStationName } : undefined,
-                        statusClass: `status-${alert.status}`,
-                        severityClass: `severity-critical`,
-                        severity,
-                    };
-                })
-            );
-            
-            // For operators, sort client-side since we can't order in the query without a composite index.
-            if (userRole === 'operator') {
-                enrichedAlerts.sort((a, b) => (b.timestamp?.getTime() || 0) - (a.timestamp?.getTime() || 0));
+                }
+
+                const enrichedAlerts = await Promise.all(
+                    alertsData.map(async (alert) => {
+                        let userInfo: MedicalData | undefined = undefined;
+                        if (alert.userId && !alert.isAnonymous) {
+                             const userDocRef = doc(firestore, "medicalInfo", alert.userId);
+                             const userDocSnap = await getDoc(userDocRef);
+                             if (userDocSnap.exists()) {
+                                 userInfo = userDocSnap.data() as MedicalData;
+                             }
+                        }
+                        
+                        const severity = 'Crítica';
+                        return {
+                            ...alert,
+                            userInfo,
+                            stationInfo: alert.assignedStationName ? { name: alert.assignedStationName } : undefined,
+                            statusClass: `status-${alert.status}`,
+                            severityClass: `severity-critical`,
+                            severity,
+                        };
+                    })
+                );
+                
+                // For operators, sort client-side since we can't order in the query without a composite index.
+                if (userRole === 'operator') {
+                    enrichedAlerts.sort((a, b) => (b.timestamp?.getTime() || 0) - (a.timestamp?.getTime() || 0));
+                }
+                
+                setAlerts(enrichedAlerts);
+                setLoading(false);
+                initialLoadDone.current = true;
+            } catch (processingError) {
+                console.error("Error processing snapshot data:", processingError);
+                toast({ title: "Error de Datos", description: "No se pudieron procesar los datos de las alertas.", variant: "destructive" });
+                setLoading(false);
             }
-            
-            setAlerts(enrichedAlerts);
-            setLoading(false);
-            initialLoadDone.current = true;
         }, (error) => {
-            console.error("Error fetching alerts:", error);
+            // Este es el catch para el listener de onSnapshot
+            console.error("Error en onSnapshot de Firestore:", error);
+            console.log("Contexto del error:", {
+                userEmail: user?.email,
+                userRole: userRole,
+                stationId: stationId,
+                query: q // Log the query object to see what it's trying to do
+            });
+
             if (error.code === 'permission-denied') {
-                toast({ title: "Error de Permisos", description: "No tienes permisos para ver las alertas o falta un índice en la base de datos.", variant: "destructive" });
+                toast({ title: "Error de Permisos", description: "No tienes permisos para ver las alertas. Revisa las reglas de Firestore o los índices de la base de datos.", variant: "destructive", duration: 10000 });
             } else {
                  toast({ title: "Error de Conexión", description: "No se pudieron cargar las alertas en tiempo real.", variant: "destructive" });
             }
             setLoading(false);
         });
 
-    }, [userRole, stationId, toast, alerts]);
+    }, [userRole, stationId, toast, alerts, user]);
 
     useEffect(() => {
         const savedTheme = localStorage.getItem("theme") || "dark";
@@ -420,3 +434,5 @@ export default function AdminDashboardPage() {
     </>
   );
 }
+
+    
