@@ -22,12 +22,10 @@ export type UserRecordWithRole = {
 let adminApp: App;
 if (!getApps().length) {
     try {
-        // Option 1: Use environment variables (Best for deployment)
         if (process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
             const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY) as ServiceAccount;
             adminApp = initializeApp({ credential: cert(serviceAccount) });
         } 
-        // Option 2: Use Application Default Credentials (For Google Cloud environments)
         else if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
             adminApp = initializeApp();
         }
@@ -36,7 +34,6 @@ if (!getApps().length) {
         }
     } catch (e: any) {
         console.error("Firebase Admin Init Error:", e.message);
-        // Avoid crashing the server during build, the error will be caught in the actions.
     }
 } else {
     adminApp = getApps()[0];
@@ -52,8 +49,6 @@ const checkAdminApp = () => {
 
 /**
  * A server action to get a list of all users from Firebase Authentication.
- * Any authenticated user can perform this action to allow the first admin setup.
- * The UI layer should restrict access to this page for non-admins after setup.
  */
 export async function getUsers(idToken: string | undefined): Promise<{ success: boolean, users?: UserRecordWithRole[], error?: string }> {
     try {
@@ -62,16 +57,18 @@ export async function getUsers(idToken: string | undefined): Promise<{ success: 
             return { success: false, error: 'No se proporcionó token de autenticación. Acceso denegado.' };
         }
 
-        await adminAuth.verifyIdToken(idToken);
+        // Verify the user making the request is an admin
+        const decodedToken = await adminAuth.verifyIdToken(idToken);
+        if (decodedToken.admin !== true) {
+            return { success: false, error: 'Acción no autorizada. Se requieren privilegios de administrador.' };
+        }
         
         const userRecords = await adminAuth.listUsers();
         
         const users = await Promise.all(userRecords.users.map(async (user) => {
-            let stationId: string | undefined;
-            const userDoc = await firestore.collection('users').doc(user.uid).get();
-            if (userDoc.exists) {
-                stationId = userDoc.data()?.stationId;
-            }
+            // The stationId from custom claims is the source of truth for filtering
+            // The one from Firestore is for display/management in the admin panel
+            const stationId = user.customClaims?.stationId as string | undefined;
 
             return {
                 uid: user.uid,
@@ -89,7 +86,7 @@ export async function getUsers(idToken: string | undefined): Promise<{ success: 
 
     } catch (error: any) {
         console.error("Error fetching users:", error);
-        if (error.code === 'permission-denied' || error.code === 'auth/insufficient-permission') {
+        if (error.code?.includes('permission-denied') || error.code?.includes('auth/insufficient-permission')) {
              return { success: false, error: 'La cuenta de servicio del servidor no tiene los permisos necesarios en IAM para listar usuarios.' };
         }
         return { success: false, error: `Error del servidor: ${error.message}` };
@@ -113,11 +110,14 @@ export async function updateUser(
         }
 
         const decodedToken = await adminAuth.verifyIdToken(idToken);
+        const targetUser = await adminAuth.getUser(uid);
+        const currentClaims = targetUser.customClaims || {};
 
-        const listUsersResult = await adminAuth.listUsers(1000);
-        const admins = listUsersResult.users.filter(user => user.customClaims?.admin === true);
-        
+        // --- Role Update Logic ---
         if (updates.role) {
+            const listUsersResult = await adminAuth.listUsers(1000);
+            const admins = listUsersResult.users.filter(user => user.customClaims?.admin === true);
+            
             const isFirstAdminSetup = admins.length === 0 && decodedToken.uid === uid && updates.role === 'admin';
             if (decodedToken.admin !== true && !isFirstAdminSetup) {
                  return { success: false, error: 'No tienes permisos de administrador para cambiar roles.' };
@@ -125,21 +125,30 @@ export async function updateUser(
             if (admins.length === 1 && admins[0].uid === uid && updates.role === 'operator') {
                 return { success: false, error: 'No puedes quitar el rol al último administrador.'}
             }
-            await adminAuth.setCustomUserClaims(uid, { admin: updates.role === 'admin' });
+            currentClaims.admin = updates.role === 'admin';
         }
         
+        // --- Station Update Logic ---
         if (typeof updates.stationId !== 'undefined') {
              if (decodedToken.admin !== true) {
                  return { success: false, error: 'No tienes permisos de administrador para asignar estaciones.' };
             }
             const userDocRef = firestore.collection('users').doc(uid);
+
             if (updates.stationId === null) {
-                await userDocRef.update({ stationId: null });
+                delete currentClaims.stationId;
+                await userDocRef.set({ stationId: null }, { merge: true });
             } else {
+                currentClaims.stationId = updates.stationId;
                 await userDocRef.set({ stationId: updates.stationId }, { merge: true });
             }
         }
-
+        
+        // Atomically set all claims
+        await adminAuth.setCustomUserClaims(uid, currentClaims);
+        
+        // After setting claims, it's good practice to inform the client to refresh the token.
+        // The client-side logic should handle this.
         return { success: true };
 
     } catch (error: any) {

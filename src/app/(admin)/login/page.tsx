@@ -92,7 +92,7 @@ export default function AdminLoginPage() {
       setLoading(true);
       try {
           const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-          const newUserProfile: UserProfile = {
+          const newUserProfile: Omit<UserProfile, 'stationId' | 'lastLogin'> = {
             uid: userCredential.user.uid,
             email: userCredential.user.email!,
             role: 'operator', 

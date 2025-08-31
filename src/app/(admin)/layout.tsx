@@ -6,10 +6,8 @@ import { useRouter, usePathname } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 import 'leaflet/dist/leaflet.css';
 import { onAuthStateChanged, type User } from "firebase/auth";
-import { auth, firestore } from "@/lib/firebase";
+import { auth } from "@/lib/firebase";
 import { useToast } from '@/hooks/use-toast';
-import { doc, getDoc } from 'firebase/firestore';
-
 
 type UserRole = 'admin' | 'operator' | null;
 
@@ -17,7 +15,7 @@ interface AuthContextType {
   user: User | null;
   userRole: UserRole;
   loading: boolean;
-  stationId?: string; // Add stationId to context
+  stationId?: string; // This now comes from the token
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -39,25 +37,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (currentUser) {
         setUser(currentUser);
         try {
+            // Force refresh the token to get the latest custom claims
             const idTokenResult = await currentUser.getIdTokenResult(true); 
-            const isAdmin = idTokenResult.claims.admin === true;
+            const claims = idTokenResult.claims;
+            const isAdmin = claims.admin === true;
             const role = isAdmin ? 'admin' : 'operator';
+            
             setUserRole(role);
 
-            // If user is an operator, fetch their stationId from Firestore
-            if (role === 'operator') {
-                const userDocRef = doc(firestore, 'users', currentUser.uid);
-                const userDoc = await getDoc(userDocRef);
-                if (userDoc.exists() && userDoc.data().stationId) {
-                    setStationId(userDoc.data().stationId);
-                } else {
-                    setStationId(undefined);
-                }
+            // Get stationId directly from the token if it exists
+            if (role === 'operator' && claims.stationId) {
+                setStationId(claims.stationId as string);
             } else {
-                setStationId(undefined); // Admins don't have a station
+                setStationId(undefined);
             }
         } catch (error) {
-            console.error("Error fetching user role or station:", error);
+            console.error("Error fetching user claims:", error);
+            // Default to a safe state on error
             setUserRole('operator');
             setStationId(undefined);
         }
@@ -108,7 +104,7 @@ function ProtectedLayout({ children }: { children: ReactNode }) {
       return;
     }
 
-    const adminPages = ['/dashboard/stations', '/dashboard/users'];
+    const adminPages = ['/dashboard/stations', '/dashboard/users', '/dashboard/analytics'];
     if (user && userRole === 'operator' && adminPages.some(page => pathname.startsWith(page))) {
         toast({ title: "Acceso Denegado", description: "No tienes permisos para acceder a esta página.", variant: "destructive" });
         router.push('/dashboard/admin');
@@ -125,6 +121,7 @@ function ProtectedLayout({ children }: { children: ReactNode }) {
     );
   }
 
+  // Prevents flicker of the login page while redirecting
   if (!user && !pathname.startsWith('/login')) {
      return (
        <div className="bg-slate-900 min-h-screen flex justify-center items-center">
