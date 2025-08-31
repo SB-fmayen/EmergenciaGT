@@ -22,8 +22,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2, Eye, EyeOff, ShieldQuestion } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import Image from 'next/image';
-import logoBomberos from '@/assets/cuerpo-bomberos-logo.png';
+import { EmergencyLogo } from "@/components/EmergencyLogo";
 
 type AuthView = "login" | "register" | "forgotPassword";
 
@@ -278,7 +277,7 @@ export default function AuthPage() {
       <div className="flex-1 flex flex-col justify-center px-8 py-12 overflow-y-auto">
         <div className="text-center mb-12">
            <div className="w-24 h-24 mx-auto mb-6 flex items-center justify-center">
-             <Image src={logoBomberos} alt="Logo de Bomberos Voluntarios" width={96} height={96} />
+             <EmergencyLogo className="w-full h-full" />
           </div>
           <h1 className="text-3xl font-bold text-white mb-2">EmergenciaGT</h1>
           <p className="text-red-100 text-lg font-medium">Sistema de Emergencias</p>
@@ -303,3 +302,5 @@ export default function AuthPage() {
     </MobileAppContainer>
   );
 }
+
+    

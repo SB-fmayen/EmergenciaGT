@@ -15,8 +15,7 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
 import type { UserProfile } from "@/lib/types";
-import Image from 'next/image';
-import logoBomberos from '@/assets/cuerpo-bomberos-logo.png';
+import { EmergencyLogo } from "@/components/EmergencyLogo";
 
 type AuthView = "login" | "register" | "forgotPassword";
 
@@ -206,7 +205,7 @@ export default function AdminLoginPage() {
         <div className="bg-white rounded-xl shadow-2xl p-8 w-full max-w-md">
             <div className="text-center mb-8">
                 <div className="w-24 h-24 mx-auto mb-4">
-                     <Image src={logoBomberos} alt="Logo de Bomberos Voluntarios" width={96} height={96} />
+                     <EmergencyLogo className="w-full h-full" />
                 </div>
                 <h1 className="text-3xl font-bold text-gray-800">EmergenciaGT</h1>
                 <p className="text-gray-600 text-xl">{getTitle()}</p>
