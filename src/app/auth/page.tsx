@@ -9,7 +9,10 @@ import {
   sendPasswordResetEmail,
   onAuthStateChanged,
   signInAnonymously,
-  fetchSignInMethodsForEmail
+  fetchSignInMethodsForEmail,
+  setPersistence,
+  browserSessionPersistence,
+  browserLocalPersistence
 } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
@@ -18,6 +21,8 @@ import { EmergencyLogoIcon } from "@/components/icons/EmergencyLogoIcon";
 import { MobileAppContainer } from "@/components/MobileAppContainer";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Eye, EyeOff, ShieldQuestion } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 
 type AuthView = "login" | "register" | "forgotPassword";
 
@@ -33,13 +38,14 @@ const AuthButton = ({ onClick, loading, children }: { onClick: (e?: React.MouseE
     );
 };
 
-const LoginForm = ({ setView, onFormSubmit, loading }: { setView: (view: AuthView) => void, onFormSubmit: (email: string, pass: string) => void, loading: boolean }) => {
+const LoginForm = ({ setView, onFormSubmit, loading }: { setView: (view: AuthView) => void, onFormSubmit: (email: string, pass: string, keepLoggedIn: boolean) => void, loading: boolean }) => {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [showPassword, setShowPassword] = useState(false);
+    const [keepLoggedIn, setKeepLoggedIn] = useState(true);
 
     return (
-        <form onSubmit={(e) => { e.preventDefault(); onFormSubmit(email, password); }} className="space-y-6 animate-fade-in">
+        <form onSubmit={(e) => { e.preventDefault(); onFormSubmit(email, password, keepLoggedIn); }} className="space-y-6 animate-fade-in">
             <div className="border border-white/10 bg-white/5 backdrop-blur-lg rounded-2xl p-6">
               <h2 className="text-xl font-bold text-white mb-6 text-center">Iniciar Sesión</h2>
               <div className="space-y-4">
@@ -50,7 +56,11 @@ const LoginForm = ({ setView, onFormSubmit, loading }: { setView: (view: AuthVie
                     {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                   </button>
                 </div>
-                <AuthButton onClick={() => onFormSubmit(email, password)} loading={loading}>Iniciar Sesión</AuthButton>
+                <div className="flex items-center space-x-2">
+                    <Checkbox id="keep-logged-in" checked={keepLoggedIn} onCheckedChange={(checked) => setKeepLoggedIn(!!checked)} className="border-white/50 data-[state=checked]:bg-white data-[state=checked]:text-red-600"/>
+                    <Label htmlFor="keep-logged-in" className="text-white/80">Mantener sesión iniciada</Label>
+                </div>
+                <AuthButton onClick={() => onFormSubmit(email, password, keepLoggedIn)} loading={loading}>Iniciar Sesión</AuthButton>
               </div>
               <div className="mt-4 text-center">
                 <button type="button" onClick={() => setView("forgotPassword")} className="text-white/80 hover:text-white text-sm underline">
@@ -175,8 +185,26 @@ export default function AuthPage() {
     handleAuthAction(() => createUserWithEmailAndPassword(auth, email, password), "/welcome");
   };
 
-  const handleLogin = (email: string, password: string) => {
-    handleAuthAction(() => signInWithEmailAndPassword(auth, email, password));
+  /**
+   * Maneja el inicio de sesión del usuario.
+   * @param email - El correo electrónico del usuario.
+   * @param password - La contraseña del usuario.
+   * @param keepLoggedIn - Un booleano que indica si se debe mantener la sesión iniciada.
+   */
+  const handleLogin = (email: string, password: string, keepLoggedIn: boolean) => {
+    handleAuthAction(async () => {
+      // **Lógica de Persistencia de Sesión**
+      // Antes de iniciar sesión, se establece el tipo de persistencia
+      // basado en la selección del usuario en el checkbox.
+      const persistenceType = keepLoggedIn
+        ? browserLocalPersistence // Mantiene la sesión incluso al cerrar el navegador.
+        : browserSessionPersistence; // La sesión termina cuando el navegador se cierra.
+      
+      await setPersistence(auth, persistenceType);
+
+      // Proceder con el inicio de sesión
+      await signInWithEmailAndPassword(auth, email, password);
+    });
   };
 
   const handlePasswordReset = (email: string) => {
