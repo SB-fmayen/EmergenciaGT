@@ -1,60 +1,45 @@
+
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // --- USERS (ADMIN/OPERATORS) ---
-    // User can create their own profile document upon registration.
-    // User can read/write their own profile if they are authenticated.
+    // Regla para perfiles de usuario del panel (operadores/admins)
+    // - Un usuario puede crear su propio perfil.
+    // - Un usuario puede leer y actualizar su propio perfil.
     match /users/{userId} {
       allow create: if request.auth != null;
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
 
-    // --- STATIONS ---
-    // Only admins can read or write to the stations collection or its subcollections.
+    // Regla para estaciones de bomberos
+    // - Solo los administradores pueden leer y escribir estaciones y sus unidades.
     match /stations/{stationId} {
-      allow read, write: if request.auth != null && request.auth.token.admin == true;
+      allow read, write: if request.auth.token.admin == true;
 
       match /unidades/{unitId} {
-        allow read, write: if request.auth != null && request.auth.token.admin == true;
+        allow read, write: if request.auth.token.admin == true;
       }
     }
-    
-    // --- MEDICAL INFO (MOBILE APP USERS) ---
-    // Users can write to their own medical info document.
-    // Any authenticated user (like an operator/admin) can read the medical info.
+
+    // Regla para la información médica de los usuarios de la app móvil
+    // - Un usuario puede escribir su propia información médica.
+    // - Cualquier usuario autenticado en el sistema (operadores/admins) puede leerla.
     match /medicalInfo/{userId} {
       allow write: if request.auth != null && request.auth.uid == userId;
       allow read: if request.auth != null;
     }
-    
-    // --- ALERTS ---
-    // Defines security rules for the 'alerts' collection, distinguishing between
-    // individual document access (get) and query access (list).
+
+    // Regla para las alertas de emergencia
     match /alerts/{alertId} {
-      
-      // CREATE: Anyone can create an alert (including anonymous users).
+      // Cualquier usuario (incluido anónimo) puede crear una alerta.
       allow create: if request.auth != null;
-
-      // READ (Single Document): Any authenticated user can get a single alert document.
-      allow get: if request.auth != null;
       
-      // UPDATE: 
-      // - An admin can update any alert.
-      // - An operator can update an alert if it is assigned to their station.
-      // - The user who created the alert can update it (e.g., to cancel it).
-      allow update: if request.auth != null && 
-                    (request.auth.token.admin == true || 
-                     resource.data.assignedStationId == request.auth.token.stationId ||
-                     resource.data.userId == request.auth.uid);
-
-      // LIST (Queries):
-      // - Admins can list all alerts.
-      // - Operators can only list alerts if the query filters by their assigned stationId.
-      allow list: if request.auth != null && 
-                   (request.auth.token.admin == true || 
-                    (request.auth.token.operator == true && 
-                     request.query.where.assignedStationId == request.auth.token.stationId));
+      // Un usuario puede leer o actualizar una alerta si es un admin,
+      // O si la alerta está asignada a la estación de ese operador.
+      allow read, update: if request.auth.token.admin == true || 
+                           (resource.data.assignedStationId == request.auth.token.stationId);
     }
   }
 }
+
+    

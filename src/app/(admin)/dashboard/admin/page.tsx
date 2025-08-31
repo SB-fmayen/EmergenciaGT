@@ -59,7 +59,6 @@ export default function AdminDashboardPage() {
          if (!userRole) return;
          setLoading(true);
 
-         // Unsubscribe from previous listener if it exists
          if (unsubscribeFromAlerts.current) {
             unsubscribeFromAlerts.current();
          }
@@ -68,13 +67,10 @@ export default function AdminDashboardPage() {
         let q: Query;
 
         if (userRole === 'operator' && stationId) {
-            // Operator Query: Simple filter by station ID. No ordering to prevent needing a composite index.
             q = query(alertsRef, where("assignedStationId", "==", stationId));
         } else if (userRole === 'operator' && !stationId) {
-            // Operator without a station assigned sees nothing.
             q = query(alertsRef, where("assignedStationId", "==", "non_existent_id"));
         } else {
-            // Admin Query: See all alerts, ordered by most recent.
             q = query(alertsRef, orderBy("timestamp", "desc"));
         }
         
@@ -116,31 +112,30 @@ export default function AdminDashboardPage() {
                     })
                 );
                 
-                // For operators, sort client-side since we can't order in the query without a composite index.
                 if (userRole === 'operator') {
                     enrichedAlerts.sort((a, b) => (b.timestamp?.getTime() || 0) - (a.timestamp?.getTime() || 0));
                 }
                 
                 setAlerts(enrichedAlerts);
-                setLoading(false);
-                initialLoadDone.current = true;
+                
             } catch (processingError) {
                 console.error("Error processing snapshot data:", processingError);
                 toast({ title: "Error de Datos", description: "No se pudieron procesar los datos de las alertas.", variant: "destructive" });
+            } finally {
                 setLoading(false);
+                initialLoadDone.current = true;
             }
         }, (error) => {
-            // Este es el catch para el listener de onSnapshot
             console.error("Error en onSnapshot de Firestore:", error);
             console.log("Contexto del error:", {
                 userEmail: user?.email,
                 userRole: userRole,
                 stationId: stationId,
-                query: q // Log the query object to see what it's trying to do
+                query: q
             });
 
             if (error.code === 'permission-denied') {
-                toast({ title: "Error de Permisos", description: "No tienes permisos para ver las alertas. Revisa las reglas de Firestore o los índices de la base de datos.", variant: "destructive", duration: 10000 });
+                toast({ title: "Error de Permisos", description: "No tienes permisos para ver las alertas. Esto puede deberse a un problema con las reglas de seguridad de Firestore o la falta de un índice en la base de datos.", variant: "destructive", duration: 10000 });
             } else {
                  toast({ title: "Error de Conexión", description: "No se pudieron cargar las alertas en tiempo real.", variant: "destructive" });
             }
@@ -159,9 +154,8 @@ export default function AdminDashboardPage() {
             setStations(stationsData);
         });
         
-        fetchAlerts(); // Initial fetch
+        fetchAlerts(); 
 
-        // Cleanup function for snapshot listener
         return () => {
              stationsUnsub();
              if(unsubscribeFromAlerts.current) {
@@ -169,7 +163,7 @@ export default function AdminDashboardPage() {
              }
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [userRole, stationId]); // Depend on userRole and stationId to refetch if they change
+    }, [userRole, stationId]); 
 
 
     const toggleTheme = () => {
@@ -434,5 +428,7 @@ export default function AdminDashboardPage() {
     </>
   );
 }
+
+    
 
     
