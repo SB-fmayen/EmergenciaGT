@@ -3,41 +3,25 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Reglas para la colección de usuarios (perfiles de admin/operador)
     match /users/{userId} {
-      // Un usuario puede crear y actualizar su propio documento (ej: al registrarse o al hacer login por primera vez)
-      // Un admin puede leer y actualizar cualquier perfil de usuario para asignar roles y estaciones.
-      allow read, write: if request.auth != null && (request.auth.uid == userId || request.auth.token.admin == true);
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow create: if request.auth != null;
     }
     
-    // REGLA PARA ESTACIONES: Solo los administradores pueden leer o escribir en la colección de estaciones.
     match /stations/{stationId} {
       allow read, write: if request.auth != null && request.auth.token.admin == true;
     }
     
-    // Reglas para la información médica de los usuarios de la app
     match /medicalInfo/{userId} {
-      // Un usuario puede escribir su propia información médica.
       allow write: if request.auth != null && request.auth.uid == userId;
-      // Cualquier usuario autenticado en el sistema (operadores/admins) puede leer la info médica
-      // Esto es necesario para que el panel de administración pueda obtener los detalles en una emergencia.
       allow read: if request.auth != null;
     }
     
-    // Reglas para las alertas
     match /alerts/{alertId} {
-      // Cualquier persona (incluso anónima) puede crear una alerta de emergencia.
       allow create;
-
-      // Lectura (GET y LIST) unificada y segura.
-      allow read: if request.auth != null && 
-                  (request.auth.token.admin == true || 
-                  (resource.data.assignedStationId != null && resource.data.assignedStationId == request.auth.token.stationId));
-
-      // Un administrador o un operador asignado a la alerta pueden actualizarla.
-      allow update: if request.auth != null &&
-                    (request.auth.token.admin == true ||
-                     (resource.data.assignedStationId != null && resource.data.assignedStationId == request.auth.token.stationId));
+      allow update: if request.auth != null;
+      allow list: if request.auth.token.admin == true || (request.query.where.assignedStationId == request.auth.token.stationId);
+      allow get: if request.auth != null;
     }
   }
 }

@@ -69,9 +69,9 @@ export default function AdminDashboardPage() {
         if (userRole === 'admin') {
             q = query(alertsRef, orderBy("timestamp", "desc"));
         } else if (userRole === 'operator' && stationId) {
-            q = query(alertsRef, where("assignedStationId", "==", stationId));
+            q = query(alertsRef, where("assignedStationId", "==", stationId), orderBy("timestamp", "desc"));
         } else {
-            // OPERATOR WITHOUT STATION: Do not query.
+            // OPERATOR WITHOUT STATION: Do not query anything.
             setAlerts([]);
             setLoading(false);
             return;
@@ -114,11 +114,6 @@ export default function AdminDashboardPage() {
                         };
                     })
                 );
-                
-                // For operators, we sort on the client-side to avoid needing a composite index in Firestore
-                if (userRole === 'operator') {
-                    enrichedAlerts.sort((a, b) => (b.timestamp?.getTime() || 0) - (a.timestamp?.getTime() || 0));
-                }
                 
                 setAlerts(enrichedAlerts);
                 
@@ -334,7 +329,7 @@ export default function AdminDashboardPage() {
                 <div className="p-6 border-b border-border">
                     <div className="flex items-center justify-between mb-4">
                         <h2 className="text-xl font-bold text-foreground">Alertas de Emergencia</h2>
-                        <Button variant="outline" onClick={fetchAlerts} disabled={loading}>
+                        <Button variant="outline" onClick={() => fetchAlerts()} disabled={loading}>
                             <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`}/>
                             Actualizar
                         </Button>
