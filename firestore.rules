@@ -3,57 +3,53 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // ===== Users (Admin Panel) =====
-    // Admins can read the whole collection to manage users.
-    // Any authenticated user can read their own document to get their info (like stationId).
-    // Admins can update any user document (to change roles/stations).
+  
+    // --- USERS (Admin Panel) ---
+    // Solo los administradores pueden leer la lista completa de usuarios
+    // y solo ellos pueden actualizar el rol o stationId de otro usuario.
+    // Un usuario puede actualizar su propio documento (ej: lastLogin).
     match /users/{userId} {
-      allow read: if request.auth != null && (request.auth.uid == userId || request.auth.token.admin == true);
-      allow list: if request.auth != null && request.auth.token.admin == true;
-      allow write: if request.auth != null && request.auth.token.admin == true;
+      allow read, update: if request.auth.uid == userId;
+      allow list, write: if request.auth.token.admin == true;
     }
 
-    // ===== Medical Info (Mobile App Users) =====
-    // Users can only create, read, or update their own medical info.
-    // No one can see anyone else's data.
+    // --- MEDICAL INFO (Mobile App) ---
+    // La información médica es privada. Solo el propio usuario puede crearla,
+    // leerla o actualizarla. Los administradores NO tienen acceso aquí,
+    // pero pueden verla cuando se une a una alerta (ver regla de 'alerts').
     match /medicalInfo/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read, write: if request.auth.uid == userId;
     }
 
-    // ===== Alerts =====
-    // Mobile app users can create new alerts.
-    // Mobile app users can read and update (e.g., cancel) their own alerts.
-    // Admin users can read/write any alert.
-    // **NEW RULE**: Operators can READ an alert if its assignedStationId matches their own stationId.
-    function isOperatorForAlert() {
-      let userStationId = get(/databases/$(database)/documents/users/$(request.auth.uid)).data.stationId;
-      return resource.data.assignedStationId == userStationId;
-    }
-    
+    // --- ALERTS ---
+    // Los administradores tienen acceso total.
+    // Los operadores solo pueden leer las alertas asignadas a su estación.
+    // El usuario móvil puede crear alertas y leer/actualizar las suyas.
     match /alerts/{alertId} {
-      allow create: if request.auth != null;
-      allow read: if request.auth != null && (
-                      (request.auth.uid == resource.data.userId) || // Owner of the alert
-                      (request.auth.token.admin == true) || // Admin
-                      (request.auth.token.admin != true && isOperatorForAlert()) // Operator for assigned station
-                    );
-      allow update: if request.auth != null && (
-                      (request.auth.uid == resource.data.userId) || // Owner can update (cancel)
-                      (request.auth.token.admin == true) // Admin can update (assign/change status)
-                    );
+      // Regla de Lectura (GET, LIST)
+      allow get: if request.auth != null; // Cualquiera autenticado puede obtener un doc si conoce el ID
+      allow list: if request.auth.token.admin == true || 
+                     (request.auth.token.admin == false && request.query.where.get("assignedStationId") == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.stationId);
+      
+      // Regla de Escritura (CREATE, UPDATE, DELETE)
+      allow create: if request.auth != null; // Cualquier usuario autenticado (móvil o admin) puede crear
+      allow update: if request.auth.token.admin == true || 
+                       (request.resource.data.userId == request.auth.uid && request.resource.data.status == 'cancelled'); // El usuario puede cancelar su propia alerta.
       allow delete: if request.auth.token.admin == true;
     }
     
-    // ===== Stations =====
-    // Only admins can manage stations (create, read, update, delete).
+    // --- STATIONS ---
+    // Solo los administradores pueden crear, modificar o eliminar estaciones.
+    // Cualquier usuario autenticado (operadores, admins) puede leer la lista de estaciones
+    // para poblar los menús desplegables.
     match /stations/{stationId} {
-      allow get, list: if request.auth != null; // Allow any authenticated user to read station list for modals
-      allow write, delete: if request.auth.token.admin == true;
-    }
+      allow get, list: if request.auth != null;
+      allow write: if request.auth.token.admin == true;
 
-    match /stations/{stationId}/unidades/{unitId} {
+      // Unidades dentro de una estación
+      match /unidades/{unidadId} {
         allow read, write: if request.auth.token.admin == true;
+      }
     }
   }
 }
