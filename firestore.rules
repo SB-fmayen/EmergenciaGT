@@ -1,56 +1,60 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    function isUserAuthenticated() {
-      return request.auth != null;
-    }
 
-    function isUserAdmin() {
-      return isUserAuthenticated() && request.auth.token.admin == true;
-    }
-
-    function isUserOwner(userId) {
-      return isUserAuthenticated() && request.auth.uid == userId;
-    }
-
-    // --- Users Collection ---
+    // --- USERS (ADMIN/OPERATORS) ---
+    // User can create their own profile document upon registration.
+    // User can read/write their own profile if they are authenticated.
     match /users/{userId} {
-      allow get: if isUserAuthenticated();
-      allow list: if isUserAdmin();
-      allow create: if isUserAuthenticated();
-      allow write: if isUserAdmin() || isUserOwner(userId);
+      allow create: if request.auth != null;
+      allow read, write: if request.auth != null && request.auth.uid == userId;
     }
-    
-    // --- Stations Collection ---
+
+    // --- STATIONS ---
+    // Only admins can read or write to the stations collection or its subcollections.
     match /stations/{stationId} {
-      allow read, write: if isUserAdmin();
-      
-      // Allow access to subcollections for admins
+      allow read, write: if request.auth != null && request.auth.token.admin == true;
+
       match /unidades/{unitId} {
-        allow read, write: if isUserAdmin();
+        allow read, write: if request.auth != null && request.auth.token.admin == true;
       }
     }
     
-    // --- MedicalInfo Collection ---
+    // --- MEDICAL INFO (MOBILE APP USERS) ---
+    // Users can write to their own medical info document.
+    // Any authenticated user (like an operator/admin) can read the medical info.
     match /medicalInfo/{userId} {
-      // The owner can write their own data.
-      allow write: if isUserOwner(userId);
-      // Any authenticated user (admin, operator reading an alert) can read medical info.
-      allow read: if isUserAuthenticated();
+      allow write: if request.auth != null && request.auth.uid == userId;
+      allow read: if request.auth != null;
     }
     
-    // --- Alerts Collection ---
+    // --- ALERTS ---
+    // Defines security rules for the 'alerts' collection, distinguishing between
+    // individual document access (get) and query access (list).
     match /alerts/{alertId} {
-      // Any user (including anonymous) can create an alert.
-      allow create: if isUserAuthenticated();
       
-      // Admins can read/update any alert.
-      // Operators can read/update an alert assigned to their station.
-      allow read, update: if isUserAdmin() || (resource.data.assignedStationId == request.auth.token.stationId);
+      // CREATE: Anyone can create an alert (including anonymous users).
+      allow create: if request.auth != null;
 
-      // A user can list alerts if they are an admin OR if they are an operator querying for their station.
-      allow list: if isUserAdmin() || (request.query.where.keys().hasAny(['assignedStationId']));
+      // READ (Single Document): Any authenticated user can get a single alert document.
+      allow get: if request.auth != null;
+      
+      // UPDATE: 
+      // - An admin can update any alert.
+      // - An operator can update an alert if it is assigned to their station.
+      // - The user who created the alert can update it (e.g., to cancel it).
+      allow update: if request.auth != null && 
+                    (request.auth.token.admin == true || 
+                     resource.data.assignedStationId == request.auth.token.stationId ||
+                     resource.data.userId == request.auth.uid);
+
+      // LIST (Queries):
+      // - Admins can list all alerts.
+      // - Operators can only list alerts if the query filters by their assigned stationId.
+      allow list: if request.auth != null && 
+                   (request.auth.token.admin == true || 
+                    (request.auth.token.operator == true && 
+                     request.query.where.assignedStationId == request.auth.token.stationId));
     }
   }
 }
