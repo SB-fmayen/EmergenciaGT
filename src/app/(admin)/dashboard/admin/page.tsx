@@ -12,7 +12,7 @@ import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import { LogOut, RefreshCw, Bell, Zap, CheckCircle, Clock, MapPin, Building, Loader2, HardHat, Users, LayoutDashboard } from "lucide-react";
 import dynamic from 'next/dynamic';
-import { collection, onSnapshot, query, where, getDoc, doc, orderBy, Query, getDocs } from "firebase/firestore";
+import { collection, onSnapshot, query, where, getDoc, doc, orderBy, Query, getDocs, Timestamp } from "firebase/firestore";
 import type { AlertData, MedicalData, StationData } from "@/lib/types";
 import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -54,6 +54,42 @@ export default function AdminDashboardPage() {
     const initialLoadDone = useRef(false);
     const unsubscribeFromAlerts = useRef<() => void | undefined>();
 
+    const processAlerts = useCallback(async (alertsData: AlertData[]) => {
+      try {
+        const enrichedAlerts = await Promise.all(
+            alertsData.map(async (alert) => {
+                let userInfo: MedicalData | undefined = undefined;
+                if (alert.userId && !alert.isAnonymous) {
+                     const userDocRef = doc(firestore, "medicalInfo", alert.userId);
+                     const userDocSnap = await getDoc(userDocRef);
+                     if (userDocSnap.exists()) {
+                         userInfo = userDocSnap.data() as MedicalData;
+                     }
+                }
+                
+                const severity = 'Crítica';
+                return {
+                    ...alert,
+                    userInfo,
+                    stationInfo: alert.assignedStationName ? { name: alert.assignedStationName } : undefined,
+                    statusClass: `status-${alert.status}`,
+                    severityClass: `severity-critical`,
+                    severity,
+                };
+            })
+        );
+        // Ordenar en el cliente
+        enrichedAlerts.sort((a, b) => (b.timestamp as Timestamp).toMillis() - (a.timestamp as Timestamp).toMillis());
+        setAlerts(enrichedAlerts);
+
+      } catch (processingError) {
+          console.error("Error processing snapshot data:", processingError);
+          toast({ title: "Error de Datos", description: "No se pudieron procesar los datos de las alertas.", variant: "destructive" });
+      } finally {
+          setLoading(false);
+          initialLoadDone.current = true;
+      }
+    }, [toast]);
 
     const fetchAlerts = useCallback(async () => {
          if (!userRole) return;
@@ -64,83 +100,60 @@ export default function AdminDashboardPage() {
          }
 
         const alertsRef = collection(firestore, "alerts");
-        let q: Query;
-
-        if (userRole === 'admin') {
-            q = query(alertsRef, orderBy("timestamp", "desc"));
-        } else if (userRole === 'operator' && stationId) {
-            q = query(alertsRef, where("assignedStationId", "==", stationId), orderBy("timestamp", "desc"));
-        } else {
-            // OPERATOR WITHOUT STATION: Do not query anything.
-            setAlerts([]);
-            setLoading(false);
-            return;
-        }
         
-        unsubscribeFromAlerts.current = onSnapshot(q, async (querySnapshot) => {
-            try {
+        if (userRole === 'admin') {
+            const q = query(alertsRef, orderBy("timestamp", "desc"));
+            unsubscribeFromAlerts.current = onSnapshot(q, async (querySnapshot) => {
                 const alertsData: AlertData[] = querySnapshot.docs.map(doc => ({
                     id: doc.id,
                     ...doc.data(),
-                    timestamp: doc.data().timestamp?.toDate(),
-                })) as AlertData;
-
-                 if (initialLoadDone.current) {
+                    timestamp: doc.data().timestamp,
+                })) as AlertData[];
+                
+                if (initialLoadDone.current) {
                     const newAlerts = alertsData.filter(a => a.status === 'new' && !alerts.some(old => old.id === a.id));
                     if (newAlerts.length > 0) {
                        toast({ title: "¡Nueva Alerta!", description: `${newAlerts.length} nueva(s) emergencia(s) recibida(s).` });
                     }
                 }
-
-                const enrichedAlerts = await Promise.all(
-                    alertsData.map(async (alert) => {
-                        let userInfo: MedicalData | undefined = undefined;
-                        if (alert.userId && !alert.isAnonymous) {
-                             const userDocRef = doc(firestore, "medicalInfo", alert.userId);
-                             const userDocSnap = await getDoc(userDocRef);
-                             if (userDocSnap.exists()) {
-                                 userInfo = userDocSnap.data() as MedicalData;
-                             }
-                        }
-                        
-                        const severity = 'Crítica';
-                        return {
-                            ...alert,
-                            userInfo,
-                            stationInfo: alert.assignedStationName ? { name: alert.assignedStationName } : undefined,
-                            statusClass: `status-${alert.status}`,
-                            severityClass: `severity-critical`,
-                            severity,
-                        };
-                    })
-                );
                 
-                setAlerts(enrichedAlerts);
-                
-            } catch (processingError) {
-                console.error("Error processing snapshot data:", processingError);
-                toast({ title: "Error de Datos", description: "No se pudieron procesar los datos de las alertas.", variant: "destructive" });
-            } finally {
+                processAlerts(alertsData);
+            }, (error) => {
+                console.error("Error en onSnapshot de Firestore (Admin):", error);
+                if (error.code === 'permission-denied') {
+                    toast({ title: "Error de Permisos", description: "No tienes permisos para ver las alertas.", variant: "destructive", duration: 10000 });
+                } else {
+                     toast({ title: "Error de Conexión", description: "No se pudieron cargar las alertas en tiempo real.", variant: "destructive" });
+                }
                 setLoading(false);
-                initialLoadDone.current = true;
-            }
-        }, (error) => {
-            console.error("Error en onSnapshot de Firestore:", error);
-            console.log("Contexto del error:", {
-                userEmail: user?.email,
-                userRole: userRole,
-                stationId: stationId,
             });
-
-            if (error.code === 'permission-denied') {
-                toast({ title: "Error de Permisos", description: "No tienes permisos para ver las alertas. Esto puede deberse a un problema con las reglas de seguridad de Firestore o la falta de un índice en la base de datos.", variant: "destructive", duration: 10000 });
-            } else {
-                 toast({ title: "Error de Conexión", description: "No se pudieron cargar las alertas en tiempo real.", variant: "destructive" });
+        } else if (userRole === 'operator') {
+            if (!stationId) {
+                setAlerts([]);
+                setLoading(false);
+                return;
             }
-            setLoading(false);
-        });
-
-    }, [userRole, stationId, toast, alerts, user]);
+            try {
+                const q = query(alertsRef, where("assignedStationId", "==", stationId));
+                const querySnapshot = await getDocs(q);
+                const alertsData: AlertData[] = querySnapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data(),
+                    timestamp: doc.data().timestamp,
+                })) as AlertData[];
+                processAlerts(alertsData);
+            } catch (error: any) {
+                 console.error("Error en getDocs de Firestore (Operator):", error);
+                 if (error.code === 'permission-denied') {
+                    toast({ title: "Error de Permisos", description: "No tienes permisos para ver las alertas de esta estación.", variant: "destructive", duration: 10000 });
+                } else {
+                     toast({ title: "Error al Cargar", description: "No se pudieron cargar las alertas.", variant: "destructive" });
+                }
+                setLoading(false);
+            }
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [userRole, stationId, processAlerts]);
 
     useEffect(() => {
         const savedTheme = localStorage.getItem("theme") || "dark";
@@ -152,7 +165,7 @@ export default function AdminDashboardPage() {
             setStations(stationsData);
         });
         
-        if (userRole) { // Only fetch alerts if role is determined
+        if (userRole) {
             fetchAlerts(); 
         }
 
@@ -162,8 +175,7 @@ export default function AdminDashboardPage() {
                 unsubscribeFromAlerts.current();
              }
         }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [userRole, stationId]); 
+    }, [userRole, stationId, fetchAlerts]); 
 
 
     const toggleTheme = () => {
@@ -186,6 +198,11 @@ export default function AdminDashboardPage() {
     const handleCloseModal = () => {
         setIsModalOpen(false);
         setSelectedAlert(null);
+        // Si no es admin, recargar las alertas al cerrar un modal
+        // para reflejar los cambios de estado hechos.
+        if (userRole !== 'admin') {
+            fetchAlerts();
+        }
     }
 
     const handleLogout = async () => {
@@ -378,7 +395,7 @@ export default function AdminDashboardPage() {
                                         <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${getStatusBadge(alert.status)}`}>{getStatusText(alert.status)}</span>
                                         <span className={`px-2 py-0.5 text-xs font-medium rounded-full bg-orange-500/20 text-orange-400 dark:text-orange-300`}>{alert.severity}</span>
                                     </div>
-                                    <span className="text-sm text-muted-foreground">{alert.timestamp ? formatDistanceToNow(alert.timestamp, { addSuffix: true, locale: es }) : 'hace un momento'}</span>
+                                    <span className="text-sm text-muted-foreground">{alert.timestamp ? formatDistanceToNow(new Date((alert.timestamp as Timestamp).toDate()), { addSuffix: true, locale: es }) : 'hace un momento'}</span>
                                 </div>
                                 <div className="mb-3">
                                     <p className="font-medium text-foreground">{alert.isAnonymous ? "Usuario Anónimo" : alert.userInfo?.fullName || "Usuario Registrado"}</p>
@@ -428,5 +445,3 @@ export default function AdminDashboardPage() {
     </>
   );
 }
-
-    
