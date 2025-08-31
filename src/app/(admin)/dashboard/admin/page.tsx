@@ -66,12 +66,15 @@ export default function AdminDashboardPage() {
         const alertsRef = collection(firestore, "alerts");
         let q: Query;
 
-        if (userRole === 'operator' && stationId) {
-            q = query(alertsRef, where("assignedStationId", "==", stationId));
-        } else if (userRole === 'operator' && !stationId) {
-            q = query(alertsRef, where("assignedStationId", "==", "non_existent_id"));
-        } else {
+        if (userRole === 'admin') {
+            // Admin can see all alerts, ordered by timestamp
             q = query(alertsRef, orderBy("timestamp", "desc"));
+        } else if (userRole === 'operator' && stationId) {
+            // Operator sees only alerts for their station. No ordering to avoid composite index requirement.
+            q = query(alertsRef, where("assignedStationId", "==", stationId));
+        } else {
+            // Operator with no station, or any other case, sees no alerts.
+            q = query(alertsRef, where("assignedStationId", "==", "non_existent_id"));
         }
         
         unsubscribeFromAlerts.current = onSnapshot(q, async (querySnapshot) => {
@@ -112,6 +115,7 @@ export default function AdminDashboardPage() {
                     })
                 );
                 
+                // For operators, we sort on the client-side to avoid needing a composite index in Firestore
                 if (userRole === 'operator') {
                     enrichedAlerts.sort((a, b) => (b.timestamp?.getTime() || 0) - (a.timestamp?.getTime() || 0));
                 }
@@ -131,7 +135,7 @@ export default function AdminDashboardPage() {
                 userEmail: user?.email,
                 userRole: userRole,
                 stationId: stationId,
-                query: q
+                // `q` no se puede serializar fácilmente, pero el contexto anterior es útil.
             });
 
             if (error.code === 'permission-denied') {
@@ -428,7 +432,5 @@ export default function AdminDashboardPage() {
     </>
   );
 }
-
-    
 
     
