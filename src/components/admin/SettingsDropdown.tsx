@@ -19,22 +19,13 @@ import { useAuth } from "@/app/(admin)/layout"; // Import useAuth
 interface SettingsDropdownProps {
     theme: string;
     toggleTheme: () => void;
-    isSoundOn: boolean;
-    setIsSoundOn: (isOn: boolean) => void;
 }
 
 export function SettingsDropdown({ 
     theme, 
     toggleTheme, 
-    isSoundOn, 
-    setIsSoundOn,
 }: SettingsDropdownProps) {
     const { user, userRole } = useAuth(); // Get user and role from context
-
-    const handleSoundToggle = (checked: boolean) => {
-        setIsSoundOn(checked);
-        localStorage.setItem("sound", checked ? "on" : "off");
-    };
 
     const isAdmin = userRole === 'admin';
 
@@ -78,19 +69,6 @@ export function SettingsDropdown({
                             id="theme-toggle"
                             checked={theme === 'dark'}
                             onCheckedChange={toggleTheme}
-                        />
-                    </div>
-                </DropdownMenuItem>
-                 <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-                    <div className="flex items-center justify-between w-full">
-                        <Label htmlFor="sound-toggle" className="flex items-center gap-2 cursor-pointer">
-                           {isSoundOn ? <Volume2 className="w-4 h-4"/> : <VolumeX className="w-4 h-4"/>}
-                           Sonido de Alerta
-                        </Label>
-                        <Switch
-                            id="sound-toggle"
-                            checked={isSoundOn}
-                            onCheckedChange={handleSoundToggle}
                         />
                     </div>
                 </DropdownMenuItem>

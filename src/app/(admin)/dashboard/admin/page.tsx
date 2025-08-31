@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -12,7 +12,7 @@ import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import { LogOut, RefreshCw, Bell, Zap, CheckCircle, Clock, MapPin, Building, Loader2, HardHat, Users, LayoutDashboard } from "lucide-react";
 import dynamic from 'next/dynamic';
-import { collection, onSnapshot, query, where, getDoc, doc, orderBy, Query } from "firebase/firestore";
+import { collection, onSnapshot, query, where, getDoc, doc, orderBy, Query, getDocs } from "firebase/firestore";
 import type { AlertData, MedicalData, StationData } from "@/lib/types";
 import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -47,63 +47,42 @@ export default function AdminDashboardPage() {
     const [loading, setLoading] = useState(true);
     const [selectedAlert, setSelectedAlert] = useState<EnrichedAlert | null>(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const [isSoundOn, setIsSoundOn] = useState(true);
-
+    
     const [searchTerm, setSearchTerm] = useState("");
     const [statusFilter, setStatusFilter] = useState("all");
 
     const initialLoadDone = useRef(false);
+    const unsubscribeFromAlerts = useRef<() => void | undefined>();
 
-    useEffect(() => {
-        const savedTheme = localStorage.getItem("theme") || "dark";
-        setTheme(savedTheme);
-        document.documentElement.className = savedTheme;
 
-        const savedSoundPreference = localStorage.getItem("sound") !== "off";
-        setIsSoundOn(savedSoundPreference);
+    const fetchAlerts = useCallback(async () => {
+         if (!userRole) return;
+         setLoading(true);
 
-        // Fetch stations for the assignment modal
-        const stationsUnsub = onSnapshot(collection(firestore, "stations"), (snapshot) => {
-            const stationsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as StationData));
-            setStations(stationsData);
-        });
+         // Unsubscribe from previous listener if it exists
+         if (unsubscribeFromAlerts.current) {
+            unsubscribeFromAlerts.current();
+         }
 
-        return () => stationsUnsub();
-    }, []);
-
-    const toggleTheme = () => {
-        const newTheme = theme === "light" ? "dark" : "light";
-        setTheme(newTheme);
-        localStorage.setItem("theme", newTheme);
-        document.documentElement.className = newTheme;
-    };
-
-    useEffect(() => {
-        if (!userRole) return; // Wait for role to be determined
-
-        setLoading(true);
         const alertsRef = collection(firestore, "alerts");
-        
         let q: Query;
-        // If operator, filter by their assigned station. If admin, get all.
+
         if (userRole === 'operator' && stationId) {
-             q = query(alertsRef, where("assignedStationId", "==", stationId));
+            q = query(alertsRef, where("assignedStationId", "==", stationId));
         } else if (userRole === 'operator' && !stationId) {
-            // Operator not assigned to any station, they see nothing.
-             q = query(alertsRef, where("assignedStationId", "==", "non_existent_id"));
-        } else { // Admin sees all, and can have the orderBy
-             q = query(alertsRef, orderBy("timestamp", "desc"));
+            q = query(alertsRef, where("assignedStationId", "==", "non_existent_id"));
+        } else {
+            q = query(alertsRef, orderBy("timestamp", "desc"));
         }
-
-
-        const unsubscribe = onSnapshot(q, async (querySnapshot) => {
+        
+        unsubscribeFromAlerts.current = onSnapshot(q, async (querySnapshot) => {
             const alertsData: AlertData[] = querySnapshot.docs.map(doc => ({
                 id: doc.id,
                 ...doc.data(),
                 timestamp: doc.data().timestamp?.toDate(),
             })) as AlertData;
 
-            if (initialLoadDone.current && isSoundOn) {
+             if (initialLoadDone.current) {
                 const newAlerts = alertsData.filter(a => a.status === 'new' && !alerts.some(old => old.id === a.id));
                 if (newAlerts.length > 0) {
                    toast({ title: "¡Nueva Alerta!", description: `${newAlerts.length} nueva(s) emergencia(s) recibida(s).` });
@@ -133,7 +112,6 @@ export default function AdminDashboardPage() {
                 })
             );
             
-            // For operators, sort alerts client-side since we removed orderBy from the query
             if (userRole === 'operator') {
                 enrichedAlerts.sort((a, b) => (b.timestamp?.getTime() || 0) - (a.timestamp?.getTime() || 0));
             }
@@ -151,9 +129,38 @@ export default function AdminDashboardPage() {
             setLoading(false);
         });
 
-        return () => unsubscribe();
-    }, [userRole, stationId, toast, isSoundOn]);
+    }, [userRole, stationId, toast, alerts]);
 
+    useEffect(() => {
+        const savedTheme = localStorage.getItem("theme") || "dark";
+        setTheme(savedTheme);
+        document.documentElement.className = savedTheme;
+
+        const stationsUnsub = onSnapshot(collection(firestore, "stations"), (snapshot) => {
+            const stationsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as StationData));
+            setStations(stationsData);
+        });
+        
+        fetchAlerts(); // Initial fetch
+
+        // Cleanup function for snapshot listener
+        return () => {
+             stationsUnsub();
+             if(unsubscribeFromAlerts.current) {
+                unsubscribeFromAlerts.current();
+             }
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [userRole, stationId]); // Depend on userRole and stationId to refetch if they change
+
+
+    const toggleTheme = () => {
+        const newTheme = theme === "light" ? "dark" : "light";
+        setTheme(newTheme);
+        localStorage.setItem("theme", newTheme);
+        document.documentElement.className = newTheme;
+    };
+    
     const handleAlertClick = (alert: EnrichedAlert) => {
         setSelectedAlert(alert);
         setIsModalOpen(true);
@@ -255,8 +262,6 @@ export default function AdminDashboardPage() {
                     <SettingsDropdown
                          theme={theme}
                          toggleTheme={toggleTheme}
-                         isSoundOn={isSoundOn}
-                         setIsSoundOn={setIsSoundOn}
                     />
                      <Button onClick={handleLogout} variant="destructive" size="sm">
                         <LogOut className="mr-2 h-4 w-4"/>
@@ -312,8 +317,8 @@ export default function AdminDashboardPage() {
                 <div className="p-6 border-b border-border">
                     <div className="flex items-center justify-between mb-4">
                         <h2 className="text-xl font-bold text-foreground">Alertas de Emergencia</h2>
-                        <Button variant="outline" onClick={() => window.location.reload()}>
-                            <RefreshCw className="mr-2 h-4 w-4"/>
+                        <Button variant="outline" onClick={fetchAlerts} disabled={loading}>
+                            <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`}/>
                             Actualizar
                         </Button>
                     </div>
