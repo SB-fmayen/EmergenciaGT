@@ -1,45 +1,48 @@
-
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Regla para perfiles de usuario del panel (operadores/admins)
-    // - Un usuario puede crear su propio perfil.
-    // - Un usuario puede leer y actualizar su propio perfil.
+    // Los usuarios pueden leer y escribir su propio documento de perfil del panel.
+    // Se añade la regla 'create' para permitir el registro de nuevos operadores/admins.
     match /users/{userId} {
       allow create: if request.auth != null;
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
-
-    // Regla para estaciones de bomberos
-    // - Solo los administradores pueden leer y escribir estaciones y sus unidades.
+    
+    // Los administradores tienen control total sobre las estaciones.
     match /stations/{stationId} {
-      allow read, write: if request.auth.token.admin == true;
+      allow read, write: if request.auth != null && request.auth.token.admin == true;
 
+      // Un administrador también puede gestionar las unidades de una estación.
       match /unidades/{unitId} {
         allow read, write: if request.auth.token.admin == true;
       }
     }
-
-    // Regla para la información médica de los usuarios de la app móvil
-    // - Un usuario puede escribir su propia información médica.
-    // - Cualquier usuario autenticado en el sistema (operadores/admins) puede leerla.
+    
+    // Los usuarios pueden escribir su propia información médica,
+    // y cualquier usuario autenticado en el sistema (como un operador) puede leerla.
     match /medicalInfo/{userId} {
       allow write: if request.auth != null && request.auth.uid == userId;
       allow read: if request.auth != null;
     }
-
-    // Regla para las alertas de emergencia
+    
+    // --- REGLAS CORREGIDAS PARA ALERTAS ---
+    // Reglas granulares y seguras para la colección de alertas.
     match /alerts/{alertId} {
       // Cualquier usuario (incluido anónimo) puede crear una alerta.
-      allow create: if request.auth != null;
-      
-      // Un usuario puede leer o actualizar una alerta si es un admin,
-      // O si la alerta está asignada a la estación de ese operador.
-      allow read, update: if request.auth.token.admin == true || 
-                           (resource.data.assignedStationId == request.auth.token.stationId);
+      allow create;
+
+      // Permisos de lectura (get, list)
+      allow read: if request.auth != null && 
+                  (request.auth.token.admin == true || 
+                  resource.data.assignedStationId == request.auth.token.stationId ||
+                  resource.data.userId == request.auth.uid);
+
+      // Permisos de actualización
+      allow update: if request.auth != null &&
+                     (request.auth.token.admin == true ||
+                     (resource.data.assignedStationId == request.auth.token.stationId) ||
+                     (resource.data.userId == request.auth.uid)); // Permite al usuario cancelar su propia alerta
     }
   }
 }
-
-    
