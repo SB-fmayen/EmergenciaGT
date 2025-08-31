@@ -413,7 +413,7 @@ export default function AdminDashboardPage() {
                                         <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${getStatusBadge(alert.status)}`}>{getStatusText(alert.status)}</span>
                                         <span className={`px-2 py-0.5 text-xs font-medium rounded-full bg-orange-500/20 text-orange-400 dark:text-orange-300`}>{alert.severity}</span>
                                     </div>
-                                    <span className="text-sm text-muted-foreground">{alert.timestamp ? formatDistanceToNow(new Date((alert.timestamp as Timestamp).toDate()), { addSuffix: true, locale: es }) : 'hace un momento'}</span>
+                                    <span className="text-sm text-muted-foreground">{alert.timestamp ? formatDistanceToNow((alert.timestamp as Timestamp).toDate(), { addSuffix: true, locale: es }) : 'hace un momento'}</span>
                                 </div>
                                 <div className="mb-3">
                                     <p className="font-medium text-foreground">{alert.isAnonymous ? "Usuario Anónimo" : alert.userInfo?.fullName || "Usuario Registrado"}</p>
@@ -463,4 +463,3 @@ export default function AdminDashboardPage() {
     </>
   );
 }
-
