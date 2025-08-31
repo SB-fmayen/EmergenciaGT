@@ -1,46 +1,40 @@
-
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Los usuarios pueden leer y escribir su propio documento para gestionar datos del panel.
+    // Los usuarios pueden leer y escribir su propio documento.
+    // Se añade la regla de 'create' para permitir el registro de nuevos operadores.
     match /users/{userId} {
+      allow create: if request.auth != null;
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
     
-    // Solo los administradores pueden gestionar las estaciones.
     match /stations/{stationId} {
-      allow read, write: if request.auth != null && request.auth.token.admin == true;
-
-      // Un admin también puede gestionar las unidades dentro de una estación.
+      allow read, write: if request.auth.token.admin == true;
+      
       match /unidades/{unitId} {
         allow read, write: if request.auth.token.admin == true;
       }
     }
     
-    // La información médica puede ser escrita por su dueño y leída por cualquier usuario autenticado (operadores).
     match /medicalInfo/{userId} {
       allow write: if request.auth != null && request.auth.uid == userId;
       allow read: if request.auth != null;
     }
     
-    // Reglas granulares para las alertas, el núcleo del sistema.
     match /alerts/{alertId} {
-      // Cualquiera (incluidos usuarios anónimos de la app) puede crear una alerta.
       allow create: if request.auth != null;
-      
-      // La lectura de un documento individual se permite a los admins o al operador de la estación asignada.
-      allow get: if request.auth.token.admin == true || request.auth.token.stationId == resource.data.assignedStationId;
 
-      // La actualización se permite a los admins o al operador de la estación asignada.
-      allow update: if request.auth.token.admin == true || request.auth.token.stationId == resource.data.assignedStationId;
+      allow get: if request.auth != null;
       
-      // REGLA CRÍTICA PARA EL LISTADO (CORREGIDA):
-      // - Los administradores pueden listar todas las alertas.
-      // - Los operadores solo pueden listar alertas si su consulta filtra por su `stationId`.
-      allow list: if request.auth.token.admin == true || 
-                     (request.query.where.get("assignedStationId") != null && 
-                      request.query.where.get("assignedStationId")[2] == request.auth.token.stationId);
+      // Permite listar si eres admin, o si la consulta filtra por tu stationId
+      allow list: if (request.auth.token.admin == true) || 
+                     (request.query.where.get("assignedStationId") == request.auth.token.stationId);
+
+      // Permite actualizar si eres admin, si la alerta es de tu estación, o si eres el creador y la estás cancelando.
+      allow update: if (request.auth.token.admin == true) || 
+                       (resource.data.assignedStationId == request.auth.token.stationId) ||
+                       (request.resource.data.status == 'cancelled' && resource.data.userId == request.auth.uid);
     }
   }
 }
