@@ -52,7 +52,6 @@ export default function AdminDashboardPage() {
     const [searchTerm, setSearchTerm] = useState("");
     const [statusFilter, setStatusFilter] = useState("all");
 
-    const audioRef = useRef<HTMLAudioElement | null>(null);
     const initialLoadDone = useRef(false);
 
     useEffect(() => {
@@ -88,11 +87,14 @@ export default function AdminDashboardPage() {
         let q: Query;
         // If operator, filter by their assigned station. If admin, get all.
         if (userRole === 'operator' && stationId) {
-             q = query(alertsRef, where("assignedStationId", "==", stationId), orderBy("timestamp", "desc"));
+             // CRITICAL FIX: Removed orderBy for operators. Firestore requires a composite index
+             // for this query (where + orderBy) which doesn't exist. Without it, the query fails
+             // with a misleading "permission-denied" error.
+             q = query(alertsRef, where("assignedStationId", "==", stationId));
         } else if (userRole === 'operator' && !stationId) {
             // Operator not assigned to any station, they see nothing.
              q = query(alertsRef, where("assignedStationId", "==", "non_existent_id"));
-        } else { // Admin sees all
+        } else { // Admin sees all, and can have the orderBy
              q = query(alertsRef, orderBy("timestamp", "desc"));
         }
 
@@ -134,13 +136,18 @@ export default function AdminDashboardPage() {
                 })
             );
             
+            // For operators, sort alerts client-side since we removed orderBy from the query
+            if (userRole === 'operator') {
+                enrichedAlerts.sort((a, b) => (b.timestamp?.getTime() || 0) - (a.timestamp?.getTime() || 0));
+            }
+            
             setAlerts(enrichedAlerts);
             setLoading(false);
             initialLoadDone.current = true;
         }, (error) => {
             console.error("Error fetching alerts:", error);
             if (error.code === 'permission-denied') {
-                toast({ title: "Error de Permisos", description: "No tienes permisos para ver las alertas.", variant: "destructive" });
+                toast({ title: "Error de Permisos", description: "No tienes permisos para ver las alertas o falta un índice en la base de datos.", variant: "destructive" });
             } else {
                  toast({ title: "Error de Conexión", description: "No se pudieron cargar las alertas en tiempo real.", variant: "destructive" });
             }
@@ -406,4 +413,5 @@ export default function AdminDashboardPage() {
      )}
     </>
   );
-}
+
+    
