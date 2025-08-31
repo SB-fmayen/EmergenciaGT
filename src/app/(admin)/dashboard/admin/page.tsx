@@ -69,11 +69,13 @@ export default function AdminDashboardPage() {
         if (userRole === 'admin') {
             q = query(alertsRef, orderBy("timestamp", "desc"));
         } else if (userRole === 'operator' && stationId) {
-            // OPERATOR QUERY: Simple query without composite index requirement.
             q = query(alertsRef, where("assignedStationId", "==", stationId));
         } else {
-            // Operator with no station, or any other case, sees no alerts.
-            q = query(alertsRef, where("assignedStationId", "==", "non_existent_id"));
+            // OPERATOR WITHOUT STATION: Do not query.
+            // Firestore rules will deny any query on 'alerts' if stationId is not provided for an operator.
+            setAlerts([]);
+            setLoading(false);
+            return;
         }
         
         unsubscribeFromAlerts.current = onSnapshot(q, async (querySnapshot) => {
@@ -134,7 +136,6 @@ export default function AdminDashboardPage() {
                 userEmail: user?.email,
                 userRole: userRole,
                 stationId: stationId,
-                // `q` no se puede serializar fácilmente, pero el contexto anterior es útil.
             });
 
             if (error.code === 'permission-denied') {
@@ -433,5 +434,7 @@ export default function AdminDashboardPage() {
     </>
   );
 }
+
+    
 
     
