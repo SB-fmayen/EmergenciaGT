@@ -16,7 +16,7 @@ import type { EnrichedAlert } from "@/app/(admin)/dashboard/admin/page";
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import type { AlertStatus, StationData } from "@/lib/types";
-import { doc, updateDoc } from "firebase/firestore";
+import { doc, updateDoc, Timestamp } from "firebase/firestore";
 import { firestore } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 
@@ -65,6 +65,11 @@ export function AlertDetailModal({ isOpen, onClose, alert, stations, onCenterMap
     const [selectedStation, setSelectedStation] = useState<string | undefined>(alert.assignedStationId);
 
     if (!alert) return null;
+
+    // Convert Firestore Timestamp to JS Date object safely.
+    const reportDate = alert.timestamp && typeof (alert.timestamp as any).toDate === 'function' 
+        ? (alert.timestamp as Timestamp).toDate() 
+        : alert.timestamp as Date;
 
     const handleCenterMapClick = () => {
         onCenterMap(alert);
@@ -138,7 +143,7 @@ export function AlertDetailModal({ isOpen, onClose, alert, stations, onCenterMap
                              <h3 className="font-bold text-lg mb-4 flex items-center gap-2 text-muted-foreground"><Info />Información del Evento</h3>
                             <div className="space-y-3 text-sm">
                                 <InfoRow label="ID de Evento" value={alert.id} />
-                                <InfoRow label="Hora de Reporte" value={alert.timestamp ? format(alert.timestamp, "dd/MM/yyyy, hh:mm:ss a", { locale: es }) : 'N/A'} />
+                                <InfoRow label="Hora de Reporte" value={reportDate ? format(reportDate, "dd/MM/yyyy, hh:mm:ss a", { locale: es }) : 'N/A'} />
                                 <InfoRow label="Severidad (IA)" value={alert.severity} valueClass="px-2 py-0.5 inline-block text-xs rounded-full bg-orange-500/20 text-orange-600 dark:text-orange-300" />
                                 <InfoRow label="Estado Actual" value={getStatusText(alert.status)} valueClass={`px-2 py-0.5 inline-block text-xs rounded-full ${getStatusBadge(alert.status)}`} />
                                 <InfoRow label="Coordenadas" value={`${alert.location.latitude.toFixed(6)}, ${alert.location.longitude.toFixed(6)}`} />
