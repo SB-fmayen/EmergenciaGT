@@ -3,6 +3,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
@@ -15,7 +16,6 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
 import type { UserProfile } from "@/lib/types";
-import { EmergencyLogo } from "@/components/EmergencyLogo";
 
 type AuthView = "login" | "register" | "forgotPassword";
 
@@ -205,7 +205,13 @@ export default function AdminLoginPage() {
         <div className="bg-white rounded-xl shadow-2xl p-8 w-full max-w-md">
             <div className="text-center mb-8">
                 <div className="w-24 h-24 mx-auto mb-4">
-                     <EmergencyLogo className="w-full h-full" />
+                    <Image 
+                        src="http://bomberosvoluntarios.org.gt/assets/img/about.jpg" 
+                        alt="Logo Bomberos Voluntarios" 
+                        width={96} 
+                        height={96} 
+                        className="rounded-full object-cover"
+                    />
                 </div>
                 <h1 className="text-3xl font-bold text-gray-800">EmergenciaGT</h1>
                 <p className="text-gray-600 text-xl">{getTitle()}</p>

@@ -21,6 +21,12 @@ const nextConfig = {
         port: '',
         pathname: '/**',
       },
+      {
+        protocol: 'http',
+        hostname: 'bomberosvoluntarios.org.gt',
+        port: '',
+        pathname: '/**',
+      }
     ],
   },
 };
