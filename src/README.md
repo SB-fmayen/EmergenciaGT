@@ -12,13 +12,24 @@
 
 ## 2. Arquitectura de la Solución
 
+Esta sección cubre la arquitectura del software, la infraestructura del sistema y la arquitectura técnica.
+
+### 2.1. Arquitectura General y de Software
+
 La plataforma utiliza una arquitectura moderna basada en **Next.js** y **Firebase**, lo que garantiza escalabilidad, rendimiento y desarrollo rápido.
 
-- **Frontend (App Móvil y Panel Web):** Ambas interfaces están construidas con Next.js, React, TypeScript, Tailwind CSS y componentes de shadcn/ui.
-- **Backend y Base de Datos (BaaS):** Firebase es el núcleo de la solución, proporcionando:
-  - **Firebase Authentication:** Para la gestión de usuarios (email/contraseña, anónimo) y control de acceso basado en roles (Custom Claims).
-  - **Firestore:** Como base de datos NoSQL en tiempo real para almacenar toda la información de la aplicación (alertas, datos médicos, estaciones, etc.).
-  - **Firebase Hosting:** Para desplegar y servir tanto la PWA como el panel de administración.
+- **Frontend (App Móvil y Panel Web):** Ambas interfaces están construidas con Next.js (usando el App Router), React, TypeScript y Tailwind CSS para el estilo, con componentes pre-construidos de shadcn/ui.
+- **Backend y Base de Datos (BaaS - Backend as a Service):** Firebase es el núcleo de la solución, proveyendo toda la infraestructura de backend de manera serverless.
+
+### 2.2. Infraestructura del Sistema
+
+La infraestructura es completamente serverless, alojada y gestionada por Google a través de Firebase:
+
+- **Firebase Hosting:** Para el despliegue y servicio global (vía CDN) tanto de la PWA de los usuarios como del panel de administración.
+- **Firebase Authentication:** Servicio gestionado para la autenticación segura de usuarios (email/contraseña, anónimo) y la gestión de roles mediante Custom Claims.
+- **Firestore:** Base de datos NoSQL, serverless, distribuida globalmente y con capacidades de tiempo real.
+
+### 2.3. Diagrama de Arquitectura
 
 ```
 +--------------------------+        +--------------------------+
@@ -29,7 +40,7 @@ La plataforma utiliza una arquitectura moderna basada en **Next.js** y **Firebas
            | (HTTPS / WebSocket)              | (HTTPS / WebSocket)
            v                                  v
 +-------------------------------------------------------------+
-|                        Firebase (BaaS)                        |
+|              Infraestructura Google Cloud (Firebase)        |
 |                                                             |
 |  +------------------+   +------------------+   +-----------+  |
 |  |   Authentication |   |    Firestore     |   |  Hosting  |  |
@@ -40,9 +51,16 @@ La plataforma utiliza una arquitectura moderna basada en **Next.js** y **Firebas
 
 ```
 
+### 2.4. Arquitectura Técnica Detallada
+
+- **Next.js App Router:** Se utiliza el enrutador de aplicación de Next.js para una mejor organización de rutas y layouts anidados. Las rutas se dividen en grupos: `(admin)` para el panel y `(mobile)` para la PWA.
+- **Componentes de Servidor y Cliente:** Se favorece el uso de Componentes de Servidor (`"use server"`) en Next.js para la lógica de negocio y las acciones que interactúan con Firebase Admin (ej: `users/actions.ts`), reduciendo la cantidad de JavaScript enviado al cliente. Los componentes interactivos (`"use client"`) se usan para la UI que requiere estado o eventos del navegador (ej: los dashboards).
+- **Comunicación en Tiempo Real:** Se utiliza la función `onSnapshot` de Firestore para establecer listeners en tiempo real. Esto permite que el panel de administración reciba las nuevas alertas de emergencia instantáneamente sin necesidad de recargar la página.
+- **Seguridad Basada en Reglas:** La seguridad no reside en el código del cliente, sino en las **Reglas de Seguridad de Firestore** (`firestore.rules`). Estas reglas definen en el servidor quién puede leer, escribir o actualizar cada documento, basándose en el rol (`admin`, `operator`) y el `stationId` del usuario, los cuales se almacenan en los **Custom Claims** del token de autenticación.
+
 ---
 
-## 3. Estructura de la Base de Datos (Firestore)
+## 3. Modelo de Base de Datos (Firestore)
 
 La base de datos está organizada en colecciones principales que separan las distintas entidades de la aplicación.
 
@@ -123,7 +141,7 @@ La base de datos está organizada en colecciones principales que separan las dis
 
 ---
 
-## 4. Flujos de Interacción y Lógica de Negocio
+## 4. Diagrama de Procesos (Flujos de Lógica de Negocio)
 
 Esta sección detalla los procesos clave que conectan la App Móvil, el Panel Web y Firebase.
 
@@ -152,7 +170,7 @@ Este es el flujo más crítico de la plataforma.
 
 4.  **Recepción de la Alerta (Panel de Administración - `src/app/(admin)/dashboard/admin/page.tsx`):**
     *   El dashboard del panel (`AdminDashboardPage`) tiene un "listener" en tiempo real (`onSnapshot`) sobre la colección `alerts`.
-    *   La función `fetchAlerts` es la encargada de establecer esta escucha, construyendo la consulta de forma diferente según el rol del usuario.
+    *   La función `fetchAlerts` es la encargada de establecer esta escucha.
     *   Cuando el nuevo documento se crea en el paso anterior, Firestore lo envía **automáticamente** y en tiempo real al panel de los administradores y operadores relevantes.
     *   La nueva alerta aparece instantáneamente en la parte superior de la lista de "Alertas de Emergencia" y como un nuevo marcador parpadeante en el mapa (`<AlertsMap />`).
 
@@ -242,57 +260,3 @@ El proyecto está organizado siguiendo las convenciones de Next.js App Router.
 - **`firestore.rules`**: **Archivo crítico** que define las reglas de seguridad de la base de datos Firestore, especificando quién puede leer, escribir o actualizar cada colección.
 - **`next.config.ts`**: Configuración de Next.js.
 - **`tailwind.config.ts`**: Configuración de Tailwind CSS y el tema de la aplicación.
-
----
-
-## 6. Plan de QA (Casos de Prueba Clave)
-
-Este es un plan básico para asegurar que las funcionalidades principales no se rompan.
-
-| Feature                      | Caso de Prueba                                                                       | Resultado Esperado                                                                        |
-| ---------------------------- | ------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------- |
-| **Autenticación (Admin)**    | 1. Registrar un nuevo usuario desde la página de login de admin.                     | El usuario se crea con rol "operator".                                                    |
-|                              | 2. Iniciar sesión con un usuario "operator".                                         | El dashboard se muestra sin los botones "Estaciones" y "Usuarios".                        |
-|                              | 3. Promover un "operator" a "admin" desde una cuenta admin.                           | El rol del usuario se actualiza en la tabla.                                              |
-|                              | 4. El nuevo "admin" cierra sesión y vuelve a entrar.                                 | El dashboard se muestra con todos los botones de administrador.                           |
-| **Gestión de Estaciones**    | 1. Crear una nueva estación con datos válidos desde una cuenta admin.                  | La estación aparece en la tabla. Se crea la subcolección `unidades` en Firestore.         |
-|                              | 2. Editar la información de una estación existente.                                  | Los datos se actualizan en la tabla y en Firestore.                                       |
-|                              | 3. Eliminar una estación.                                                            | La estación desaparece de la tabla y se elimina de Firestore.                             |
-|                              | 4. Intentar crear una estación desde una cuenta "operator".                          | La acción falla, mostrando un error de "Acceso Denegado".                                 |
-| **Autenticación (Móvil)**    | 1. Crear una cuenta nueva desde la PWA.                                              | El usuario es redirigido a la página de bienvenida y luego puede acceder al dashboard.    |
-|                              | 2. Iniciar sesión con una cuenta existente.                                          | El usuario accede directamente al dashboard.                                              |
-| **Alerta de Emergencia**     | 1. Mantener presionado el botón de pánico por 2 segundos.                            | Se obtiene la ubicación, se crea un documento en la colección `alerts`, y aparece el modal.|
-|                              | 2. La nueva alerta aparece en tiempo real en el panel del administrador.              | La alerta es visible en la lista y en el mapa del panel web.                               |
-|                              | 3. Asignar la alerta a una estación desde el panel de admin.                             | La alerta se actualiza en Firestore y desaparece de los paneles de otros operadores.      |
-|                              | 4. El operador de la estación asignada ve la nueva alerta en su panel en tiempo real.   | La alerta aparece inmediatamente en el panel del operador correcto.                       |
-|                              | 5. Cancelar una alerta desde el modal de la app.                                     | El estado de la alerta en Firestore cambia a "cancelled".                                 |
-
----
-
-## 7. PRD (Documento de Requisitos del Producto)
-
-### 7.1. Resumen
-
-EmergenciaGT es una plataforma integral que agiliza la comunicación y la respuesta en situaciones de emergencia, sirviendo tanto a ciudadanos como a los equipos de primera respuesta.
-
-### 7.2. Funcionalidades de la Aplicación Móvil (PWA)
-
-- **F1. Autenticación de Usuario:** Los usuarios pueden crear una cuenta con email/contraseña o ingresar como invitados (anónimos) para un uso rápido.
-- **F2. Botón de Pánico:** Un botón prominente que, al ser presionado de forma sostenida, envía una alerta con la geolocalización del usuario a la central.
-- **F3. Perfil Médico:** Los usuarios registrados pueden almacenar información médica vital (tipo de sangre, alergias, condiciones, contactos) para asistir a los socorristas.
-- **F4. Historial de Alertas:** Los usuarios registrados pueden ver un historial de sus alertas pasadas y el estado de cada una.
-- **F5. Cancelación de Alerta:** Los usuarios pueden cancelar una alerta recién creada si fue una falsa alarma o si la situación se resolvió.
-
-### 7.3. Funcionalidades del Panel de Administración
-
-- **F6. Dashboard en Tiempo Real:** Los operadores y administradores ven un resumen de KPIs y una lista/mapa de alertas. Los administradores ven todas las alertas, mientras que los operadores solo ven las asignadas a su estación.
-- **F7. Gestión y Despacho de Alertas (Admin):** Los administradores pueden ver los detalles de una alerta, incluyendo datos médicos, y asignarla a una estación específica para su despacho. Pueden actualizar su estado (`new`, `dispatched`, `resolved`, `cancelled`).
-- **F8. Gestión de Estaciones (Admin):** Los administradores pueden crear, leer, actualizar y eliminar estaciones de emergencia.
-- **F9. Gestión de Roles y Asignaciones (Admin):** Los administradores pueden ver la lista de operadores, promoverlos a `admin`, y asignar cada `operator` a una estación de bomberos específica.
-
-### 7.4. Requisitos No Funcionales
-
-- **Rendimiento:** La aplicación debe ser rápida y responsiva. La creación y recepción de una alerta debe ser casi instantánea.
-- **Seguridad:** El acceso a funciones administrativas y a los datos de las alertas debe estar estrictamente controlado por roles y asignación de estación.
-- **Usabilidad:** La interfaz, especialmente el botón de pánico y el flujo de despacho, debe ser simple e intuitiva.
-- **Escalabilidad:** La solución basada en Firebase debe poder soportar un aumento en el número de usuarios, estaciones y alertas.
