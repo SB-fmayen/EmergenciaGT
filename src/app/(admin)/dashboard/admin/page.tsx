@@ -87,9 +87,6 @@ export default function AdminDashboardPage() {
         let q: Query;
         // If operator, filter by their assigned station. If admin, get all.
         if (userRole === 'operator' && stationId) {
-             // CRITICAL FIX: Removed orderBy for operators. Firestore requires a composite index
-             // for this query (where + orderBy) which doesn't exist. Without it, the query fails
-             // with a misleading "permission-denied" error.
              q = query(alertsRef, where("assignedStationId", "==", stationId));
         } else if (userRole === 'operator' && !stationId) {
             // Operator not assigned to any station, they see nothing.
@@ -413,5 +410,4 @@ export default function AdminDashboardPage() {
      )}
     </>
   );
-
-    
+}
