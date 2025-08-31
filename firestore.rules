@@ -7,12 +7,9 @@ service cloud.firestore {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
     
-    // REGLA SIMPLIFICADA Y CORRECTA:
-    // Ahora la seguridad se basa en "custom claims" (roles) adjuntos al token de autenticación.
     match /stations/{stationId} {
       allow read, write: if request.auth != null && request.auth.token.admin == true;
-
-      // REGLA AÑADIDA: Permite a los administradores gestionar las unidades de una estación.
+      // Permitir a los admins gestionar las unidades dentro de una estación
       match /unidades/{unitId} {
         allow read, write: if request.auth.token.admin == true;
       }
@@ -20,15 +17,25 @@ service cloud.firestore {
     
     // Reglas para la información médica
     match /medicalInfo/{userId} {
+      // El propio usuario puede escribir su información
       allow write: if request.auth != null && request.auth.uid == userId;
+      // Cualquier usuario autenticado (admin/operador) puede leerla para una emergencia
       allow read: if request.auth != null;
     }
     
     // Reglas para las alertas
     match /alerts/{alertId} {
-      allow create;
-      allow read: if request.auth != null;
-      allow update: if request.auth != null;
+      // Cualquiera (incluyendo usuarios anónimos de la app) puede crear una alerta.
+      allow create: if request.auth != null;
+      
+      // La lectura y actualización se permiten si:
+      // 1. El usuario es un administrador.
+      // 2. O, el stationId en el token del usuario coincide con el ID de la estación asignada a la alerta.
+      // 3. O, es el usuario que creó la alerta (para poder cancelarla).
+      allow read, update: if request.auth != null &&
+        (request.auth.token.admin == true || 
+         resource.data.assignedStationId == request.auth.token.stationId ||
+         resource.data.userId == request.auth.uid);
     }
   }
 }
