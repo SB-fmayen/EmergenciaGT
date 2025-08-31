@@ -12,7 +12,7 @@ import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import { LogOut, RefreshCw, Bell, Zap, CheckCircle, Clock, MapPin, Building, Loader2, HardHat, Users, LayoutDashboard } from "lucide-react";
 import dynamic from 'next/dynamic';
-import { collection, onSnapshot, query, where, getDoc, doc, orderBy, Query, getDocs, Timestamp } from "firebase/firestore";
+import { collection, onSnapshot, query, where, getDoc, doc, orderBy, Query, Timestamp } from "firebase/firestore";
 import type { AlertData, MedicalData, StationData } from "@/lib/types";
 import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -78,7 +78,7 @@ export default function AdminDashboardPage() {
                 };
             })
         );
-        // Ordenar en el cliente
+        // Ordenar en el cliente para todos los roles
         enrichedAlerts.sort((a, b) => (b.timestamp as Timestamp).toMillis() - (a.timestamp as Timestamp).toMillis());
         setAlerts(enrichedAlerts);
 
@@ -104,57 +104,45 @@ export default function AdminDashboardPage() {
         
         if (userRole === 'admin') {
             q = query(alertsRef, orderBy("timestamp", "desc"));
-            unsubscribeFromAlerts.current = onSnapshot(q, async (querySnapshot) => {
-                const alertsData: AlertData[] = querySnapshot.docs.map(doc => ({
-                    id: doc.id,
-                    ...doc.data(),
-                    timestamp: doc.data().timestamp,
-                })) as AlertData[];
-                
-                if (initialLoadDone.current) {
-                    const newAlerts = alertsData.filter(a => a.status === 'new' && !alerts.some(old => old.id === a.id));
-                    if (newAlerts.length > 0) {
-                       toast({ title: "¡Nueva Alerta!", description: `${newAlerts.length} nueva(s) emergencia(s) recibida(s).` });
-                    }
-                }
-                
-                processAlerts(alertsData);
-            }, (error) => {
-                console.error("Error en onSnapshot de Firestore (Admin):", error);
-                if (error.code === 'permission-denied') {
-                    toast({ title: "Error de Permisos", description: "No tienes permisos para ver las alertas.", variant: "destructive", duration: 10000 });
-                } else {
-                     toast({ title: "Error de Conexión", description: "No se pudieron cargar las alertas en tiempo real.", variant: "destructive" });
-                }
-                setLoading(false);
-            });
         } else if (userRole === 'operator') {
              if (!stationId) {
                 setAlerts([]);
                 setLoading(false);
                 return;
             }
+            // Los operadores ahora también usan onSnapshot, pero sin el orderBy en la consulta.
+            // La ordenación se hace en `processAlerts`.
             q = query(alertsRef, where("assignedStationId", "==", stationId));
-
-            // Para operadores, usamos getDocs en lugar de onSnapshot para evitar problemas de permisos en tiempo real.
-            try {
-                const querySnapshot = await getDocs(q);
-                const alertsData: AlertData[] = querySnapshot.docs.map(doc => ({
-                    id: doc.id,
-                    ...doc.data(),
-                    timestamp: doc.data().timestamp,
-                })) as AlertData[];
-                processAlerts(alertsData);
-            } catch (error: any) {
-                 console.error("Error en getDocs de Firestore (Operator):", error);
-                 if (error.code === 'permission-denied') {
-                    toast({ title: "Error de Permisos", description: "No tienes permisos para ver las alertas de esta estación. Esto puede deberse a la falta de un índice en la base de datos.", variant: "destructive", duration: 10000 });
-                } else {
-                     toast({ title: "Error al Cargar", description: "No se pudieron cargar las alertas.", variant: "destructive" });
-                }
-                setLoading(false);
-            }
+        } else {
+            setLoading(false);
+            return; // No hacer nada si el rol no está definido.
         }
+
+        unsubscribeFromAlerts.current = onSnapshot(q, async (querySnapshot) => {
+            const alertsData: AlertData[] = querySnapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data(),
+                timestamp: doc.data().timestamp,
+            })) as AlertData[];
+            
+            if (initialLoadDone.current) {
+                const newAlerts = alertsData.filter(a => a.status === 'new' && !alerts.some(old => old.id === a.id));
+                if (newAlerts.length > 0) {
+                   toast({ title: "¡Nueva Alerta!", description: `${newAlerts.length} nueva(s) emergencia(s) recibida(s).` });
+                }
+            }
+            
+            processAlerts(alertsData);
+        }, (error) => {
+            console.error("Error en onSnapshot de Firestore:", error);
+            if (error.code === 'permission-denied') {
+                toast({ title: "Error de Permisos", description: "No tienes permisos para ver las alertas. Esto puede deberse a un problema con las reglas de seguridad de Firestore o la falta de un índice en la base de datos.", variant: "destructive", duration: 10000 });
+            } else {
+                 toast({ title: "Error de Conexión", description: "No se pudieron cargar las alertas en tiempo real.", variant: "destructive" });
+            }
+            setLoading(false);
+        });
+
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [userRole, stationId, processAlerts]);
 
@@ -216,11 +204,6 @@ export default function AdminDashboardPage() {
     const handleCloseModal = () => {
         setIsModalOpen(false);
         setSelectedAlert(null);
-        // Si no es admin, recargar las alertas al cerrar un modal
-        // para reflejar los cambios de estado hechos.
-        if (userRole !== 'admin') {
-            fetchAlerts();
-        }
     }
 
     const handleLogout = async () => {
@@ -463,3 +446,5 @@ export default function AdminDashboardPage() {
     </>
   );
 }
+
+    
