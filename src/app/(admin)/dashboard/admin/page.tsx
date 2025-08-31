@@ -67,10 +67,9 @@ export default function AdminDashboardPage() {
         let q: Query;
 
         if (userRole === 'admin') {
-            // Admin can see all alerts, ordered by timestamp
             q = query(alertsRef, orderBy("timestamp", "desc"));
         } else if (userRole === 'operator' && stationId) {
-            // Operator sees only alerts for their station. No ordering to avoid composite index requirement.
+            // OPERATOR QUERY: Simple query without composite index requirement.
             q = query(alertsRef, where("assignedStationId", "==", stationId));
         } else {
             // Operator with no station, or any other case, sees no alerts.
@@ -158,7 +157,9 @@ export default function AdminDashboardPage() {
             setStations(stationsData);
         });
         
-        fetchAlerts(); 
+        if (userRole) { // Only fetch alerts if role is determined
+            fetchAlerts(); 
+        }
 
         return () => {
              stationsUnsub();
