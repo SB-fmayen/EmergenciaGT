@@ -1,66 +1,30 @@
-
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    function isAuthOwner(userId) {
-      return request.auth != null && request.auth.uid == userId;
-    }
-
-    function isAdmin() {
-      // Admin role is defined by a custom claim on the user's token
-      return request.auth.token.admin == true;
+    // Los usuarios pueden leer y escribir su propio documento.
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
     }
     
-    function isOperator() {
-        return request.auth != null && request.auth.token.admin != true;
-    }
-
-    // Admin Users (operators, admins)
-    // This collection stores metadata for the dashboard users
-    match /users/{userId} {
-      // Admins can read/write any user profile to manage them
-      // Operators can only read their own profile (e.g., for future settings)
-      allow read: if isAdmin() || isAuthOwner(userId);
-      allow write: if isAdmin();
-    }
-
-    // Mobile App User Medical Data
-    match /medicalInfo/{userId} {
-      // Only the authenticated user can read/write their own medical info.
-      // Admins can read anyone's medical info (for emergency display on the dashboard).
-      allow read: if isAuthOwner(userId) || isAdmin();
-      allow write: if isAuthOwner(userId);
-    }
-
-    // Alerts collection
-    match /alerts/{alertId} {
-      // Any authenticated user (including anonymous) can create an alert.
-      allow create: if request.auth != null; 
-      
-      // Admins can update any alert. Users can only update their own alerts (e.g., to cancel).
-      allow update: if isAdmin() || isAuthOwner(request.resource.data.userId); 
-      
-      // Admins can read any alert document.
-      allow get: if isAdmin();
-
-      // Granular list access
-      allow list: if isAdmin() || 
-                     (isOperator() && request.query.where.get('assignedStationId') == request.auth.token.stationId);
-    }
-
-    // Stations collection
+    // REGLA SIMPLIFICADA Y CORRECTA:
+    // Ahora la seguridad se basa en "custom claims" (roles) adjuntos al token de autenticación.
+    // request.auth.token.admin == true
     match /stations/{stationId} {
-      // Admins can manage stations.
-      // Authenticated operators need to read them to populate dropdowns.
+      allow read, write: if request.auth != null && request.auth.token.admin == true;
+    }
+    
+    // Reglas para la información médica
+    match /medicalInfo/{userId} {
+      allow write: if request.auth != null && request.auth.uid == userId;
       allow read: if request.auth != null;
-      allow write: if isAdmin();
-
-      // Sub-collection for units within a station
-      match /unidades/{unitId} {
-        allow read: if request.auth != null;
-        allow write: if isAdmin();
-      }
+    }
+    
+    // Reglas para las alertas
+    match /alerts/{alertId} {
+      allow create;
+      allow read: if request.auth != null;
+      allow update: if request.auth != null;
     }
   }
 }
