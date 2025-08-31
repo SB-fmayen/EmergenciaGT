@@ -12,7 +12,7 @@ import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import { LogOut, RefreshCw, Bell, Zap, CheckCircle, Clock, MapPin, Building, Loader2, HardHat, Users, LayoutDashboard } from "lucide-react";
 import dynamic from 'next/dynamic';
-import { collection, onSnapshot, query, where, getDoc, doc, orderBy, Query, Timestamp } from "firebase/firestore";
+import { collection, onSnapshot, query, where, getDoc, doc, orderBy, Query, Timestamp, getDocs } from "firebase/firestore";
 import type { AlertData, MedicalData, StationData } from "@/lib/types";
 import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -52,7 +52,7 @@ export default function AdminDashboardPage() {
     const [statusFilter, setStatusFilter] = useState("all");
 
     const initialLoadDone = useRef(false);
-    const unsubscribeFromAlerts = useRef<() => void | undefined>();
+    const unsubscribeFromAlerts = useRef<() => void>();
 
     const processAlerts = useCallback(async (alertsData: AlertData[]) => {
       try {
@@ -110,12 +110,10 @@ export default function AdminDashboardPage() {
                 setLoading(false);
                 return;
             }
-            // Los operadores ahora también usan onSnapshot, pero sin el orderBy en la consulta.
-            // La ordenación se hace en `processAlerts`.
             q = query(alertsRef, where("assignedStationId", "==", stationId));
         } else {
             setLoading(false);
-            return; // No hacer nada si el rol no está definido.
+            return;
         }
 
         unsubscribeFromAlerts.current = onSnapshot(q, async (querySnapshot) => {
@@ -136,7 +134,7 @@ export default function AdminDashboardPage() {
         }, (error) => {
             console.error("Error en onSnapshot de Firestore:", error);
             if (error.code === 'permission-denied') {
-                toast({ title: "Error de Permisos", description: "No tienes permisos para ver las alertas. Esto puede deberse a un problema con las reglas de seguridad de Firestore o la falta de un índice en la base de datos.", variant: "destructive", duration: 10000 });
+                toast({ title: "Error de Permisos", description: "No tienes permisos para ver las alertas.", variant: "destructive", duration: 10000 });
             } else {
                  toast({ title: "Error de Conexión", description: "No se pudieron cargar las alertas en tiempo real.", variant: "destructive" });
             }
@@ -164,7 +162,6 @@ export default function AdminDashboardPage() {
                 }
             );
         } else {
-            // Los operadores no necesitan cargar todas las estaciones, se evita la llamada.
             setStations([]);
         }
         
@@ -446,5 +443,3 @@ export default function AdminDashboardPage() {
     </>
   );
 }
-
-    

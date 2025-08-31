@@ -17,12 +17,12 @@ import {
 import { auth } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { EmergencyLogoIcon } from "@/components/icons/EmergencyLogoIcon";
 import { MobileAppContainer } from "@/components/MobileAppContainer";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Eye, EyeOff, ShieldQuestion } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import Image from 'next/image';
 
 type AuthView = "login" | "register" | "forgotPassword";
 
@@ -276,12 +276,12 @@ export default function AuthPage() {
     <MobileAppContainer className="bg-gradient-to-br from-red-800 via-red-900 to-black">
       <div className="flex-1 flex flex-col justify-center px-8 py-12 overflow-y-auto">
         <div className="text-center mb-12">
-          <div className="w-20 h-20 bg-white rounded-full mx-auto mb-6 flex items-center justify-center shadow-lg">
-            <EmergencyLogoIcon className="w-10 h-10 text-red-600" />
+           <div className="w-24 h-24 mx-auto mb-6 flex items-center justify-center">
+             <Image src="/cuerpo-bomberos-logo.png" alt="Logo de Bomberos Voluntarios" width={96} height={96} />
           </div>
           <h1 className="text-3xl font-bold text-white mb-2">EmergenciaGT</h1>
           <p className="text-red-100 text-lg font-medium">Sistema de Emergencias</p>
-          <p className="text-red-200 text-sm mt-1">Respuesta Rápida • Guatemala</p>
+          <p className="text-red-200 text-sm mt-1">Benemérito Cuerpo Voluntario de Bomberos de Guatemala</p>
         </div>
         
         {renderForm()}

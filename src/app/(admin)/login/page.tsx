@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
 import type { UserProfile } from "@/lib/types";
+import Image from 'next/image';
 
 type AuthView = "login" | "register" | "forgotPassword";
 
@@ -135,7 +136,7 @@ export default function AdminLoginPage() {
         <form id="register-form" className="space-y-6" onSubmit={handleRegister}>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Correo de Operador</label>
-              <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="operador@emergenciagt.com" required />
+              <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="operador@bomberos.gt" required />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Contraseña (mín. 6 caracteres)</label>
@@ -153,7 +154,7 @@ export default function AdminLoginPage() {
         <form id="reset-form" className="space-y-6" onSubmit={handlePasswordReset}>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Correo de Operador</label>
-              <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="operador@emergenciagt.com" required />
+              <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="operador@bomberos.gt" required />
             </div>
             <Button type="submit" className="w-full bg-gray-600 text-white py-3 h-auto text-lg hover:bg-gray-700" disabled={loading}>
               {loading ? <Loader2 className="animate-spin" /> : "Enviar Enlace de Recuperación"}
@@ -168,7 +169,7 @@ export default function AdminLoginPage() {
               <label htmlFor="login-email" className="block text-sm font-medium text-gray-700 mb-2">Correo de Operador</label>
               <Input type="email" id="login-email" required
                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
-                     placeholder="operador@emergenciagt.com"
+                     placeholder="operador@bomberos.gt"
                      value={email}
                      onChange={(e) => setEmail(e.target.value)}
               />
@@ -203,8 +204,8 @@ export default function AdminLoginPage() {
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-gray-900 flex items-center justify-center p-4">
         <div className="bg-white rounded-xl shadow-2xl p-8 w-full max-w-md">
             <div className="text-center mb-8">
-                <div className="w-20 h-20 bg-red-600 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
-                    <span className="text-white text-4xl">🚨</span>
+                <div className="w-24 h-24 mx-auto mb-4">
+                     <Image src="/cuerpo-bomberos-logo.png" alt="Logo de Bomberos Voluntarios" width={96} height={96} />
                 </div>
                 <h1 className="text-3xl font-bold text-gray-800">EmergenciaGT</h1>
                 <p className="text-gray-600 text-xl">{getTitle()}</p>
