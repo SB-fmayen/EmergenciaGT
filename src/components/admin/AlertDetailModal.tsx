@@ -37,20 +37,24 @@ const InfoRow = ({ label, value, valueClass }: { label: string, value?: string |
     </div>
 );
 
-const getStatusBadge = (status: string) => {
+const getStatusBadge = (status: AlertStatus) => {
     switch (status) {
-        case 'new': return 'bg-red-500/20 text-red-500 dark:text-red-300';
-        case 'dispatched': return 'bg-yellow-500/20 text-yellow-600 dark:text-yellow-300';
-        case 'resolved': return 'bg-green-500/20 text-green-600 dark:text-green-300';
-        case 'cancelled': return 'bg-gray-500/20 text-gray-500 dark:text-gray-400';
-        default: return 'bg-gray-500/20 text-gray-500 dark:text-gray-400';
+        case 'new': return 'bg-red-500/20 text-red-400';
+        case 'assigned': return 'bg-blue-500/20 text-blue-400';
+        case 'en_route': return 'bg-yellow-500/20 text-yellow-400';
+        case 'on_scene': return 'bg-purple-500/20 text-purple-400';
+        case 'resolved': return 'bg-green-500/20 text-green-400';
+        case 'cancelled': return 'bg-gray-500/20 text-gray-400';
+        default: return 'bg-gray-500/20 text-gray-400';
     }
 };
 
-const getStatusText = (status: string) => {
+const getStatusText = (status: AlertStatus) => {
     switch (status) {
-        case 'new': return 'Activa';
-        case 'dispatched': return 'En Curso';
+        case 'new': return 'Nueva';
+        case 'assigned': return 'Asignada';
+        case 'en_route': return 'En Ruta';
+        case 'on_scene': return 'En el Lugar';
         case 'resolved': return 'Finalizada';
         case 'cancelled': return 'Cancelada';
         default: return status;
@@ -106,7 +110,7 @@ export function AlertDetailModal({ isOpen, onClose, alert, stations, onCenterMap
             await updateDoc(alertRef, { 
                 assignedStationId: selectedStation,
                 assignedStationName: station?.name || "Desconocido",
-                status: 'dispatched' // Automatically set to dispatched
+                status: 'assigned' // Automatically set to assigned
             });
             toast({ title: "Estación Asignada", description: `La alerta ha sido asignada a ${station?.name}.`});
             onClose();
@@ -186,8 +190,10 @@ export function AlertDetailModal({ isOpen, onClose, alert, stations, onCenterMap
                                 <SelectValue placeholder="Actualizar estado" />
                             </SelectTrigger>
                             <SelectContent>
-                               <SelectItem value="new">Activa</SelectItem>
-                               <SelectItem value="dispatched">En Curso</SelectItem>
+                               <SelectItem value="new">Nueva</SelectItem>
+                               <SelectItem value="assigned">Asignada</SelectItem>
+                               <SelectItem value="en_route">En Ruta</SelectItem>
+                               <SelectItem value="on_scene">En el Lugar</SelectItem>
                                <SelectItem value="resolved">Finalizada</SelectItem>
                                <SelectItem value="cancelled">Cancelada</SelectItem>
                             </SelectContent>

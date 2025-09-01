@@ -18,7 +18,7 @@ export type MedicalData = {
   additionalNotes: string;
 };
 
-export type AlertStatus = 'new' | 'dispatched' | 'resolved' | 'cancelled';
+export type AlertStatus = 'new' | 'assigned' | 'en_route' | 'on_scene' | 'resolved' | 'cancelled';
 
 export type AlertData = {
     id: string;
@@ -50,5 +50,3 @@ export type UserProfile = {
     lastLogin?: Timestamp | Date | any;
     stationId?: string;
 };
-
-    

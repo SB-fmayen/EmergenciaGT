@@ -5,6 +5,7 @@ import { useEffect, useRef } from 'react';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import type { EnrichedAlert } from '@/app/(admin)/dashboard/admin/page'; // Ajustar ruta si es necesario
+import type { AlertStatus } from '@/lib/types';
 
 // Arreglo para el ícono de Leaflet que a veces no se carga correctamente en Next.js
 const defaultIcon = L.icon({
@@ -19,27 +20,36 @@ const defaultIcon = L.icon({
 
 L.Marker.prototype.options.icon = defaultIcon;
 
-// Función para crear íconos personalizados
-const createAlertIcon = (severity: string | undefined) => {
-    let bgColor = '#6b7280'; // gris por defecto
+// Función para crear íconos personalizados basados en el estado
+const createAlertIcon = (status: AlertStatus) => {
+    let bgColor = '#6b7280'; // gris por defecto (cancelled/resolved)
     let size = 24;
-    switch (severity?.toLowerCase()) {
-        case 'crítica':
+    let pulsing = false;
+
+    switch (status) {
+        case 'new':
             bgColor = '#ef4444'; // red-500
             size = 32;
+            pulsing = true;
             break;
-        case 'alta':
-            bgColor = '#f97316'; // orange-500
+        case 'assigned':
+            bgColor = '#3b82f6'; // blue-500
             size = 28;
             break;
-        case 'media':
+        case 'en_route':
             bgColor = '#f59e0b'; // amber-500
-            size = 24;
+            size = 28;
+            break;
+        case 'on_scene':
+            bgColor = '#8b5cf6'; // violet-500
+            size = 28;
             break;
     }
     
+    const pulseClass = pulsing ? 'animate-pulse' : '';
+
     return L.divIcon({
-        html: `<div style="background-color: ${bgColor}; width: ${size}px; height: ${size}px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 6px rgba(0,0,0,0.4);" class="animate-pulse"></div>`,
+        html: `<div style="background-color: ${bgColor}; width: ${size}px; height: ${size}px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 6px rgba(0,0,0,0.4);" class="${pulseClass}"></div>`,
         className: 'bg-transparent border-0',
         iconSize: [size, size],
         iconAnchor: [size / 2, size]
@@ -75,7 +85,7 @@ export default function AlertsMap({ alerts, selectedAlert, theme }: AlertsMapPro
 
             mapRef.current = map;
         }
-    }, []);
+    }, [theme]);
 
     // Cambia el tema del mapa cuando el tema global cambia
     useEffect(() => {
@@ -113,13 +123,14 @@ export default function AlertsMap({ alerts, selectedAlert, theme }: AlertsMapPro
                 `;
 
                 if (markersRef.current[alert.id]) {
-                    // Actualizar posición y popup si ya existe
+                    // Actualizar posición, ícono y popup si ya existe
                     markersRef.current[alert.id].setLatLng([alert.location.latitude, alert.location.longitude]);
+                    markersRef.current[alert.id].setIcon(createAlertIcon(alert.status));
                     markersRef.current[alert.id].setPopupContent(popupContent);
                 } else {
                     // Crear nuevo marcador si no existe
                     const marker = L.marker([alert.location.latitude, alert.location.longitude], {
-                        icon: createAlertIcon(alert.severity)
+                        icon: createAlertIcon(alert.status)
                     }).addTo(mapRef.current!);
                     marker.bindPopup(popupContent);
                     markersRef.current[alert.id] = marker;
@@ -156,5 +167,3 @@ export default function AlertsMap({ alerts, selectedAlert, theme }: AlertsMapPro
         <div ref={containerRef} className="w-full h-full z-0" />
     );
 }
-
-    

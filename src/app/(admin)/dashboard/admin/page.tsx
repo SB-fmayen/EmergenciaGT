@@ -10,7 +10,7 @@ import { auth, firestore } from "@/lib/firebase";
 import { signOut } from "firebase/auth";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
-import { LogOut, RefreshCw, Bell, Zap, CheckCircle, Clock, MapPin, Building, Loader2, HardHat, Users, LayoutDashboard } from "lucide-react";
+import { LogOut, RefreshCw, Bell, Zap, CheckCircle, Clock, MapPin, Building, Loader2, HardHat, Users, LayoutDashboard, Truck, Siren, Check } from "lucide-react";
 import dynamic from 'next/dynamic';
 import { collection, onSnapshot, query, where, getDoc, doc, orderBy, Query, Timestamp, getDocs } from "firebase/firestore";
 import type { AlertData, MedicalData, StationData } from "@/lib/types";
@@ -224,32 +224,50 @@ export default function AdminDashboardPage() {
     }, [alerts, statusFilter, searchTerm]);
 
     const kpis = useMemo(() => {
+        const activeOrAssigned = alerts.filter(a => a.status === 'new' || a.status === 'assigned').length
+        const inProgress = alerts.filter(a => a.status === 'en_route' || a.status === 'on_scene').length
         return {
-            active: alerts.filter(a => a.status === 'new').length,
-            inProgress: alerts.filter(a => a.status === 'dispatched').length,
+            active: activeOrAssigned,
+            inProgress: inProgress,
             resolved: alerts.filter(a => a.status === 'resolved').length,
         }
     }, [alerts]);
 
     const getStatusBadge = (status: string) => {
         switch (status) {
-            case 'new': return 'bg-red-500/20 text-red-500 dark:text-red-300';
-            case 'dispatched': return 'bg-yellow-500/20 text-yellow-600 dark:text-yellow-300';
-            case 'resolved': return 'bg-green-500/20 text-green-600 dark:text-green-300';
-            case 'cancelled': return 'bg-gray-500/20 text-gray-500 dark:text-gray-400';
-            default: return 'bg-gray-500/20 text-gray-500 dark:text-gray-400';
+            case 'new': return 'bg-red-500/20 text-red-400';
+            case 'assigned': return 'bg-blue-500/20 text-blue-400';
+            case 'en_route': return 'bg-yellow-500/20 text-yellow-400';
+            case 'on_scene': return 'bg-purple-500/20 text-purple-400';
+            case 'resolved': return 'bg-green-500/20 text-green-400';
+            case 'cancelled': return 'bg-gray-500/20 text-gray-400';
+            default: return 'bg-gray-500/20 text-gray-400';
         }
     };
 
     const getStatusText = (status: string) => {
         switch (status) {
-            case 'new': return 'Activa';
-            case 'dispatched': return 'En Curso';
+            case 'new': return 'Nueva';
+            case 'assigned': return 'Asignada';
+            case 'en_route': return 'En Ruta';
+            case 'on_scene': return 'En el Lugar';
             case 'resolved': return 'Finalizada';
             case 'cancelled': return 'Cancelada';
             default: return status;
         }
     };
+
+    const getStatusIcon = (status: string) => {
+        switch (status) {
+            case 'new': return <Bell className="h-3 w-3" />;
+            case 'assigned': return <HardHat className="h-3 w-3" />;
+            case 'en_route': return <Truck className="h-3 w-3" />;
+            case 'on_scene': return <Siren className="h-3 w-3" />;
+            case 'resolved': return <Check className="h-3 w-3" />;
+            case 'cancelled': return <Check className="h-3 w-3" />;
+            default: return null;
+        }
+    }
 
   return (
     <>
@@ -303,7 +321,7 @@ export default function AdminDashboardPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium text-muted-foreground">Alertas Activas</CardTitle>
+                    <CardTitle className="text-sm font-medium text-muted-foreground">Nuevas y Asignadas</CardTitle>
                     <Bell className="h-5 w-5 text-red-500" />
                 </CardHeader>
                 <CardContent>
@@ -312,7 +330,7 @@ export default function AdminDashboardPage() {
             </Card>
             <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium text-muted-foreground">En Curso</CardTitle>
+                    <CardTitle className="text-sm font-medium text-muted-foreground">En Progreso</CardTitle>
                     <Zap className="h-5 w-5 text-yellow-500" />
                 </CardHeader>
                 <CardContent>
@@ -363,10 +381,12 @@ export default function AdminDashboardPage() {
                             </SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="all">Todos los estados</SelectItem>
-                                <SelectItem value="new">Activas</SelectItem>
-                                <SelectItem value="dispatched">En Curso</SelectItem>
-                                <SelectItem value="resolved">Finalizadas</SelectItem>
-                                <SelectItem value="cancelled">Canceladas</SelectItem>
+                                <SelectItem value="new">Nueva</SelectItem>
+                                <SelectItem value="assigned">Asignada</SelectItem>
+                                <SelectItem value="en_route">En Ruta</SelectItem>
+                                <SelectItem value="on_scene">En el Lugar</SelectItem>
+                                <SelectItem value="resolved">Finalizada</SelectItem>
+                                <SelectItem value="cancelled">Cancelada</SelectItem>
                             </SelectContent>
                         </Select>
                     </div>
@@ -390,7 +410,10 @@ export default function AdminDashboardPage() {
                                  <div className="flex items-start justify-between mb-2">
                                     <div className="flex items-center gap-2 flex-wrap">
                                         <span className="font-bold text-foreground font-mono">{alert.id.substring(0, 8)}...</span>
-                                        <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${getStatusBadge(alert.status)}`}>{getStatusText(alert.status)}</span>
+                                        <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 text-xs font-medium rounded-full ${getStatusBadge(alert.status)}`}>
+                                            {getStatusIcon(alert.status)}
+                                            {getStatusText(alert.status)}
+                                        </span>
                                         <span className={`px-2 py-0.5 text-xs font-medium rounded-full bg-orange-500/20 text-orange-400 dark:text-orange-300`}>{alert.severity}</span>
                                     </div>
                                     <span className="text-sm text-muted-foreground">{alert.timestamp ? formatDistanceToNow((alert.timestamp as Timestamp).toDate(), { addSuffix: true, locale: es }) : 'hace un momento'}</span>
