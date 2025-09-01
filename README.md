@@ -160,7 +160,7 @@ La base de datos está organizada en colecciones principales que separan las dis
     "isAnonymous": "boolean",
     "timestamp": "Timestamp", // Hora de creación
     "location": "GeoPoint", // Coordenadas de la emergencia
-    "status": "new" | "dispatched" | "resolved" | "cancelled",
+    "status": "new" | "assigned" | "en_route" | "on_scene" | "attending" | "transporting" | "patient_attended" | "resolved" | "cancelled",
     "cancellationReason": "string", // Opcional
     "assignedStationId": "string", // ID de la estación asignada
     "assignedStationName": "string" // Nombre de la estación asignada
@@ -267,7 +267,7 @@ Este flujo describe cómo las alertas se asignan a estaciones específicas y có
     *   Una nueva alerta llega al dashboard del administrador (que ve todas las alertas).
     *   El administrador hace clic en la alerta, abriendo el modal de detalles (`AlertDetailModal`).
     *   Dentro del modal, hay un menú desplegable "Asignar Estación". El administrador selecciona la estación y hace clic en "Asignar".
-    *   La función `handleAssignStation` actualiza el documento de la alerta en la colección `alerts`, estableciendo los campos `assignedStationId` y `assignedStationName`, y cambiando el `status` a `'dispatched'`.
+    *   La función `handleAssignStation` actualiza el documento de la alerta en la colección `alerts`, estableciendo los campos `assignedStationId` y `assignedStationName`, y cambiando el `status` a `'assigned'`.
 
 3.  **Filtrado de Alertas por Operador (Operator - `src/app/(admin)/dashboard/admin/page.tsx`):**
     *   Un operador inicia sesión. El `AuthProvider` lee su `stationId` desde los Custom Claims del token y lo guarda en el contexto (`useAuth`).
