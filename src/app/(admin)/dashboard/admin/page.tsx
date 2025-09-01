@@ -10,7 +10,7 @@ import { auth, firestore } from "@/lib/firebase";
 import { signOut } from "firebase/auth";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
-import { LogOut, RefreshCw, Bell, Zap, CheckCircle, Clock, MapPin, Building, Loader2, HardHat, Users, LayoutDashboard, Truck, Siren, Check } from "lucide-react";
+import { LogOut, RefreshCw, Bell, Zap, CheckCircle, Clock, MapPin, Building, Loader2, HardHat, Users, LayoutDashboard, Truck, Siren, Check, Stethoscope, Hospital, UserCheck } from "lucide-react";
 import dynamic from 'next/dynamic';
 import { collection, onSnapshot, query, where, getDoc, doc, orderBy, Query, Timestamp, getDocs } from "firebase/firestore";
 import type { AlertData, MedicalData, StationData } from "@/lib/types";
@@ -224,12 +224,13 @@ export default function AdminDashboardPage() {
     }, [alerts, statusFilter, searchTerm]);
 
     const kpis = useMemo(() => {
-        const activeOrAssigned = alerts.filter(a => a.status === 'new' || a.status === 'assigned').length
-        const inProgress = alerts.filter(a => a.status === 'en_route' || a.status === 'on_scene').length
+        const activeOrAssigned = alerts.filter(a => a.status === 'new' || a.status === 'assigned').length;
+        const inProgress = alerts.filter(a => ['en_route', 'on_scene', 'attending', 'transporting'].includes(a.status)).length;
+        const resolved = alerts.filter(a => a.status === 'resolved' || a.status === 'patient_attended').length;
         return {
             active: activeOrAssigned,
             inProgress: inProgress,
-            resolved: alerts.filter(a => a.status === 'resolved').length,
+            resolved: resolved,
         }
     }, [alerts]);
 
@@ -239,6 +240,9 @@ export default function AdminDashboardPage() {
             case 'assigned': return 'bg-blue-500/20 text-blue-400';
             case 'en_route': return 'bg-yellow-500/20 text-yellow-400';
             case 'on_scene': return 'bg-purple-500/20 text-purple-400';
+            case 'attending': return 'bg-fuchsia-500/20 text-fuchsia-400';
+            case 'transporting': return 'bg-sky-500/20 text-sky-400';
+            case 'patient_attended': return 'bg-teal-500/20 text-teal-400';
             case 'resolved': return 'bg-green-500/20 text-green-400';
             case 'cancelled': return 'bg-gray-500/20 text-gray-400';
             default: return 'bg-gray-500/20 text-gray-400';
@@ -251,7 +255,10 @@ export default function AdminDashboardPage() {
             case 'assigned': return 'Asignada';
             case 'en_route': return 'En Ruta';
             case 'on_scene': return 'En el Lugar';
-            case 'resolved': return 'Finalizada';
+            case 'attending': return 'Atendiendo';
+            case 'transporting': return 'Trasladando';
+            case 'patient_attended': return 'Atendido en Lugar';
+            case 'resolved': return 'Finalizada en Hospital';
             case 'cancelled': return 'Cancelada';
             default: return status;
         }
@@ -263,6 +270,9 @@ export default function AdminDashboardPage() {
             case 'assigned': return <HardHat className="h-3 w-3" />;
             case 'en_route': return <Truck className="h-3 w-3" />;
             case 'on_scene': return <Siren className="h-3 w-3" />;
+            case 'attending': return <Stethoscope className="h-3 w-3" />;
+            case 'transporting': return <Hospital className="h-3 w-3" />;
+            case 'patient_attended': return <UserCheck className="h-3 w-3" />;
             case 'resolved': return <Check className="h-3 w-3" />;
             case 'cancelled': return <Check className="h-3 w-3" />;
             default: return null;
@@ -385,7 +395,10 @@ export default function AdminDashboardPage() {
                                 <SelectItem value="assigned">Asignada</SelectItem>
                                 <SelectItem value="en_route">En Ruta</SelectItem>
                                 <SelectItem value="on_scene">En el Lugar</SelectItem>
-                                <SelectItem value="resolved">Finalizada</SelectItem>
+                                <SelectItem value="attending">Atendiendo</SelectItem>
+                                <SelectItem value="transporting">Trasladando</SelectItem>
+                                <SelectItem value="patient_attended">Atendido en Lugar</SelectItem>
+                                <SelectItem value="resolved">Finalizada en Hospital</SelectItem>
                                 <SelectItem value="cancelled">Cancelada</SelectItem>
                             </SelectContent>
                         </Select>

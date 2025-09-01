@@ -18,7 +18,16 @@ export type MedicalData = {
   additionalNotes: string;
 };
 
-export type AlertStatus = 'new' | 'assigned' | 'en_route' | 'on_scene' | 'resolved' | 'cancelled';
+export type AlertStatus = 
+  | 'new' 
+  | 'assigned' 
+  | 'en_route' 
+  | 'on_scene'
+  | 'attending'
+  | 'transporting'
+  | 'patient_attended'
+  | 'resolved' 
+  | 'cancelled';
 
 export type AlertData = {
     id: string;

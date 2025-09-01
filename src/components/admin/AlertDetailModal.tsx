@@ -43,6 +43,9 @@ const getStatusBadge = (status: AlertStatus) => {
         case 'assigned': return 'bg-blue-500/20 text-blue-400';
         case 'en_route': return 'bg-yellow-500/20 text-yellow-400';
         case 'on_scene': return 'bg-purple-500/20 text-purple-400';
+        case 'attending': return 'bg-fuchsia-500/20 text-fuchsia-400';
+        case 'transporting': return 'bg-sky-500/20 text-sky-400';
+        case 'patient_attended': return 'bg-teal-500/20 text-teal-400';
         case 'resolved': return 'bg-green-500/20 text-green-400';
         case 'cancelled': return 'bg-gray-500/20 text-gray-400';
         default: return 'bg-gray-500/20 text-gray-400';
@@ -55,7 +58,10 @@ const getStatusText = (status: AlertStatus) => {
         case 'assigned': return 'Asignada';
         case 'en_route': return 'En Ruta';
         case 'on_scene': return 'En el Lugar';
-        case 'resolved': return 'Finalizada';
+        case 'attending': return 'Atendiendo';
+        case 'transporting': return 'Trasladando';
+        case 'patient_attended': return 'Atendido en Lugar';
+        case 'resolved': return 'Finalizada en Hospital';
         case 'cancelled': return 'Cancelada';
         default: return status;
     }
@@ -194,7 +200,10 @@ export function AlertDetailModal({ isOpen, onClose, alert, stations, onCenterMap
                                <SelectItem value="assigned">Asignada</SelectItem>
                                <SelectItem value="en_route">En Ruta</SelectItem>
                                <SelectItem value="on_scene">En el Lugar</SelectItem>
-                               <SelectItem value="resolved">Finalizada</SelectItem>
+                               <SelectItem value="attending">Atendiendo</SelectItem>
+                               <SelectItem value="transporting">Trasladando a Hospital</SelectItem>
+                               <SelectItem value="patient_attended">Atendido en Lugar (Sin Traslado)</SelectItem>
+                               <SelectItem value="resolved">Finalizada en Hospital</SelectItem>
                                <SelectItem value="cancelled">Cancelada</SelectItem>
                             </SelectContent>
                         </Select>
