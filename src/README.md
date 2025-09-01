@@ -390,4 +390,4 @@ El proyecto está organizado siguiendo las convenciones de Next.js App Router.
 - **`next.config.ts`**: Configuración de Next.js.
 - **`tailwind.config.ts`**: Configuración de Tailwind CSS y el tema de la aplicación.
 
-
+    
