@@ -227,7 +227,102 @@ Este flujo describe cómo las alertas se asignan a estaciones específicas y có
 
 ---
 
-## 5. Estructura de Archivos del Proyecto
+## 5. Flujo Detallado por Estado de Alerta
+
+Esta sección describe el propósito y el proceso de cada uno de los 9 estados que puede tener una alerta, desde su creación hasta su resolución.
+
+### 5.1. Estado: `new` (Nueva)
+- **Propósito:** Es el estado inicial. La alerta ha sido recibida pero no procesada.
+- **Diagrama:**
+  `[Usuario App] --(Botón de Pánico)--> [Sistema/Firestore] --(Crea doc. 'new')--> [Panel Admin]`
+- **Descripción:**
+  1.  **Usuario** presiona el botón de pánico en la aplicación móvil.
+  2.  La **App Móvil** obtiene la geolocalización.
+  3.  La **App Móvil** crea un nuevo documento en la colección `alerts` de Firestore con `status: 'new'`.
+  4.  El **Panel de Administración** recibe la alerta en tiempo real y la muestra como "Nueva".
+
+### 5.2. Estado: `assigned` (Asignada)
+- **Propósito:** Un operador ha tomado la alerta y la ha asignado a una estación específica.
+- **Diagrama:**
+  `[Panel Admin] --(Selecciona Estación)--> [Sistema/Firestore] --(Actualiza doc. a 'assigned')--> [Panel Admin]`
+- **Descripción:**
+  1.  Un **Operador/Admin** ve la alerta "Nueva" en el panel.
+  2.  Abre el modal de detalles de la alerta.
+  3.  Selecciona una estación de la lista y hace clic en "Asignar".
+  4.  El **Panel de Administración** envía la actualización a Firestore.
+  5.  **Firestore** actualiza el estado del documento de la alerta a `status: 'assigned'` y guarda el `assignedStationId`.
+
+### 5.3. Estado: `en_route` (En Ruta)
+- **Propósito:** La unidad de emergencia (ambulancia, etc.) de la estación asignada ya está en camino.
+- **Diagrama:**
+  `[Unidad Emergencia] --(Notifica por Radio)--> [Operador] --(Actualiza en Panel)--> [Sistema/Firestore: 'en_route']`
+- **Descripción:**
+  1.  La **Unidad de Emergencia** confirma al operador (por radio, teléfono) que ha salido de la estación.
+  2.  El **Operador** en el panel abre los detalles de la alerta.
+  3.  Selecciona el nuevo estado "En Ruta" y lo guarda.
+  4.  **Firestore** actualiza el documento a `status: 'en_route'`.
+
+### 5.4. Estado: `on_scene` (En el Lugar)
+- **Propósito:** La unidad de emergencia ha llegado al lugar del incidente.
+- **Diagrama:**
+  `[Unidad Emergencia] --(Confirma Llegada)--> [Operador] --(Actualiza en Panel)--> [Sistema/Firestore: 'on_scene']`
+- **Descripción:**
+  1.  La **Unidad de Emergencia** llega a la ubicación de la alerta y lo comunica al operador.
+  2.  El **Operador** actualiza el estado en el panel a "En el Lugar".
+  3.  **Firestore** actualiza el documento a `status: 'on_scene'`.
+
+### 5.5. Estado: `attending` (Atendiendo)
+- **Propósito:** Los paramédicos o bomberos están activamente atendiendo al paciente o la situación.
+- **Diagrama:**
+  `[Unidad Emergencia] --(Inicia Atención)--> [Operador] --(Actualiza en Panel)--> [Sistema/Firestore: 'attending']`
+- **Descripción:**
+  1.  El personal de la **Unidad de Emergencia** comienza los primeros auxilios o las maniobras necesarias.
+  2.  Informan al **Operador** que la atención ha comenzado.
+  3.  El **Operador** cambia el estado de la alerta a "Atendiendo" en el panel.
+  4.  **Firestore** actualiza el documento a `status: 'attending'`.
+
+### 5.6. Estado: `transporting` (Trasladando)
+- **Propósito:** El paciente necesita ser llevado a un hospital y la unidad está en camino hacia allí.
+- **Diagrama:**
+  `[Unidad Emergencia] --(Inicia Traslado)--> [Operador] --(Actualiza en Panel)--> [Sistema/Firestore: 'transporting']`
+- **Descripción:**
+  1.  La **Unidad de Emergencia** decide que es necesario el traslado a un centro asistencial e inicia el viaje.
+  2.  Notifica al **Operador** sobre el traslado.
+  3.  El **Operador** actualiza el estado a "Trasladando" en el panel.
+  4.  **Firestore** actualiza el documento a `status: 'transporting'`.
+
+### 5.7. Estado: `patient_attended` (Atendido en Lugar)
+- **Propósito:** El paciente fue atendido en el lugar y no necesitó traslado a un hospital. El servicio ha finalizado.
+- **Diagrama:**
+  `[Unidad Emergencia] --(Reporta Fin de Servicio)--> [Operador] --(Actualiza en Panel)--> [Sistema/Firestore: 'patient_attended']`
+- **Descripción:**
+  1.  La **Unidad de Emergencia** atiende al paciente en la escena y determina que no es necesario el traslado.
+  2.  Informa al **Operador** que el servicio ha concluido en el lugar.
+  3.  El **Operador** selecciona el estado "Atendido en Lugar" para cerrar el caso.
+  4.  **Firestore** actualiza el documento a `status: 'patient_attended'`, finalizando la alerta.
+
+### 5.8. Estado: `resolved` (Finalizada en Hospital)
+- **Propósito:** La unidad llegó al hospital, entregó al paciente y el servicio ha concluido.
+- **Diagrama:**
+  `[Unidad Emergencia] --(Confirma Llegada a Hospital)--> [Operador] --(Actualiza en Panel)--> [Sistema/Firestore: 'resolved']`
+- **Descripción:**
+  1.  La **Unidad de Emergencia** que estaba en estado "Trasladando" llega al hospital.
+  2.  Entrega al paciente y queda libre. Informa de esto al **Operador**.
+  3.  El **Operador** selecciona el estado "Finalizada en Hospital" para cerrar el caso.
+  4.  **Firestore** actualiza el documento a `status: 'resolved'`, finalizando la alerta.
+
+### 5.9. Estado: `cancelled` (Cancelada)
+- **Propósito:** La alerta se anula antes de ser completada.
+- **Diagrama (Opción 1: Usuario):**
+  `[Usuario App] --(Cancela Alerta)--> [Sistema/Firestore: 'cancelled']`
+- **Diagrama (Opción 2: Operador):**
+  `[Operador] --(Cancela en Panel)--> [Sistema/Firestore: 'cancelled']`
+- **Descripción:**
+  1.  **Opción 1:** El **Usuario** que creó la alerta la cancela desde su aplicación. La app actualiza el estado en Firestore a `status: 'cancelled'`.
+  2.  **Opción 2:** Un **Operador** determina que la alerta es una falsa alarma o ya no es necesaria y la cancela manualmente desde el panel, especificando una razón. El panel actualiza el estado en Firestore a `status: 'cancelled'`.
+
+---
+## 6. Estructura de Archivos del Proyecto
 
 El proyecto está organizado siguiendo las convenciones de Next.js App Router.
 
@@ -251,7 +346,7 @@ El proyecto está organizado siguiendo las convenciones de Next.js App Router.
   - **`admin/`**: Componentes específicos del panel de administración (ej: `AlertDetailModal`, `EditStationModal`, `AlertsMap`).
   - **`dashboard/`**: Componentes del dashboard del usuario móvil (ej: `PanicButton`, `EmergencyModal`).
   - **`ui/`**: Componentes de UI reutilizables de shadcn (Button, Card, etc.).
-- **`src/lib/`**:
+- **`src/lib/`**
   - **`firebase.ts`**: Configuración del SDK de cliente de Firebase para el navegador.
   - **`firebase-admin.ts`**: Configuración del SDK de Admin de Firebase para usar en Server Actions.
   - **`types.ts`**: Definiciones de tipos de TypeScript para la estructura de datos (AlertData, MedicalData, etc.).
@@ -260,3 +355,4 @@ El proyecto está organizado siguiendo las convenciones de Next.js App Router.
 - **`firestore.rules`**: **Archivo crítico** que define las reglas de seguridad de la base de datos Firestore, especificando quién puede leer, escribir o actualizar cada colección.
 - **`next.config.ts`**: Configuración de Next.js.
 - **`tailwind.config.ts`**: Configuración de Tailwind CSS y el tema de la aplicación.
+
