@@ -197,36 +197,70 @@ Esta sección detalla los procesos clave que conectan la App Móvil, el Panel We
 
 ### 5.1. Flujo de Generación de Alerta de Emergencia
 
-Este es el flujo más crítico de la plataforma.
+Este es el flujo más crítico de la plataforma, con dos variantes principales dependiendo del tipo de usuario.
 
-1.  **Activación (App Móvil - `src/app/dashboard/page.tsx`):**
-    *   Un usuario (registrado o anónimo) abre la PWA y mantiene presionado el **Botón de Pánico** (`<PanicButton />` en `src/components/dashboard/PanicButton.tsx`).
-    *   La activación requiere una pulsación sostenida de 2 segundos para prevenir falsas alarmas. Una barra de progreso visual indica el avance.
+#### **Flujo para Usuario Registrado (con sesión iniciada)**
 
-2.  **Geolocalización (App Móvil - `src/app/dashboard/page.tsx`):**
-    *   Una vez completada la pulsación, la función `handleActivateEmergency` se dispara.
-    *   Esta llama a `getUserLocation()`, que utiliza la API de geolocalización del navegador (`navigator.geolocation`) para obtener las coordenadas GPS exactas del usuario. Se manejan errores específicos si el usuario deniega el permiso o si la ubicación no está disponible.
+Este es el caso ideal, ya que permite asociar la alerta con la información médica del usuario.
 
-3.  **Creación del Documento (Firestore - `src/app/dashboard/page.tsx`):**
-    *   Si la geolocalización es exitosa, el sistema crea un nuevo documento en la colección `alerts` de Firestore.
-    *   El documento se puebla con los siguientes datos:
-        *   `id`: Un ID único generado por Firestore, que también se guarda dentro del documento para fácil referencia.
+1.  **Inicio y Autenticación:**
+    *   El usuario abre la aplicación.
+    *   La app detecta una sesión activa de Firebase y redirige al usuario al dashboard (`/dashboard`).
+    *   El sistema carga en segundo plano los datos médicos del usuario desde la colección `medicalInfo` usando el UID del usuario.
+
+2.  **Activación de Alerta:**
+    *   El usuario mantiene presionado el **Botón de Pánico** (`<PanicButton />`) durante 2 segundos.
+
+3.  **Geolocalización:**
+    *   La app solicita y obtiene las coordenadas GPS del dispositivo del usuario.
+
+4.  **Creación de Alerta en Firestore:**
+    *   Se crea un nuevo documento en la colección `alerts`.
+    *   El documento contiene:
         *   `userId`: El UID del usuario de Firebase.
-        *   `isAnonymous`: Un booleano (`true`/`false`) que indica si el usuario está en modo invitado.
-        *   `location`: Un `GeoPoint` de Firestore con la latitud y longitud obtenidas.
+        *   `isAnonymous`: `false`.
+        *   `location`: Las coordenadas obtenidas.
         *   `status`: Se establece inicialmente en `"new"`.
-        *   `timestamp`: Se utiliza `serverTimestamp()` para registrar la hora exacta del servidor.
-    *   Al usuario se le muestra un modal (`<EmergencyModal />`) confirmando que la ayuda está en camino.
 
-4.  **Recepción de la Alerta (Panel de Administración - `src/app/(admin)/dashboard/admin/page.tsx`):**
-    *   El dashboard del panel (`AdminDashboardPage`) tiene un "listener" en tiempo real (`onSnapshot`) sobre la colección `alerts`.
-    *   La función `fetchAlerts` es la encargada de establecer esta escucha.
-    *   Cuando el nuevo documento se crea en el paso anterior, Firestore lo envía **automáticamente** y en tiempo real al panel de los administradores y operadores relevantes.
-    *   La nueva alerta aparece instantáneamente en la parte superior de la lista de "Alertas de Emergencia" y como un nuevo marcador parpadeante en el mapa (`<AlertsMap />`).
+5.  **Notificación al Usuario:**
+    *   Se muestra un modal (`<EmergencyModal />`) confirmando que la ayuda está en camino.
 
-5.  **Enriquecimiento de Datos (Panel de Administración - `src/app/(admin)/dashboard/admin/page.tsx`):**
-    *   Dentro de la función `processAlerts`, si la alerta entrante no es anónima (`isAnonymous == false`), el sistema toma el `userId` de la alerta y realiza una consulta a la colección `medicalInfo` para buscar el documento con ese mismo ID.
-    *   Si se encuentra, los datos médicos del usuario se adjuntan al objeto de la alerta en el estado del panel (`EnrichedAlert`). Esto permite que el operador, al hacer clic en la alerta, vea inmediatamente la información médica relevante del paciente en el modal `<AlertDetailModal />`.
+6.  **Recepción en Panel de Administración:**
+    *   El panel, que escucha en tiempo real, recibe la nueva alerta.
+    *   El sistema detecta que `isAnonymous` es `false`, por lo que toma el `userId` de la alerta y **automáticamente busca** en la colección `medicalInfo` el documento correspondiente.
+    *   La alerta se "enriquece" con los datos médicos, que se muestran al operador en el modal de detalles (`<AlertDetailModal />`).
+
+#### **Flujo para Usuario Anónimo (Invitado)**
+
+Este flujo permite a cualquier persona reportar una emergencia sin necesidad de crear una cuenta.
+
+1.  **Inicio y Autenticación Anónima:**
+    *   El usuario abre la aplicación.
+    *   En la pantalla de login (`/auth`), selecciona la opción "Ingresar como Invitado".
+    *   Firebase crea una **sesión anónima** temporal para el dispositivo. El usuario es redirigido al dashboard.
+
+2.  **Activación de Alerta:**
+    *   El usuario mantiene presionado el **Botón de Pánico**.
+
+3.  **Geolocalización:**
+    *   La app obtiene las coordenadas GPS del dispositivo.
+
+4.  **Creación de Alerta en Firestore:**
+    *   Se crea un nuevo documento en la colección `alerts`.
+    *   El documento contiene:
+        *   `userId`: El UID temporal del usuario anónimo.
+        *   `isAnonymous`: `true`.
+        *   `location`: Las coordenadas obtenidas.
+        *   `status`: `"new"`.
+
+5.  **Notificación al Usuario:**
+    *   Se muestra el modal (`<EmergencyModal />`) confirmando que la ayuda está en camino.
+
+6.  **Recepción en Panel de Administración:**
+    *   El panel recibe la nueva alerta.
+    *   El sistema detecta que `isAnonymous` es `true`.
+    *   **No se realiza ninguna búsqueda de información médica.**
+    *   La alerta se muestra en el panel como "Usuario Anónimo" y los campos de datos médicos aparecen como "No disponible".
 
 ### 5.2. Flujo de Gestión de Roles (Admin y Operator)
 
@@ -406,4 +440,3 @@ El proyecto está organizado siguiendo las convenciones de Next.js App Router.
 - **`firestore.rules`**: **Archivo crítico** que define las reglas de seguridad de la base de datos Firestore, especificando quién puede leer, escribir o actualizar cada colección.
 - **`next.config.ts`**: Configuración de Next.js.
 - **`tailwind.config.ts`**: Configuración de Tailwind CSS y el tema de la aplicación.
-
