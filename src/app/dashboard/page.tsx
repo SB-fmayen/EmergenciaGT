@@ -12,11 +12,12 @@ import { getAuth, onAuthStateChanged, signOut, type User } from "firebase/auth";
 import { getFirestore, doc, getDoc, setDoc, serverTimestamp, collection, GeoPoint, updateDoc } from "firebase/firestore";
 import { firebaseApp } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, LogOut, User as UserIcon, WifiOff, CarCrash, Flame, HeartCrack, HelpingHand } from "lucide-react";
+import { Loader2, LogOut, User as UserIcon, WifiOff } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { PanicButton } from "@/components/dashboard/PanicButton";
+
 
 /**
  * Página principal del dashboard.
@@ -294,20 +295,41 @@ export default function DashboardPage() {
             
             <div>
                  <h2 className="text-base font-bold text-center text-white mb-4">¿O es una de estas emergencias?</h2>
-                <div className="grid grid-cols-2 gap-4">
-                    <Button onClick={handleActivateEmergency} disabled={isActivating} className="w-full h-24 bg-blue-600 hover:bg-blue-700 rounded-2xl p-4 shadow-lg flex flex-col justify-center items-center text-white gap-2 transition-transform transform active:scale-95">
+                 <div className="grid grid-cols-2 gap-4">
+                    <Button 
+                        onClick={handleActivateEmergency} 
+                        disabled={isActivating} 
+                        className="relative w-full h-24 bg-slate-800/50 rounded-2xl p-4 shadow-lg flex flex-col justify-center items-center text-white gap-2 transition-transform transform active:scale-95 hover:bg-slate-800 border border-blue-500 hover:border-blue-400"
+                    >
+                        <div className="absolute top-3 left-3 w-3 h-3 rounded-full bg-blue-500 animate-pulse"></div>
                         <span className="font-bold text-base text-center">Accidente de Tránsito</span>
                     </Button>
-                    <Button onClick={handleActivateEmergency} disabled={isActivating} className="w-full h-24 bg-orange-600 hover:bg-orange-700 rounded-2xl p-4 shadow-lg flex flex-col justify-center items-center text-white gap-2 transition-transform transform active:scale-95">
+                    <Button 
+                        onClick={handleActivateEmergency} 
+                        disabled={isActivating} 
+                        className="relative w-full h-24 bg-slate-800/50 rounded-2xl p-4 shadow-lg flex flex-col justify-center items-center text-white gap-2 transition-transform transform active:scale-95 hover:bg-slate-800 border border-orange-500 hover:border-orange-400"
+                    >
+                        <div className="absolute top-3 left-3 w-3 h-3 rounded-full bg-orange-500 animate-pulse"></div>
                         <span className="font-bold text-base text-center">Incendio</span>
                     </Button>
-                    <Button onClick={handleActivateEmergency} disabled={isActivating} className="w-full h-24 bg-rose-600 hover:bg-rose-700 rounded-2xl p-4 shadow-lg flex flex-col justify-center items-center text-white gap-2 transition-transform transform active:scale-95">
+                    <Button 
+                        onClick={handleActivateEmergency} 
+                        disabled={isActivating} 
+                        className="relative w-full h-24 bg-slate-800/50 rounded-2xl p-4 shadow-lg flex flex-col justify-center items-center text-white gap-2 transition-transform transform active:scale-95 hover:bg-slate-800 border border-rose-500 hover:border-rose-400"
+                    >
+                        <div className="absolute top-3 left-3 w-3 h-3 rounded-full bg-rose-500 animate-pulse"></div>
                         <span className="font-bold text-base text-center">Emergencia Médica</span>
                     </Button>
-                    <Button onClick={handleActivateEmergency} disabled={isActivating} className="w-full h-24 bg-teal-600 hover:bg-teal-700 rounded-2xl p-4 shadow-lg flex flex-col justify-center items-center text-white gap-2 transition-transform transform active:scale-95">
+                    <Button 
+                        onClick={handleActivateEmergency} 
+                        disabled={isActivating} 
+                        className="relative w-full h-24 bg-slate-800/50 rounded-2xl p-4 shadow-lg flex flex-col justify-center items-center text-white gap-2 transition-transform transform active:scale-95 hover:bg-slate-800 border border-teal-500 hover:border-teal-400"
+                    >
+                        <div className="absolute top-3 left-3 w-3 h-3 rounded-full bg-teal-500 animate-pulse"></div>
                         <span className="font-bold text-base text-center">Ayuda a un Tercero</span>
                     </Button>
                 </div>
+
                  {isActivating && (
                     <div className="flex justify-center items-center gap-2 text-white animate-fade-in mt-4">
                         <Loader2 className="w-5 h-5 animate-spin" />
