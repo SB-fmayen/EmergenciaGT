@@ -99,7 +99,7 @@ export function PanicButton({ onActivate }: PanicButtonProps) {
 
   return (
     <div className="flex flex-col items-center justify-center">
-      <div className="relative mb-8">
+      <div className="relative mb-4">
         <Button
           onMouseDown={startHold}
           onMouseUp={cancelHold}
@@ -107,32 +107,31 @@ export function PanicButton({ onActivate }: PanicButtonProps) {
           onTouchStart={(e) => { e.preventDefault(); startHold(); }}
           onTouchEnd={cancelHold}
           disabled={isActivated}
-          className="w-72 h-72 rounded-full bg-gradient-to-br from-red-500 via-red-600 to-red-800 text-white flex-col animate-pulse-emergency shadow-2xl shadow-red-500/20 active:scale-95 transition-all duration-300 disabled:opacity-80 disabled:cursor-not-allowed"
+          className="w-56 h-56 rounded-full bg-gradient-to-br from-red-500 via-red-600 to-red-800 text-white flex-col animate-pulse-emergency shadow-2xl shadow-red-500/20 active:scale-95 transition-all duration-300 disabled:opacity-80 disabled:cursor-not-allowed"
         >
           <div className="text-center relative z-10">
             {isActivated ? (
-                <Check className="w-20 h-20 mx-auto mb-3 animate-fade-in" />
+                <Check className="w-16 h-16 mx-auto mb-2 animate-fade-in" />
             ) : (
-                <ShieldAlert className="w-20 h-20 mx-auto mb-3" />
+                <ShieldAlert className="w-16 h-16 mx-auto mb-2" />
             )}
-            <div className="text-3xl font-black mb-1">{isActivated ? "ENVIADO" : "EMERGENCIA"}</div>
-            <div className="text-lg font-medium opacity-90">{isActivated ? "" : "PRESIONAR"}</div>
+            <div className="text-2xl font-black mb-1">{isActivated ? "ENVIADO" : "EMERGENCIA"}</div>
+            <div className="text-base font-medium opacity-90">{isActivated ? "" : "PRESIONAR"}</div>
           </div>
         </Button>
         <div className="absolute inset-0 rounded-full border-4 border-red-400/30 animate-ping -z-10"></div>
       </div>
       
-      <p className="text-white text-xl font-medium mb-6">
+      <p className="text-white text-base font-medium mb-4 h-5">
         {isActivated
           ? isOnline ? "La ayuda está en camino" : "Alerta guardada, se enviará al reconectar"
           : "Mantén presionado por 2 segundos"}
       </p>
 
-      <div className="w-72 mx-auto h-8">
+      <div className="w-56 mx-auto h-6">
         {isHolding && !isActivated && (
           <div className="animate-fade-in">
-            <Progress value={progress} className="h-3 bg-white/20 [&>div]:bg-white" />
-            <p className="text-white/80 text-sm mt-2 text-center">Activando emergencia...</p>
+            <Progress value={progress} className="h-2 bg-white/20 [&>div]:bg-white" />
           </div>
         )}
       </div>
