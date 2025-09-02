@@ -17,6 +17,7 @@ export type UserRecordWithRole = {
     creationTime: string;
     lastSignInTime: string;
     stationId?: string;
+    unitId?: string; // ID de la unidad en la subcolección
 }
 
 // --- Firebase Admin SDK Initialization ---
@@ -73,9 +74,8 @@ export async function getUsers(idToken: string | undefined): Promise<{ success: 
         const userRecords = await adminAuth.listUsers();
         
         const users = await Promise.all(userRecords.users.map(async (user) => {
-            // The stationId from custom claims is the source of truth for filtering
-            // The one from Firestore is for display/management in the admin panel
             const stationId = user.customClaims?.stationId as string | undefined;
+            const unitId = user.customClaims?.unitId as string | undefined;
 
             return {
                 uid: user.uid,
@@ -86,6 +86,7 @@ export async function getUsers(idToken: string | undefined): Promise<{ success: 
                 creationTime: user.metadata.creationTime,
                 lastSignInTime: user.metadata.lastSignInTime,
                 stationId,
+                unitId
             };
         }));
         
@@ -102,13 +103,17 @@ export async function getUsers(idToken: string | undefined): Promise<{ success: 
 
 
 /**
- * A server action to set a user's role and/or assigned station.
+ * A server action to set a user's role and/or assigned station/unit.
  * Only an admin can perform this action, with a special exception for the first admin.
  */
 export async function updateUser(
     uid: string, 
     idToken: string | undefined, 
-    updates: { role?: UserRole, stationId?: string | null }
+    updates: { 
+        role?: UserRole, 
+        stationId?: string | null,
+        unitId?: string | null
+    }
 ): Promise<{ success: boolean, error?: string }> {
      try {
         const adminAuth = checkAdminApp();
@@ -119,6 +124,7 @@ export async function updateUser(
         const decodedToken = await adminAuth.verifyIdToken(idToken);
         const targetUser = await adminAuth.getUser(uid);
         const currentClaims = targetUser.customClaims || {};
+        const userDocRef = firestore.collection('users').doc(uid);
 
         // --- Role Update Logic ---
         if (updates.role) {
@@ -130,7 +136,6 @@ export async function updateUser(
                  }
             }
              
-            // Check if trying to remove the last admin
             if (currentClaims.admin === true && updates.role !== 'admin') {
                 const listUsersResult = await adminAuth.listUsers(1000);
                 const admins = listUsersResult.users.filter(user => user.customClaims?.admin === true);
@@ -139,14 +144,18 @@ export async function updateUser(
                 }
             }
 
-            // Set new claims based on role
             currentClaims.admin = updates.role === 'admin';
             currentClaims.unit = updates.role === 'unit';
-            // Operator is the default (no admin or unit claim)
+
             if(updates.role === 'operator') {
                 delete currentClaims.admin;
                 delete currentClaims.unit;
+            } else if (updates.role === 'admin') { // Admins shouldn't be tied to stations/units
+                delete currentClaims.stationId;
+                delete currentClaims.unitId;
+                await userDocRef.set({ stationId: null, unitId: null, role: 'admin' }, { merge: true });
             }
+            await userDocRef.set({ role: updates.role }, { merge: true });
         }
         
         // --- Station Update Logic ---
@@ -154,23 +163,52 @@ export async function updateUser(
              if (decodedToken.admin !== true) {
                  return { success: false, error: 'No tienes permisos de administrador para asignar estaciones.' };
             }
-            const userDocRef = firestore.collection('users').doc(uid);
-
             if (updates.stationId === null) {
                 delete currentClaims.stationId;
-                await userDocRef.set({ stationId: null }, { merge: true });
+                delete currentClaims.unitId; // Can't have a unit without a station
+                await userDocRef.set({ stationId: null, unitId: null }, { merge: true });
             } else {
                 currentClaims.stationId = updates.stationId;
                 await userDocRef.set({ stationId: updates.stationId }, { merge: true });
             }
         }
         
+        // --- Unit Update Logic ---
+        if (typeof updates.unitId !== 'undefined') {
+             if (decodedToken.admin !== true) {
+                 return { success: false, error: 'No tienes permisos de administrador para asignar unidades.' };
+            }
+
+            const stationIdForUnit = updates.stationId || currentClaims.stationId;
+            if (!stationIdForUnit) {
+                 return { success: false, error: 'Se debe asignar una estación antes de asignar una unidad.'};
+            }
+
+            // Remove previous unit assignment if it exists
+            if (currentClaims.unitId && currentClaims.stationId) {
+                const oldUnitRef = firestore.collection('stations').doc(currentClaims.stationId).collection('unidades').doc(currentClaims.unitId);
+                await oldUnitRef.set({ uid: null }, { merge: true });
+            }
+
+            if (updates.unitId === null) {
+                delete currentClaims.unitId;
+                await userDocRef.set({ unitId: null }, { merge: true });
+            } else {
+                // Check if the new unit is already assigned
+                const newUnitRef = firestore.collection('stations').doc(stationIdForUnit).collection('unidades').doc(updates.unitId);
+                const newUnitSnap = await newUnitRef.get();
+                if (newUnitSnap.exists() && newUnitSnap.data()?.uid) {
+                    return { success: false, error: 'Esta unidad ya está asignada a otro usuario.' };
+                }
+
+                currentClaims.unitId = updates.unitId;
+                await newUnitRef.set({ uid: uid }, { merge: true }); // Assign new unit
+                await userDocRef.set({ unitId: updates.unitId }, { merge: true });
+            }
+        }
+        
         // Atomically set all claims
         await adminAuth.setCustomUserClaims(uid, currentClaims);
-        
-        // Update user doc in Firestore as well for consistency
-        const userDocRef = firestore.collection('users').doc(uid);
-        await userDocRef.set({ role: updates.role }, { merge: true });
         
         return { success: true };
 

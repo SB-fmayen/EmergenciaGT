@@ -11,9 +11,92 @@ import { useToast } from "@/hooks/use-toast";
 import { getUsers, updateUser, type UserRecordWithRole } from "./actions";
 import { Badge } from "@/components/ui/badge";
 import { auth, firestore } from "@/lib/firebase";
-import { collection, onSnapshot, query } from "firebase/firestore";
-import type { StationData, UserRole } from "@/lib/types";
+import { collection, onSnapshot, query, where, getDocs } from "firebase/firestore";
+import type { StationData, UserRole, UnitData } from "@/lib/types";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
+
+function StationUnitSelector({ user, stations, disabled }: { user: UserRecordWithRole, stations: StationData[], disabled: boolean }) {
+    const [units, setUnits] = useState<UnitData[]>([]);
+    const [loadingUnits, setLoadingUnits] = useState(false);
+    const { toast } = useToast();
+    const [selectedStationId, setSelectedStationId] = useState(user.stationId || '');
+
+    useEffect(() => {
+        if (selectedStationId) {
+            setLoadingUnits(true);
+            const unitsRef = collection(firestore, "stations", selectedStationId, "unidades");
+            const unsubscribe = onSnapshot(unitsRef, (snapshot) => {
+                const unitsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as UnitData));
+                setUnits(unitsData);
+                setLoadingUnits(false);
+            }, (error) => {
+                console.error("Error fetching units:", error);
+                toast({ title: "Error", description: "No se pudieron cargar las unidades.", variant: "destructive" });
+                setLoadingUnits(false);
+            });
+            return () => unsubscribe();
+        } else {
+            setUnits([]);
+        }
+    }, [selectedStationId, toast]);
+
+    const handleStationChange = async (uid: string, newStationId: string | null) => {
+        setSelectedStationId(newStationId || '');
+        // When station changes, we must deselect the unit
+        await updateUser(uid, await auth.currentUser?.getIdToken(), { stationId: newStationId, unitId: null });
+        // The page will refresh, no need for local state updates
+    };
+
+    const handleUnitChange = async (uid:string, newUnitId: string | null) => {
+        await updateUser(uid, await auth.currentUser?.getIdToken(), { unitId: newUnitId });
+         // The page will refresh
+    }
+
+    return (
+        <div className="flex gap-2">
+            <Select 
+                value={selectedStationId} 
+                onValueChange={(value) => handleStationChange(user.uid, value === 'none' ? null : value)}
+                disabled={disabled}
+            >
+                <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Asignar estación..." />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="none">
+                        <span className="text-muted-foreground">Ninguna</span>
+                    </SelectItem>
+                    {stations.map(station => (
+                        <SelectItem key={station.id} value={station.id}>{station.name}</SelectItem>
+                    ))}
+                </SelectContent>
+            </Select>
+
+            {user.role === 'unit' && (
+                <Select
+                    value={user.unitId || ''}
+                    onValueChange={(value) => handleUnitChange(user.uid, value === 'none' ? null : value)}
+                    disabled={disabled || !selectedStationId || loadingUnits}
+                >
+                    <SelectTrigger className="w-[180px]">
+                        <SelectValue placeholder={loadingUnits ? "Cargando..." : "Asignar unidad..."} />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="none">
+                            <span className="text-muted-foreground">Ninguna</span>
+                        </SelectItem>
+                        {units.map(unit => (
+                             <SelectItem key={unit.id} value={unit.id} disabled={!!unit.uid && unit.uid !== user.uid}>
+                                {unit.nombre} {!!unit.uid && unit.uid !== user.uid ? '(Asignada)' : ''}
+                            </SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+            )}
+        </div>
+    )
+}
 
 
 export default function UsersPage() {
@@ -25,7 +108,7 @@ export default function UsersPage() {
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
-    const idToken = await auth.currentUser?.getIdToken();
+    const idToken = await auth.currentUser?.getIdToken(true); // Force refresh
     const result = await getUsers(idToken);
     
     if (result.success && result.users) {
@@ -45,7 +128,6 @@ export default function UsersPage() {
       }
     });
 
-    // Fetch stations for the dropdown
     const stationsRef = collection(firestore, "stations");
     const q = query(stationsRef);
     const unsubscribeStations = onSnapshot(q, (snapshot) => {
@@ -63,47 +145,28 @@ export default function UsersPage() {
   const handleRoleChange = async (uid: string, newRole: UserRole) => {
     setUpdatingId(uid);
     const idToken = await auth.currentUser?.getIdToken();
-    const result = await updateUser(uid, idToken, { role: newRole });
+    let updates: { role: UserRole, stationId?: string | null, unitId?: string | null } = { role: newRole };
+
+    // Si el rol cambia a admin, desvinculamos estación y unidad
+    if (newRole === 'admin') {
+        updates.stationId = null;
+        updates.unitId = null;
+    }
+
+    const result = await updateUser(uid, idToken, updates);
 
     if (result.success) {
       toast({ title: "Éxito", description: `Rol de usuario actualizado a ${newRole}.` });
       if (auth.currentUser?.uid === uid) {
           toast({ title: "Acción Requerida", description: "Cierra y vuelve a iniciar sesión para que tus nuevos permisos tomen efecto.", duration: 5000})
       }
-      fetchUsers(); // Refresh the list
+      fetchUsers();
     } else {
       toast({ title: "Error", description: result.error, variant: "destructive" });
     }
     setUpdatingId(null);
   };
-
-  const handleStationChange = async (uid: string, newStationId: string | null) => {
-    setUpdatingId(uid);
-    const idToken = await auth.currentUser?.getIdToken();
-    const result = await updateUser(uid, idToken, { stationId: newStationId });
-
-    if(result.success) {
-        toast({ title: "Éxito", description: "Estación del usuario actualizada."});
-        fetchUsers(); // Refresh list
-    } else {
-        toast({ title: "Error", description: result.error, variant: "destructive"});
-    }
-    setUpdatingId(null);
-  }
-
-  const getRoleBadge = (role: UserRole) => {
-      switch(role) {
-          case 'admin':
-              return <Badge className="bg-green-600 hover:bg-green-700"><ShieldCheck className="mr-1 h-3 w-3"/>Admin</Badge>;
-          case 'operator':
-              return <Badge variant="secondary"><HardHat className="mr-1 h-3 w-3"/>Operador</Badge>
-          case 'unit':
-              return <Badge className="bg-blue-600 hover:bg-blue-700"><Ambulance className="mr-1 h-3 w-3"/>Unidad</Badge>
-          default:
-              return <Badge variant="outline">Desconocido</Badge>
-      }
-  }
-
+  
   const isStationAssignmentDisabled = (role: UserRole) => {
       return role === 'admin';
   }
@@ -148,7 +211,7 @@ export default function UsersPage() {
                   <TableRow>
                     <TableHead>Correo Electrónico</TableHead>
                     <TableHead>Rol</TableHead>
-                    <TableHead>Estación Asignada</TableHead>
+                    <TableHead>Asignación</TableHead>
                     <TableHead>Último Inicio</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -179,23 +242,15 @@ export default function UsersPage() {
                           </Select>
                       </TableCell>
                       <TableCell>
-                           <Select 
-                            value={user.stationId || ''} 
-                            onValueChange={(value) => handleStationChange(user.uid, value === 'none' ? null : value)}
-                            disabled={updatingId === user.uid || isStationAssignmentDisabled(user.role)}
-                           >
-                            <SelectTrigger className="w-[200px]">
-                                <SelectValue placeholder="Asignar estación..." />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="none">
-                                    <span className="text-muted-foreground">Ninguna</span>
-                                </SelectItem>
-                                {stations.map(station => (
-                                    <SelectItem key={station.id} value={station.id}>{station.name}</SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                         {isStationAssignmentDisabled(user.role) ? (
+                            <span className="text-muted-foreground text-sm">N/A</span>
+                         ) : (
+                            <StationUnitSelector
+                                user={user}
+                                stations={stations}
+                                disabled={updatingId === user.uid}
+                            />
+                         )}
                       </TableCell>
                       <TableCell>
                         {user.lastSignInTime ? new Date(user.lastSignInTime).toLocaleString('es-GT') : 'Nunca'}
