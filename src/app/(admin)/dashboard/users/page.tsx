@@ -43,14 +43,17 @@ function StationUnitSelector({ user, stations, disabled }: { user: UserRecordWit
 
     const handleStationChange = async (uid: string, newStationId: string | null) => {
         setSelectedStationId(newStationId || '');
-        // When station changes, we must deselect the unit
         await updateUser(uid, await auth.currentUser?.getIdToken(), { stationId: newStationId, unitId: null });
-        // The page will refresh, no need for local state updates
+        // The page will refresh and fetch new state
     };
 
     const handleUnitChange = async (uid:string, newUnitId: string | null) => {
-        await updateUser(uid, await auth.currentUser?.getIdToken(), { unitId: newUnitId });
-         // The page will refresh
+        if (!selectedStationId) {
+            toast({ title: "Error", description: "Selecciona una estación primero.", variant: "destructive" });
+            return;
+        }
+        await updateUser(uid, await auth.currentUser?.getIdToken(), { unitId: newUnitId, stationId: selectedStationId });
+        // The page will refresh and fetch new state
     }
 
     return (
