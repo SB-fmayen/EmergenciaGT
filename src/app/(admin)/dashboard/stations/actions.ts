@@ -3,7 +3,7 @@
 
 import { revalidatePath } from "next/cache";
 import { firestore } from "@/lib/firebase-admin"; // Usar el SDK de Admin
-import type { StationData } from "@/lib/types";
+import type { StationData, UnitData } from "@/lib/types";
 import { GeoPoint, Timestamp } from "firebase-admin/firestore";
 
 export async function createStation(formData: FormData) {
@@ -32,16 +32,7 @@ export async function createStation(formData: FormData) {
     };
     
     // Crear la estación
-    const newStationRef = await firestore.collection("stations").add(stationData);
-    
-    // Crear la subcolección 'unidades' con un documento de ejemplo
-    const unitsCollectionRef = newStationRef.collection("unidades");
-    await unitsCollectionRef.doc("unidad_ejemplo_1").set({
-        nombre: "Ambulancia 1",
-        tipo: "Ambulancia",
-        disponible: true,
-        uid: null // El UID se asignará después desde el panel de usuarios
-    });
+    await firestore.collection("stations").add(stationData);
 
     revalidatePath("/dashboard/stations"); // Actualiza la vista
     return { success: true };
@@ -87,15 +78,12 @@ export async function updateStation(stationId: string, formData: FormData) {
 
 export async function deleteStation(stationId: string) {
     try {
-        // Primero, eliminar todos los documentos de la subcolección 'unidades'
         const unitsSnapshot = await firestore.collection("stations").doc(stationId).collection("unidades").get();
         const batch = firestore.batch();
         unitsSnapshot.docs.forEach(doc => {
             batch.delete(doc.ref);
         });
         await batch.commit();
-
-        // Luego, eliminar la estación principal
         await firestore.collection("stations").doc(stationId).delete();
         
         revalidatePath("/dashboard/stations");
@@ -103,5 +91,61 @@ export async function deleteStation(stationId: string) {
     } catch (error: any) {
         console.error(`Error deleting station ${stationId}:`, error);
         return { success: false, error: "No se pudo eliminar la estación y sus unidades." };
+    }
+}
+
+
+// --- Acciones para Unidades ---
+
+export async function createUnit(stationId: string, formData: FormData) {
+    const nombre = formData.get("nombre") as string;
+    const tipo = formData.get("tipo") as string;
+
+    if (!nombre || !tipo) {
+        return { success: false, error: "El nombre y el tipo son requeridos." };
+    }
+
+    try {
+        const newUnit: Omit<UnitData, 'id'> = {
+            nombre,
+            tipo: tipo as UnitData['tipo'],
+            disponible: true,
+            uid: null,
+        };
+        await firestore.collection("stations").doc(stationId).collection("unidades").add(newUnit);
+        revalidatePath("/dashboard/stations");
+        return { success: true };
+    } catch (error: any) {
+        return { success: false, error: `Error creando la unidad: ${error.message}` };
+    }
+}
+
+export async function updateUnit(stationId: string, unitId: string, formData: FormData) {
+    const nombre = formData.get("nombre") as string;
+    const tipo = formData.get("tipo") as string;
+
+    if (!nombre || !tipo) {
+        return { success: false, error: "El nombre y el tipo son requeridos." };
+    }
+
+    try {
+        await firestore.collection("stations").doc(stationId).collection("unidades").doc(unitId).update({
+            nombre,
+            tipo,
+        });
+        revalidatePath("/dashboard/stations");
+        return { success: true };
+    } catch (error: any) {
+        return { success: false, error: `Error actualizando la unidad: ${error.message}` };
+    }
+}
+
+export async function deleteUnit(stationId: string, unitId: string) {
+    try {
+        await firestore.collection("stations").doc(stationId).collection("unidades").doc(unitId).delete();
+        revalidatePath("/dashboard/stations");
+        return { success: true };
+    } catch (error: any) {
+        return { success: false, error: `Error eliminando la unidad: ${error.message}` };
     }
 }
