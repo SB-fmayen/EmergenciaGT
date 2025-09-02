@@ -295,30 +295,30 @@ export default function DashboardPage() {
                     <Button 
                         onClick={() => handleActivateEmergency('Accidente Vehicular')} 
                         disabled={isActivating} 
-                        className="h-24 bg-gradient-to-br from-blue-500 to-blue-700 rounded-2xl p-4 shadow-lg flex items-center justify-center text-white transition-transform transform active:scale-95 hover:scale-105"
+                        className="min-h-24 bg-gradient-to-br from-blue-500 to-blue-700 rounded-2xl p-2 shadow-lg flex items-center justify-center text-white transition-transform transform active:scale-95 hover:scale-105"
                     >
-                        <span className="font-bold text-lg text-center">Accidente Vehicular</span>
+                        <span className="font-bold text-base text-center">Accidente Vehicular</span>
                     </Button>
                     <Button 
                         onClick={() => handleActivateEmergency('Incendio')} 
                         disabled={isActivating} 
-                        className="h-24 bg-gradient-to-br from-orange-500 to-red-600 rounded-2xl p-4 shadow-lg flex items-center justify-center text-white transition-transform transform active:scale-95 hover:scale-105"
+                        className="min-h-24 bg-gradient-to-br from-orange-500 to-red-600 rounded-2xl p-2 shadow-lg flex items-center justify-center text-white transition-transform transform active:scale-95 hover:scale-105"
                     >
-                        <span className="font-bold text-lg text-center">Incendio</span>
+                        <span className="font-bold text-base text-center">Incendio</span>
                     </Button>
                     <Button 
                         onClick={() => handleActivateEmergency('Crisis Médica')} 
                         disabled={isActivating} 
-                        className="h-24 bg-gradient-to-br from-rose-500 to-fuchsia-600 rounded-2xl p-4 shadow-lg flex items-center justify-center text-white transition-transform transform active:scale-95 hover:scale-105"
+                        className="min-h-24 bg-gradient-to-br from-rose-500 to-fuchsia-600 rounded-2xl p-2 shadow-lg flex items-center justify-center text-white transition-transform transform active:scale-95 hover:scale-105"
                     >
-                        <span className="font-bold text-lg text-center">Crisis Médica</span>
+                        <span className="font-bold text-base text-center">Crisis Médica</span>
                     </Button>
                     <Button 
                         onClick={() => handleActivateEmergency('Asistencia Ciudadana')} 
                         disabled={isActivating} 
-                        className="h-24 bg-gradient-to-br from-teal-500 to-cyan-600 rounded-2xl p-4 shadow-lg flex items-center justify-center text-white transition-transform transform active:scale-95 hover:scale-105"
+                        className="min-h-24 bg-gradient-to-br from-teal-500 to-cyan-600 rounded-2xl p-2 shadow-lg flex items-center justify-center text-white transition-transform transform active:scale-95 hover:scale-105"
                     >
-                        <span className="font-bold text-lg text-center">Asistencia Ciudadana</span>
+                        <span className="font-bold text-base text-center">Asistencia Ciudadana</span>
                     </Button>
                 </div>
 
