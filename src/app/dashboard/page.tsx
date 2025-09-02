@@ -265,11 +265,10 @@ export default function DashboardPage() {
   
   const isAnonymousUser = currentUser?.isAnonymous ?? false;
 
-  const EmergencyButton = ({ icon, text, onClick, disabled }: { icon: React.ElementType, text: string, onClick: () => void, disabled?: boolean }) => {
-    const IconComponent = icon;
+  const EmergencyButton = ({ icon: Icon, text, onClick, disabled }: { icon: React.ElementType, text: string, onClick: () => void, disabled?: boolean }) => {
     return (
         <Button onClick={onClick} disabled={disabled} className="w-full h-32 bg-slate-800/50 rounded-2xl p-4 shadow-lg flex flex-col justify-center items-center text-white gap-2 transition-transform transform active:scale-95">
-            <IconComponent className="w-10 h-10 text-red-400"/>
+            <Icon className="w-10 h-10 text-red-400"/>
             <span className="font-bold text-base text-center">{text}</span>
         </Button>
     )
@@ -345,3 +344,5 @@ export default function DashboardPage() {
     </MobileAppContainer>
   );
 }
+
+    
