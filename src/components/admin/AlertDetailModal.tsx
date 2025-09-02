@@ -27,7 +27,7 @@ interface AlertDetailModalProps {
     alert: EnrichedAlert;
     stations: StationData[];
     onCenterMap: (alert: EnrichedAlert) => void;
-    userRole: 'admin' | 'operator' | null;
+    userRole: 'admin' | 'operator' | 'unit' | null;
 }
 
 const InfoRow = ({ label, value, valueClass, children }: { label: string, value?: string | number | null, children?: React.ReactNode, valueClass?: string }) => (
@@ -230,5 +230,3 @@ export function AlertDetailModal({ isOpen, onClose, alert, stations, onCenterMap
         </Dialog>
     );
 }
-
-    

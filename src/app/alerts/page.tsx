@@ -5,7 +5,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { MobileAppContainer } from "@/components/MobileAppContainer";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Loader2, Clock, MapPin, CheckCircle, AlertTriangle, Send, ShieldX } from "lucide-react";
+import { ArrowLeft, Loader2, Clock, MapPin, CheckCircle, AlertTriangle, Send, ShieldX, UserCheck, Truck, Siren, Hospital, HardHat } from "lucide-react";
 import { getAuth, onAuthStateChanged, type User as FirebaseUser } from "firebase/auth";
 import { getFirestore, collection, query, where, getDocs, orderBy, Timestamp, doc, updateDoc } from "firebase/firestore";
 import { firebaseApp } from "@/lib/firebase";
@@ -128,16 +128,16 @@ export default function AlertsPage() {
 
   const getStatusInfo = (status: AlertStatus): { text: string; icon: React.ElementType; color: string } => {
     switch (status) {
-      case 'new':
-        return { text: 'Nueva', icon: AlertTriangle, color: 'text-yellow-400' };
-      case 'dispatched':
-        return { text: 'En Camino', icon: Send, color: 'text-blue-400' };
-      case 'resolved':
-        return { text: 'Resuelta', icon: CheckCircle, color: 'text-green-400' };
-      case 'cancelled':
-        return { text: 'Cancelada', icon: AlertTriangle, color: 'text-gray-400' };
-      default:
-        return { text: 'Desconocido', icon: AlertTriangle, color: 'text-gray-400' };
+      case 'new': return { text: 'Recibida', icon: AlertTriangle, color: 'text-yellow-400' };
+      case 'assigned': return { text: 'Unidad Asignada', icon: HardHat, color: 'text-blue-400' };
+      case 'en_route': return { text: 'En Camino', icon: Truck, color: 'text-cyan-400' };
+      case 'on_scene': return { text: 'En el Lugar', icon: Siren, color: 'text-orange-400' };
+      case 'attending': return { text: 'Atendiendo', icon: Hospital, color: 'text-fuchsia-400' };
+      case 'transporting': return { text: 'Trasladando', icon: Ambulance, color: 'text-purple-400' };
+      case 'patient_attended': return { text: 'Atendido en Lugar', icon: UserCheck, color: 'text-teal-400' };
+      case 'resolved': return { text: 'Resuelta', icon: CheckCircle, color: 'text-green-400' };
+      case 'cancelled': return { text: 'Cancelada', icon: ShieldX, color: 'text-gray-400' };
+      default: return { text: 'Desconocido', icon: AlertTriangle, color: 'text-gray-400' };
     }
   };
 
@@ -175,7 +175,7 @@ export default function AlertsPage() {
                 </a>
             </div>
         </div>
-        {alert.status === 'new' && (
+        {(alert.status === 'new' || alert.status === 'assigned') && (
              <Button 
                 variant="destructive" 
                 size="sm" 

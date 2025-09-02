@@ -1,29 +1,86 @@
 
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // Helper function to check if the user is an admin
+    function isAdmin() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' 
+          || request.auth.token.admin == true;
+    }
+
+    // Helper function to check if the user is an operator
+    function isOperator() {
+      // An operator is someone who is not an admin and not a unit.
+      // The stationId claim is also a good indicator.
+      return request.auth.token.admin != true && request.auth.token.unit != true && request.auth.token.stationId != null;
+    }
+    
+    // Helper function to check if the user is a unit
+    function isUnit() {
+      return request.auth.token.unit == true && request.auth.token.stationId != null;
+    }
+
+    // Users (admin panel users) Collection
     match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
-      allow create: if request.auth != null;
+      // Admins can read and write to any user document to manage them.
+      // Users can read their own profile.
+      allow read, write: if isAdmin() || request.auth.uid == userId;
     }
-    
+
+    // Stations Collection
     match /stations/{stationId} {
-      allow read, write: if request.auth != null && request.auth.token.admin == true;
+      // Admins can create, update, delete stations.
+      // Authenticated operators and units can read station data.
+      allow read: if isAdmin() || isOperator() || isUnit();
+      allow write: if isAdmin();
+
+      // Subcollection for units within a station
+      match /unidades/{unidadId} {
+        allow read: if isAdmin() || isOperator() || isUnit();
+        allow write: if isAdmin() || isUnit(); // A unit might update its own availability
+      }
     }
-    
-    match /medicalInfo/{userId} {
-      allow write: if request.auth != null && request.auth.uid == userId;
-      allow read: if request.auth != null;
-    }
-    
+
+    // Alerts Collection
     match /alerts/{alertId} {
-      allow create;
-      allow update: if request.auth != null;
-      allow list: if request.auth.token.admin == true || (request.query.where.assignedStationId == request.auth.token.stationId);
-      allow get: if request.auth != null;
+      // Creating alerts: Any authenticated user (including anonymous) can create an alert.
+      allow create: if request.auth != null;
+
+      // Reading alerts:
+      // Admins can read all alerts.
+      // Operators and Units can only read alerts assigned to their station.
+      allow read: if isAdmin() || 
+                    (isOperator() && request.auth.token.stationId == resource.data.assignedStationId) ||
+                    (isUnit() && request.auth.token.stationId == resource.data.assignedStationId);
+
+      // Updating alerts:
+      // An admin can update any field.
+      // An operator can update alerts assigned to their station.
+      // A unit can ONLY update the 'status' of an alert assigned to their station.
+      // The user who created the alert can cancel it.
+      allow update: if isAdmin() || 
+                      (isOperator() && request.auth.token.stationId == request.resource.data.assignedStationId) ||
+                      (isUnit() && request.auth.token.stationId == request.resource.data.assignedStationId && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])) ||
+                      (request.auth.uid == resource.data.userId && request.resource.data.status == 'cancelled');
+                      
+      // Deleting alerts: only admins can delete alerts
+      allow delete: if isAdmin();
+    }
+
+    // Medical Info Collection
+    match /medicalInfo/{userId} {
+      // Creating/Updating: Users can only manage their own medical info.
+      allow write: if request.auth.uid == userId;
+
+      // Reading:
+      // Users can read their own data.
+      // Admins, operators, and units can read the data IF they have access to an associated alert.
+      // This is a simplified rule; a more secure rule would use a function to check if there's
+      // a corresponding alert for that userId that the requester can access.
+      // For now, we allow any authenticated admin/op/unit to read, assuming they do it in good faith via the app.
+      allow read: if request.auth.uid == userId || isAdmin() || isOperator() || isUnit();
     }
   }
 }
-
-    

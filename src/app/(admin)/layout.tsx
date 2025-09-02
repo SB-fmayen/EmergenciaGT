@@ -8,12 +8,11 @@ import 'leaflet/dist/leaflet.css';
 import { onAuthStateChanged, type User } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { useToast } from '@/hooks/use-toast';
-
-type UserRole = 'admin' | 'operator' | null;
+import type { UserRole } from '@/lib/types';
 
 interface AuthContextType {
   user: User | null;
-  userRole: UserRole;
+  userRole: UserRole | null;
   loading: boolean;
   stationId?: string; // This now comes from the token
 }
@@ -27,7 +26,7 @@ const AuthContext = createContext<AuthContextType>({
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [userRole, setUserRole] = useState<UserRole>(null);
+  const [userRole, setUserRole] = useState<UserRole | null>(null);
   const [stationId, setStationId] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState(true);
 
@@ -40,13 +39,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             // Force refresh the token to get the latest custom claims
             const idTokenResult = await currentUser.getIdTokenResult(true); 
             const claims = idTokenResult.claims;
-            const isAdmin = claims.admin === true;
-            const role = isAdmin ? 'admin' : 'operator';
+            
+            let role: UserRole = 'operator'; // Default role
+            if (claims.admin === true) {
+                role = 'admin';
+            } else if (claims.unit === true) {
+                role = 'unit';
+            }
             
             setUserRole(role);
 
             // Get stationId directly from the token if it exists
-            if (role === 'operator' && claims.stationId) {
+            if ((role === 'operator' || role === 'unit') && claims.stationId) {
                 setStationId(claims.stationId as string);
             } else {
                 setStationId(undefined);
@@ -93,21 +97,38 @@ function ProtectedLayout({ children }: { children: ReactNode }) {
     if (loading) return; 
 
     const isAuthPage = pathname.startsWith('/login');
+    const isMissionPage = pathname.startsWith('/mission');
 
     if (!user && !isAuthPage) {
       router.push('/login');
       return;
     }
     
+    // Redirect logged-in users away from login
     if (user && isAuthPage) {
-      router.push('/dashboard/admin');
+      if (userRole === 'unit') {
+        router.push('/mission');
+      } else {
+        router.push('/dashboard/admin');
+      }
       return;
     }
 
-    const adminPages = ['/dashboard/stations', '/dashboard/users', '/dashboard/analytics'];
-    if (user && userRole === 'operator' && adminPages.some(page => pathname.startsWith(page))) {
-        toast({ title: "Acceso Denegado", description: "No tienes permisos para acceder a esta página.", variant: "destructive" });
+    // Specific role-based routing
+    if (user) {
+      if (userRole === 'unit' && !isMissionPage) {
+        // Units should ONLY be on the mission page
+        router.push('/mission');
+      } else if ((userRole === 'admin' || userRole === 'operator') && isMissionPage) {
+        // Admins/operators should not be on the mission page
         router.push('/dashboard/admin');
+      } else if (userRole === 'operator') {
+        const adminPages = ['/dashboard/stations', '/dashboard/users', '/dashboard/analytics'];
+        if (adminPages.some(page => pathname.startsWith(page))) {
+            toast({ title: "Acceso Denegado", description: "No tienes permisos para acceder a esta página.", variant: "destructive" });
+            router.push('/dashboard/admin');
+        }
+      }
     }
 
   }, [user, userRole, loading, router, pathname, toast]);
