@@ -17,6 +17,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { PanicButton } from "@/components/dashboard/PanicButton";
+import { EmergencyButton } from "@/components/dashboard/EmergencyButton";
 
 
 /**
@@ -122,13 +123,15 @@ export default function DashboardPage() {
    * Obtiene la ubicación, verifica la conexión y crea la alerta en Firestore.
    * @param alertType - El tipo de alerta a registrar (ej. 'Pánico', 'Incendio').
    */
-  const handleActivateEmergency = async (alertType: string) => {
+  const handleActivateEmergency = async (alertType: string): Promise<boolean> => {
+    if (isActivating) return false;
     setIsActivating(true);
+
     const user = auth.currentUser;
     if (!user) {
       toast({ title: "Error de Autenticación", description: "No se pudo verificar tu sesión.", variant: "destructive"});
       setIsActivating(false);
-      return;
+      return false;
     }
     
     const { id: loadingToastId, dismiss: dismissLoadingToast } = toast({ 
@@ -142,7 +145,7 @@ export default function DashboardPage() {
     if (!location) {
         toast({ title: "Activación Cancelada", description: "No se pudo activar la alerta sin tu ubicación.", variant: "destructive" });
         setIsActivating(false);
-        return;
+        return false; // Retorna false para que el botón sepa que no se activó
     }
 
     if (!isOnline) {
@@ -178,12 +181,13 @@ export default function DashboardPage() {
       if (isOnline) {
         setEmergencyModalOpen(true);
       }
-
+      setIsActivating(false);
+      return true; // Éxito
     } catch (error) {
       console.error("Error creating alert:", error);
       toast({ title: "Error", description: "No se pudo crear la alerta. Inténtalo de nuevo.", variant: "destructive"});
-    } finally {
       setIsActivating(false);
+      return false; // Fallo
     }
   };
 
@@ -292,42 +296,38 @@ export default function DashboardPage() {
             <div>
                  <h2 className="text-base font-bold text-center text-white mb-4">¿O es una de estas emergencias?</h2>
                  <div className="grid grid-cols-2 gap-4">
-                    <Button 
-                        onClick={() => handleActivateEmergency('Accidente Vehicular')} 
-                        disabled={isActivating} 
-                        className="min-h-24 bg-gradient-to-br from-blue-500 to-blue-700 rounded-2xl p-2 shadow-lg flex items-center justify-center text-white transition-transform transform active:scale-95 hover:scale-105"
-                    >
-                        <span className="font-bold text-sm text-center">Accidente Vehicular</span>
-                    </Button>
-                    <Button 
-                        onClick={() => handleActivateEmergency('Incendio')} 
-                        disabled={isActivating} 
-                        className="min-h-24 bg-gradient-to-br from-orange-500 to-red-600 rounded-2xl p-2 shadow-lg flex items-center justify-center text-white transition-transform transform active:scale-95 hover:scale-105"
-                    >
-                        <span className="font-bold text-sm text-center">Incendio</span>
-                    </Button>
-                    <Button 
-                        onClick={() => handleActivateEmergency('Crisis Médica')} 
-                        disabled={isActivating} 
-                        className="min-h-24 bg-gradient-to-br from-rose-500 to-fuchsia-600 rounded-2xl p-2 shadow-lg flex items-center justify-center text-white transition-transform transform active:scale-95 hover:scale-105"
-                    >
-                        <span className="font-bold text-sm text-center">Crisis Médica</span>
-                    </Button>
-                    <Button 
-                        onClick={() => handleActivateEmergency('Asistencia Ciudadana')} 
-                        disabled={isActivating} 
-                        className="min-h-24 bg-gradient-to-br from-teal-500 to-cyan-600 rounded-2xl p-2 shadow-lg flex items-center justify-center text-white transition-transform transform active:scale-95 hover:scale-105"
-                    >
-                        <span className="font-bold text-sm text-center">Asistencia Ciudadana</span>
-                    </Button>
+                    <EmergencyButton
+                        title="Accidente Vehicular"
+                        onActivate={() => handleActivateEmergency('Accidente Vehicular')}
+                        className="bg-gradient-to-br from-blue-500 to-blue-700"
+                        disabled={isActivating}
+                    />
+                    <EmergencyButton
+                        title="Incendio"
+                        onActivate={() => handleActivateEmergency('Incendio')}
+                        className="bg-gradient-to-br from-orange-500 to-red-600"
+                        disabled={isActivating}
+                    />
+                    <EmergencyButton
+                        title="Crisis Médica"
+                        onActivate={() => handleActivateEmergency('Crisis Médica')}
+                        className="bg-gradient-to-br from-rose-500 to-fuchsia-600"
+                        disabled={isActivating}
+                    />
+                    <EmergencyButton
+                        title="Asistencia Ciudadana"
+                        onActivate={() => handleActivateEmergency('Asistencia Ciudadana')}
+                        className="bg-gradient-to-br from-teal-500 to-cyan-600"
+                        disabled={isActivating}
+                    />
                 </div>
 
                  {isActivating && (
                     <div className="flex justify-center items-center gap-2 text-white animate-fade-in mt-4">
                         <Loader2 className="w-5 h-5 animate-spin" />
-                        <span>Enviando alerta...</span>
+                        <span>Procesando alerta...</span>
                     </div>
-                )}
+                 )}
             </div>
 
         </main>
