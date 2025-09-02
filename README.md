@@ -24,20 +24,32 @@ Solo necesitas tener una cosa instalada en tu sistema antes de empezar:
 
 1.  **Descargar el Código:**
     *   Utiliza la opción "Descargar ZIP" en la interfaz de Firebase Studio.
-    *   Descomprime el archivo `.zip` en una carpeta de fácil acceso en tu computadora (por ejemplo, en `C:\Users\TuUsuario\proyectos\emergenciagt` o en tu Escritorio).
-    *   La carpeta que descomprimas será la **raíz del proyecto**. Dentro de ella, verás archivos importantes como `package.json`, `next.config.ts` y la carpeta `src`.
+    *   Descomprime el archivo `.zip` en una carpeta de fácil acceso en tu computadora (por ejemplo, en tu Escritorio). La carpeta que se cree al descomprimir (probablemente llamada `emergenciagt`) será la **raíz del proyecto**.
+
+    > **Visualización de la Estructura de Carpetas:**
+    > Una vez descomprimido, tu proyecto se verá así. **La carpeta raíz es `emergenciag`**:
+    > ```
+    > emergenciagt/       <-- Esta es la carpeta RAÍZ del proyecto.
+    > ├── node_modules/   <-- (Se crea automáticamente con `npm install`)
+    > ├── public/
+    > ├── src/            <-- (Aquí vive todo el código fuente)
+    > ├── .env.local      <-- (Tú creas este archivo para la clave de Firebase)
+    > ├── package.json    <-- (Este archivo es clave para los comandos de npm)
+    > ├── README.md
+    > └── ... y otros archivos de configuración.
+    > ```
 
 2.  **Instalar Dependencias:**
-    *   Abre una terminal o línea de comandos. (En Windows, puedes hacer clic derecho en la carpeta del proyecto y seleccionar "Abrir en Terminal" o "Abrir con PowerShell").
-    *   Asegúrate de que estás en la carpeta raíz del proyecto.
-    *   Ejecuta el siguiente comando. Este comando leerá el archivo `package.json` y descargará todas las librerías y herramientas que el proyecto necesita para funcionar (como React, Next.js, Firebase, etc.).
+    *   Abre una terminal o línea de comandos (En Windows: PowerShell, CMD; En Mac/Linux: Terminal).
+    *   Asegúrate de que estás en la **carpeta raíz del proyecto** (`emergenciagt`). **No dentro de la carpeta `src`**.
+    *   Ejecuta el siguiente comando. Este comando leerá el archivo `package.json` y descargará todas las librerías y herramientas que el proyecto necesita.
     ```bash
     npm install
     ```
 
 3.  **Configurar Variables de Entorno (Clave de Admin):**
     *   Este es el paso más importante para que las funciones de administrador (gestionar usuarios, estaciones) funcionen en tu PC. Necesitas darle a tu aplicación local una "llave" para que Firebase sepa que tiene permisos de administrador.
-    *   **Crea un archivo:** En la raíz del proyecto, crea un nuevo archivo llamado `.env.local`.
+    *   **Crea un archivo:** En la **raíz del proyecto**, crea un nuevo archivo llamado `.env.local`.
     *   **Obtén tu clave de servicio de Firebase:**
         *   Ve a la [Consola de Firebase](https://console.firebase.google.com/).
         *   Selecciona tu proyecto `emergenciagt`.
@@ -66,7 +78,7 @@ Solo necesitas tener una cosa instalada en tu sistema antes de empezar:
         > **Importante:** El archivo `.env.local` es para secretos. **Nunca** debe compartirse ni subirse a repositorios públicos como GitHub. El sistema ya está configurado para ignorarlo.
 
 4.  **Ejecutar el Servidor de Desarrollo:**
-    *   Una vez todo configurado, ejecuta el siguiente comando en tu terminal:
+    *   Una vez todo configurado, ejecuta el siguiente comando en tu terminal (estando aún en la carpeta raíz):
     ```bash
     npm run dev
     ```
@@ -458,13 +470,5 @@ El proyecto está organizado siguiendo las convenciones de Next.js App Router.
 - **`firestore.rules`**: **Archivo crítico** que define las reglas de seguridad de la base de datos Firestore, especificando quién puede leer, escribir o actualizar cada colección.
 - **`next.config.ts`**: Configuración de Next.js.
 - **`tailwind.config.ts`**: Configuración de Tailwind CSS y el tema de la aplicación.
-```
-- **`emergenciagt/`** <-- Esta es la carpeta **RAÍZ** del proyecto.
-  - **`node_modules/`** <-- Se crea automáticamente al ejecutar `npm install`.
-  - **`public/`**
-  - **`src/`** <-- Aquí vive todo el código fuente.
-  - `.env.local` <-- **Tú creas este archivo** para la clave de Firebase.
-  - `package.json`
-  - `README.md`
-  - ... y otros archivos de configuración.
 
+    
