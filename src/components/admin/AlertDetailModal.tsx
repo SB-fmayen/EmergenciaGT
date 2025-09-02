@@ -1,7 +1,7 @@
 
 "use client"
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Dialog,
   DialogContent,
@@ -11,12 +11,12 @@ import {
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { X, Map, User, Info, Ambulance, Loader2, HardHat, AlertTriangle } from "lucide-react";
+import { X, Map, User, Info, Ambulance, Loader2, HardHat, AlertTriangle, Truck } from "lucide-react";
 import type { EnrichedAlert } from "@/app/(admin)/dashboard/admin/page";
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import type { AlertStatus, StationData } from "@/lib/types";
-import { doc, updateDoc, Timestamp } from "firebase/firestore";
+import type { AlertStatus, StationData, UnitData } from "@/lib/types";
+import { doc, updateDoc, Timestamp, collection, onSnapshot, query, where } from "firebase/firestore";
 import { firestore } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 
@@ -72,10 +72,51 @@ export function AlertDetailModal({ isOpen, onClose, alert, stations, onCenterMap
     const { toast } = useToast();
     const [isUpdating, setIsUpdating] = useState(false);
     const [isAssigning, setIsAssigning] = useState(false);
+    
+    // Estados para la asignación
+    const [units, setUnits] = useState<UnitData[]>([]);
+    const [loadingUnits, setLoadingUnits] = useState(false);
+    const [selectedStationId, setSelectedStationId] = useState<string | undefined>(alert.assignedStationId);
+    const [selectedUnitId, setSelectedUnitId] = useState<string | undefined>(alert.assignedUnitId);
+    
     const [selectedStatus, setSelectedStatus] = useState<AlertStatus>(alert.status);
-    const [selectedStation, setSelectedStation] = useState<string | undefined>(alert.assignedStationId);
 
     if (!alert) return null;
+
+    // Cargar unidades cuando se selecciona una estación
+    useEffect(() => {
+        let unsubscribe: () => void;
+        if (selectedStationId) {
+            setLoadingUnits(true);
+            const unitsRef = collection(firestore, "stations", selectedStationId, "unidades");
+            const q = query(unitsRef, where("disponible", "==", true));
+            
+            unsubscribe = onSnapshot(q, (snapshot) => {
+                const unitsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as UnitData));
+                setUnits(unitsData);
+                setLoadingUnits(false);
+            }, (error) => {
+                console.error("Error fetching units:", error);
+                toast({ title: "Error", description: "No se pudieron cargar las unidades de la estación.", variant: "destructive" });
+                setLoadingUnits(false);
+            });
+        } else {
+            setUnits([]);
+            setSelectedUnitId(undefined);
+        }
+        return () => {
+            if (unsubscribe) unsubscribe();
+        };
+    }, [selectedStationId, toast]);
+
+    // Resetear estados internos cuando el modal se abre o la alerta cambia
+    useEffect(() => {
+        if(isOpen) {
+            setSelectedStatus(alert.status);
+            setSelectedStationId(alert.assignedStationId);
+            setSelectedUnitId(alert.assignedUnitId);
+        }
+    }, [isOpen, alert]);
 
     const reportDate = alert.timestamp && typeof (alert.timestamp as any).toDate === 'function' 
         ? (alert.timestamp as Timestamp).toDate() 
@@ -104,25 +145,29 @@ export function AlertDetailModal({ isOpen, onClose, alert, stations, onCenterMap
         }
     };
 
-    const handleAssignStation = async () => {
-        if (!selectedStation) {
-            toast({ title: "Error", description: "Debes seleccionar una estación para asignar.", variant: "destructive"});
+    const handleAssignUnit = async () => {
+        if (!selectedStationId || !selectedUnitId) {
+            toast({ title: "Error", description: "Debes seleccionar una estación y una unidad.", variant: "destructive"});
             return;
         }
         setIsAssigning(true);
         try {
-            const station = stations.find(s => s.id === selectedStation);
+            const station = stations.find(s => s.id === selectedStationId);
+            const unit = units.find(u => u.id === selectedUnitId);
+
             const alertRef = doc(firestore, "alerts", alert.id);
             await updateDoc(alertRef, { 
-                assignedStationId: selectedStation,
+                assignedStationId: selectedStationId,
                 assignedStationName: station?.name || "Desconocido",
+                assignedUnitId: selectedUnitId,
+                assignedUnitName: unit?.nombre || "Desconocido",
                 status: 'assigned' // Automatically set to assigned
             });
-            toast({ title: "Estación Asignada", description: `La alerta ha sido asignada a ${station?.name}.`});
+            toast({ title: "Unidad Asignada", description: `La alerta ha sido asignada a ${unit?.nombre} de ${station?.name}.`});
             onClose();
         } catch (error) {
-            console.error("Error assigning station:", error);
-            toast({ title: "Error", description: "No se pudo asignar la estación.", variant: "destructive"});
+            console.error("Error assigning unit:", error);
+            toast({ title: "Error", description: "No se pudo asignar la unidad.", variant: "destructive"});
         } finally {
             setIsAssigning(false);
         }
@@ -173,27 +218,52 @@ export function AlertDetailModal({ isOpen, onClose, alert, stations, onCenterMap
 
                     {userRole === 'admin' && (
                      <div className="mb-6 p-4 bg-primary/10 rounded-lg border border-primary/50">
-                         <h3 className="font-bold text-lg mb-3 flex items-center gap-2 text-primary"><HardHat />Asignar Estación</h3>
-                        <div className="flex items-center justify-between">
-                            <div className="flex-1 pr-4">
-                                <p className="font-medium text-primary/80 mb-2">Estación Asignada: <span className="font-bold text-primary">{alert.assignedStationName || "Pendiente de Asignación"}</span></p>
-                                <div className="flex gap-2">
-                                     <Select onValueChange={setSelectedStation} defaultValue={selectedStation}>
-                                        <SelectTrigger className="w-full">
-                                            <SelectValue placeholder="Seleccionar estación..." />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {stations.map(station => (
-                                                <SelectItem key={station.id} value={station.id}>{station.name}</SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                     <Button className="bg-primary hover:bg-primary/90" onClick={handleAssignStation} disabled={isAssigning || !selectedStation}>
-                                        {isAssigning ? <Loader2 className="animate-spin" /> : "Asignar"}
-                                    </Button>
-                                </div>
+                         <h3 className="font-bold text-lg mb-4 flex items-center gap-2 text-primary"><Truck />Asignar Unidad</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label className="text-sm font-medium text-primary/90">1. Seleccionar Estación</label>
+                                <Select onValueChange={setSelectedStationId} value={selectedStationId}>
+                                    <SelectTrigger className="w-full mt-1">
+                                        <SelectValue placeholder="Seleccionar estación..." />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {stations.map(station => (
+                                            <SelectItem key={station.id} value={station.id}>{station.name}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                             <div>
+                                <label className="text-sm font-medium text-primary/90">2. Seleccionar Unidad</label>
+                                <Select onValueChange={setSelectedUnitId} value={selectedUnitId} disabled={!selectedStationId || loadingUnits}>
+                                    <SelectTrigger className="w-full mt-1">
+                                        <SelectValue placeholder={loadingUnits ? "Cargando..." : "Seleccionar unidad..."} />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {loadingUnits ? (
+                                            <div className="flex items-center justify-center p-2">
+                                                <Loader2 className="h-4 w-4 animate-spin" />
+                                            </div>
+                                        ) : units.length > 0 ? (
+                                            units.map(unit => (
+                                                <SelectItem key={unit.id} value={unit.id}>{unit.nombre}</SelectItem>
+                                            ))
+                                        ) : (
+                                            <div className="p-2 text-center text-sm text-muted-foreground">No hay unidades disponibles</div>
+                                        )}
+                                    </SelectContent>
+                                </Select>
                             </div>
                         </div>
+                         <div className="mt-4 flex justify-end">
+                            <Button className="bg-primary hover:bg-primary/90" onClick={handleAssignUnit} disabled={isAssigning || !selectedStationId || !selectedUnitId}>
+                                {isAssigning ? <Loader2 className="animate-spin" /> : "Asignar y Notificar"}
+                            </Button>
+                         </div>
+                         <div className="mt-4 text-sm text-primary/80">
+                             <p><strong>Unidad Asignada:</strong> {alert.assignedUnitName || 'Ninguna'}</p>
+                             <p><strong>Estación:</strong> {alert.assignedStationName || 'Ninguna'}</p>
+                         </div>
                     </div>
                     )}
                 </div>

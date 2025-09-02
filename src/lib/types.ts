@@ -40,6 +40,8 @@ export type AlertData = {
     cancellationReason?: string;
     assignedStationId?: string;
     assignedStationName?: string;
+    assignedUnitId?: string;
+    assignedUnitName?: string;
 }
 
 export type StationData = {
@@ -48,6 +50,14 @@ export type StationData = {
     address: string;
     location: GeoPoint;
     createdAt: Timestamp | Date | any;
+}
+
+export type UnitData = {
+    id: string;
+    nombre: string;
+    tipo: "Ambulancia" | "etc...";
+    disponible: boolean;
+    uid: string | null;
 }
 
 export type UserRole = 'admin' | 'operator' | 'unit';
