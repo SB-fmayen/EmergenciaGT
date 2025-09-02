@@ -12,7 +12,7 @@ import { getAuth, onAuthStateChanged, signOut, type User } from "firebase/auth";
 import { getFirestore, doc, getDoc, setDoc, serverTimestamp, collection, GeoPoint, updateDoc } from "firebase/firestore";
 import { firebaseApp } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, LogOut, User as UserIcon, WifiOff } from "lucide-react";
+import { Loader2, LogOut, User as UserIcon, WifiOff, CarCrash, Flame, HeartCrack, HelpingHand } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
@@ -291,7 +291,7 @@ export default function DashboardPage() {
         </header>
 
         <main className="flex-1 flex flex-col justify-center p-6 space-y-8">
-            <PanicButton onActivate={() => handleActivateEmergency('Pánico')} />
+            <PanicButton onActivate={() => handleActivateEmergency('Pánico General')} />
             
             <div>
                  <h2 className="text-base font-bold text-center text-white mb-4">¿O es una de estas emergencias?</h2>
@@ -361,3 +361,5 @@ export default function DashboardPage() {
     </MobileAppContainer>
   );
 }
+
+    

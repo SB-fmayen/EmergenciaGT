@@ -30,12 +30,13 @@ interface AlertDetailModalProps {
     userRole: 'admin' | 'operator' | null;
 }
 
-const InfoRow = ({ label, value, valueClass }: { label: string, value?: string | number, children?: React.ReactNode, valueClass?: string }) => (
+const InfoRow = ({ label, value, valueClass, children }: { label: string, value?: string | number | null, children?: React.ReactNode, valueClass?: string }) => (
     <div>
         <p className="font-semibold text-muted-foreground">{label}:</p>
-        {value ? <p className={`mt-1 ${valueClass || 'text-foreground'}`}>{value}</p> : <div className="mt-1">{children || 'No disponible'}</div>}
+        {value || children ? <div className={`mt-1 ${valueClass || 'text-foreground'}`}>{value || children}</div> : <p className="mt-1 text-muted-foreground/70">No disponible</p>}
     </div>
 );
+
 
 const getStatusBadge = (status: AlertStatus) => {
     switch (status) {
@@ -208,8 +209,8 @@ export function AlertDetailModal({ isOpen, onClose, alert, stations, onCenterMap
                                <SelectItem value="en_route">En Ruta</SelectItem>
                                <SelectItem value="on_scene">En el Lugar</SelectItem>
                                <SelectItem value="attending">Atendiendo</SelectItem>
-                               <SelectItem value="transporting">Trasladando a Hospital</SelectItem>
-                               <SelectItem value="patient_attended">Atendido en Lugar (Sin Traslado)</SelectItem>
+                               <SelectItem value="transporting">Trasladando</SelectItem>
+                               <SelectItem value="patient_attended">Atendido en Lugar</SelectItem>
                                <SelectItem value="resolved">Finalizada en Hospital</SelectItem>
                                <SelectItem value="cancelled">Cancelada</SelectItem>
                             </SelectContent>
@@ -229,3 +230,5 @@ export function AlertDetailModal({ isOpen, onClose, alert, stations, onCenterMap
         </Dialog>
     );
 }
+
+    
