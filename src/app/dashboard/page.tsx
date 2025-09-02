@@ -16,17 +16,6 @@ import { Loader2, LogOut, User as UserIcon, WifiOff, CarCrash, Flame, HeartCrack
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
-import { Card, CardContent } from "@/components/ui/card";
-
-
-const EmergencyButton = ({ icon: Icon, text, onClick, disabled }: { icon: React.ElementType, text: string, onClick: () => void, disabled?: boolean }) => {
-    return (
-        <Button onClick={onClick} disabled={disabled} className="w-full h-32 bg-slate-800/50 rounded-2xl p-4 shadow-lg flex flex-col justify-center items-center text-white gap-2 transition-transform transform active:scale-95">
-            <Icon className="w-10 h-10 text-red-400"/>
-            <span className="font-bold text-base text-center">{text}</span>
-        </Button>
-    )
-  }
 
 /**
  * Página principal del dashboard.
@@ -274,8 +263,6 @@ export default function DashboardPage() {
   
   const isAnonymousUser = currentUser?.isAnonymous ?? false;
 
-  
-
   return (
     <MobileAppContainer className="bg-gradient-to-br from-gray-900 via-gray-800 to-black">
       <div className="flex flex-col h-full">
@@ -304,10 +291,22 @@ export default function DashboardPage() {
         <main className="flex-1 flex flex-col justify-center p-6 space-y-6">
             <h2 className="text-xl font-bold text-center text-white">¿Cuál es la emergencia?</h2>
             <div className="grid grid-cols-2 gap-4">
-                <EmergencyButton icon={CarCrash} text="Accidente de Tránsito" onClick={handleActivateEmergency} disabled={isActivating} />
-                <EmergencyButton icon={Flame} text="Incendio" onClick={handleActivateEmergency} disabled={isActivating} />
-                <EmergencyButton icon={HeartCrack} text="Emergencia Médica" onClick={handleActivateEmergency} disabled={isActivating} />
-                <EmergencyButton icon={HelpingHand} text="Ayuda a un Tercero" onClick={handleActivateEmergency} disabled={isActivating} />
+                <Button onClick={handleActivateEmergency} disabled={isActivating} className="w-full h-32 bg-slate-800/50 rounded-2xl p-4 shadow-lg flex flex-col justify-center items-center text-white gap-2 transition-transform transform active:scale-95">
+                    <CarCrash className="w-10 h-10 text-red-400"/>
+                    <span className="font-bold text-base text-center">Accidente de Tránsito</span>
+                </Button>
+                <Button onClick={handleActivateEmergency} disabled={isActivating} className="w-full h-32 bg-slate-800/50 rounded-2xl p-4 shadow-lg flex flex-col justify-center items-center text-white gap-2 transition-transform transform active:scale-95">
+                    <Flame className="w-10 h-10 text-red-400"/>
+                    <span className="font-bold text-base text-center">Incendio</span>
+                </Button>
+                <Button onClick={handleActivateEmergency} disabled={isActivating} className="w-full h-32 bg-slate-800/50 rounded-2xl p-4 shadow-lg flex flex-col justify-center items-center text-white gap-2 transition-transform transform active:scale-95">
+                    <HeartCrack className="w-10 h-10 text-red-400"/>
+                    <span className="font-bold text-base text-center">Emergencia Médica</span>
+                </Button>
+                <Button onClick={handleActivateEmergency} disabled={isActivating} className="w-full h-32 bg-slate-800/50 rounded-2xl p-4 shadow-lg flex flex-col justify-center items-center text-white gap-2 transition-transform transform active:scale-95">
+                    <HelpingHand className="w-10 h-10 text-red-400"/>
+                    <span className="font-bold text-base text-center">Ayuda a un Tercero</span>
+                </Button>
             </div>
             {isActivating && (
                 <div className="flex justify-center items-center gap-2 text-white animate-fade-in">
@@ -345,4 +344,5 @@ export default function DashboardPage() {
       />
     </MobileAppContainer>
   );
-}
+
+    
