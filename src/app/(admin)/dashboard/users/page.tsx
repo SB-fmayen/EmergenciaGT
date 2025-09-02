@@ -41,26 +41,32 @@ function StationUnitSelector({ user, stations, disabled }: { user: UserRecordWit
         }
     }, [selectedStationId, toast]);
 
-    const handleStationChange = async (uid: string, newStationId: string | null) => {
-        setSelectedStationId(newStationId || '');
-        await updateUser(uid, await auth.currentUser?.getIdToken(), { stationId: newStationId, unitId: null });
-        // The page will refresh and fetch new state
-    };
-
+    // This is the only function that calls the server action
     const handleUnitChange = async (uid:string, newUnitId: string | null) => {
         if (!selectedStationId) {
             toast({ title: "Error", description: "Selecciona una estación primero.", variant: "destructive" });
             return;
         }
+        // Send station and unit together to ensure atomicity
         await updateUser(uid, await auth.currentUser?.getIdToken(), { unitId: newUnitId, stationId: selectedStationId });
-        // The page will refresh and fetch new state
+        // The page will refresh via onAuthStateChanged listener in the parent component
     }
+
+    const handleStationSelection = (newStationId: string | null) => {
+        setSelectedStationId(newStationId || '');
+        if (user.stationId !== newStationId) {
+            // If station changes, we must reset the unit, but we do it via a server call
+            // to ensure the user's claims are cleaned up correctly.
+            handleUnitChange(user.uid, null);
+        }
+    }
+
 
     return (
         <div className="flex gap-2">
             <Select 
                 value={selectedStationId} 
-                onValueChange={(value) => handleStationChange(user.uid, value === 'none' ? null : value)}
+                onValueChange={(value) => handleStationSelection(value === 'none' ? null : value)}
                 disabled={disabled}
             >
                 <SelectTrigger className="w-[180px]">
@@ -86,7 +92,7 @@ function StationUnitSelector({ user, stations, disabled }: { user: UserRecordWit
                         <SelectValue placeholder={loadingUnits ? "Cargando..." : "Asignar unidad..."} />
                     </SelectTrigger>
                     <SelectContent>
-                        <SelectItem value="none">
+                         <SelectItem value="">
                             <span className="text-muted-foreground">Ninguna</span>
                         </SelectItem>
                         {units.map(unit => (
@@ -151,7 +157,7 @@ export default function UsersPage() {
     let updates: { role: UserRole, stationId?: string | null, unitId?: string | null } = { role: newRole };
 
     // Si el rol cambia a admin, desvinculamos estación y unidad
-    if (newRole === 'admin') {
+    if (newRole === 'admin' || newRole === 'operator') {
         updates.stationId = null;
         updates.unitId = null;
     }
@@ -275,3 +281,5 @@ export default function UsersPage() {
     </div>
   );
 }
+
+    
