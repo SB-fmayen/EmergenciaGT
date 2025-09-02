@@ -194,7 +194,9 @@ La base de datos está organizada en colecciones principales que separan las dis
     "status": "new" | "assigned" | "en_route" | "on_scene" | "attending" | "transporting" | "patient_attended" | "resolved" | "cancelled",
     "cancellationReason": "string", // Opcional
     "assignedStationId": "string", // ID de la estación asignada
-    "assignedStationName": "string" // Nombre de la estación asignada
+    "assignedStationName": "string", // Nombre de la estación asignada
+    "assignedUnitId": "string", // ID de la unidad (ej: "Ambulancia A-123")
+    "assignedUnitName": "string" // Nombre de la unidad asignada
   }
   ```
 
@@ -210,13 +212,15 @@ La base de datos está organizada en colecciones principales que separan las dis
   }
   ```
   - **Subcolección: `unidades`**
+    - **Ruta:** `stations/{stationId}/unidades/{unitId}`
     - **Propósito:** Unidades (ambulancias, camiones) pertenecientes a una estación.
     - **Estructura del Documento (ID = ID de la unidad):**
       ```json
       {
-        "nombre": "string",
+        "nombre": "string",        // ej: "Ambulancia A-123"
         "tipo": "Ambulancia" | "etc...",
-        "disponible": "boolean"
+        "disponible": "boolean",
+        "uid": "string"            // UID del usuario de Auth que representa a esta unidad.
       }
       ```
 
@@ -252,6 +256,7 @@ Este es el caso ideal, ya que permite asociar la alerta con la información méd
         *   `isAnonymous`: `false`.
         *   `location`: Las coordenadas obtenidas.
         *   `status`: Se establece inicialmente en `"new"`.
+        *   `type`: El tipo de emergencia ("Pánico General", "Incendio", etc.).
 
 5.  **Notificación al Usuario:**
     *   Se muestra un modal (`<EmergencyModal />`) confirmando que la ayuda está en camino.
@@ -283,6 +288,7 @@ Este flujo permite a cualquier persona reportar una emergencia sin necesidad de 
         *   `isAnonymous`: `true`.
         *   `location`: Las coordenadas obtenidas.
         *   `status`: `"new"`.
+        *   `type`: El tipo de emergencia.
 
 5.  **Notificación al Usuario:**
     *   Se muestra el modal (`<EmergencyModal />`) confirmando que la ayuda está en camino.
