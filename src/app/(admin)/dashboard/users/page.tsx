@@ -5,14 +5,14 @@ import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ArrowLeft, Loader2, RefreshCw, ShieldCheck, ShieldOff, Building } from "lucide-react";
+import { ArrowLeft, Loader2, RefreshCw, ShieldCheck, HardHat, Ambulance } from "lucide-react";
 import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
 import { getUsers, updateUser, type UserRecordWithRole } from "./actions";
 import { Badge } from "@/components/ui/badge";
 import { auth, firestore } from "@/lib/firebase";
 import { collection, onSnapshot, query } from "firebase/firestore";
-import type { StationData } from "@/lib/types";
+import type { StationData, UserRole } from "@/lib/types";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 
@@ -60,7 +60,7 @@ export default function UsersPage() {
   }, [fetchUsers]);
 
 
-  const handleRoleChange = async (uid: string, newRole: 'admin' | 'operator') => {
+  const handleRoleChange = async (uid: string, newRole: UserRole) => {
     setUpdatingId(uid);
     const idToken = await auth.currentUser?.getIdToken();
     const result = await updateUser(uid, idToken, { role: newRole });
@@ -91,10 +91,21 @@ export default function UsersPage() {
     setUpdatingId(null);
   }
 
-  const getStationName = (stationId?: string) => {
-    if (!stationId) return <span className="text-muted-foreground">Ninguna</span>;
-    const station = stations.find(s => s.id === stationId);
-    return station ? station.name : "Estación Desconocida";
+  const getRoleBadge = (role: UserRole) => {
+      switch(role) {
+          case 'admin':
+              return <Badge className="bg-green-600 hover:bg-green-700"><ShieldCheck className="mr-1 h-3 w-3"/>Admin</Badge>;
+          case 'operator':
+              return <Badge variant="secondary"><HardHat className="mr-1 h-3 w-3"/>Operador</Badge>
+          case 'unit':
+              return <Badge className="bg-blue-600 hover:bg-blue-700"><Ambulance className="mr-1 h-3 w-3"/>Unidad</Badge>
+          default:
+              return <Badge variant="outline">Desconocido</Badge>
+      }
+  }
+
+  const isStationAssignmentDisabled = (role: UserRole) => {
+      return role === 'admin';
   }
 
   return (
@@ -123,7 +134,7 @@ export default function UsersPage() {
           <CardHeader>
             <CardTitle>Operadores y Administradores</CardTitle>
             <CardDescription>
-                Asigna roles y estaciones a los usuarios. Los operadores solo verán las alertas de su estación asignada.
+                Asigna roles y estaciones a los usuarios. Los operadores y unidades solo verán las alertas de su estación.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -139,7 +150,6 @@ export default function UsersPage() {
                     <TableHead>Rol</TableHead>
                     <TableHead>Estación Asignada</TableHead>
                     <TableHead>Último Inicio</TableHead>
-                    <TableHead className="text-right">Acciones</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -147,51 +157,48 @@ export default function UsersPage() {
                     <TableRow key={user.uid} className={updatingId === user.uid ? "opacity-50" : ""}>
                       <TableCell className="font-medium">{user.email || 'N/A'}</TableCell>
                       <TableCell>
-                        <Badge variant={user.role === 'admin' ? 'default' : 'secondary'} className={user.role === 'admin' ? 'bg-green-600' : ''}>
-                          {user.role === 'admin' ? <ShieldCheck className="mr-1 h-3 w-3"/> : null}
-                          <span className="capitalize">{user.role}</span>
-                        </Badge>
+                          <Select
+                            value={user.role}
+                            onValueChange={(value) => handleRoleChange(user.uid, value as UserRole)}
+                            disabled={updatingId === user.uid || auth.currentUser?.uid === user.uid}
+                          >
+                            <SelectTrigger className="w-[150px]">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="admin">
+                                    <div className="flex items-center gap-2"><ShieldCheck className="h-4 w-4 text-green-500"/>Admin</div>
+                                </SelectItem>
+                                <SelectItem value="operator">
+                                    <div className="flex items-center gap-2"><HardHat className="h-4 w-4"/>Operador</div>
+                                </SelectItem>
+                                 <SelectItem value="unit">
+                                    <div className="flex items-center gap-2"><Ambulance className="h-4 w-4 text-blue-500"/>Unidad</div>
+                                </SelectItem>
+                            </SelectContent>
+                          </Select>
                       </TableCell>
                       <TableCell>
-                          {user.role === 'operator' ? (
-                               <Select 
-                                value={user.stationId || ''} 
-                                onValueChange={(value) => handleStationChange(user.uid, value === 'none' ? null : value)}
-                                disabled={updatingId === user.uid}
-                               >
-                                <SelectTrigger className="w-[200px]">
-                                    <SelectValue placeholder="Asignar estación..." />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="none">
-                                        <span className="text-muted-foreground">Ninguna</span>
-                                    </SelectItem>
-                                    {stations.map(station => (
-                                        <SelectItem key={station.id} value={station.id}>{station.name}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                          ) : (
-                              <span className="text-muted-foreground italic">N/A (Admin)</span>
-                          )}
+                           <Select 
+                            value={user.stationId || ''} 
+                            onValueChange={(value) => handleStationChange(user.uid, value === 'none' ? null : value)}
+                            disabled={updatingId === user.uid || isStationAssignmentDisabled(user.role)}
+                           >
+                            <SelectTrigger className="w-[200px]">
+                                <SelectValue placeholder="Asignar estación..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="none">
+                                    <span className="text-muted-foreground">Ninguna</span>
+                                </SelectItem>
+                                {stations.map(station => (
+                                    <SelectItem key={station.id} value={station.id}>{station.name}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
                       </TableCell>
                       <TableCell>
                         {user.lastSignInTime ? new Date(user.lastSignInTime).toLocaleString('es-GT') : 'Nunca'}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {updatingId === user.uid ? (
-                           <Loader2 className="h-5 w-5 animate-spin ml-auto" />
-                        ) : user.role === 'admin' ? (
-                          <Button size="sm" variant="secondary" onClick={() => handleRoleChange(user.uid, 'operator')} disabled={auth.currentUser?.uid === user.uid}>
-                            <ShieldOff className="mr-2 h-4 w-4" />
-                            Quitar Admin
-                          </Button>
-                        ) : (
-                          <Button size="sm" variant="outline" onClick={() => handleRoleChange(user.uid, 'admin')}>
-                            <ShieldCheck className="mr-2 h-4 w-4 text-green-500" />
-                            Hacer Admin
-                          </Button>
-                        )}
                       </TableCell>
                     </TableRow>
                   )) : (

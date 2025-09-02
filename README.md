@@ -152,7 +152,7 @@ La base de datos está organizada en colecciones principales que separan las dis
   {
     "uid": "string",            // ID de Firebase Authentication, para enlazar.
     "email": "string",          // Correo del operador/admin, para mostrarlo fácilmente.
-    "role": "operator" | "admin", // Rol del usuario (aunque la fuente de verdad es el Custom Claim).
+    "role": "operator" | "admin" | "unit", // Rol del usuario (aunque la fuente de verdad es el Custom Claim).
     "stationId": "string" | null, // ID de la estación a la que está asignado el operador.
     "createdAt": "Timestamp",   // Fecha de creación de la cuenta.
     "lastLogin": "Timestamp"    // Fecha del último inicio de sesión.
@@ -293,52 +293,59 @@ Este flujo permite a cualquier persona reportar una emergencia sin necesidad de 
     *   **No se realiza ninguna búsqueda de información médica.**
     *   La alerta se muestra en el panel como "Usuario Anónimo" y los campos de datos médicos aparecen como "No disponible".
 
-### 5.2. Flujo de Gestión de Roles (Admin y Operator)
+### 5.2. Flujo de Gestión de Roles (Admin, Operator y Unit)
 
 El sistema utiliza **Custom Claims** de Firebase Authentication para gestionar los roles, lo que proporciona una seguridad robusta a nivel de backend.
 
 1.  **Registro por Defecto como "Operator" (`src/app/(admin)/login/page.tsx`):**
     *   Cuando un nuevo usuario se registra en el panel de administración, la función `handleRegister` crea una cuenta en Firebase Authentication y un documento en la colección `users` con el `role` por defecto de `'operator'`.
-    *   Crucialmente, la cuenta de Auth **no tiene ningún claim especial** al inicio. El sistema lo considera `operator` por ausencia del claim `admin`.
+    *   Crucialmente, la cuenta de Auth **no tiene ningún claim especial** al inicio. El sistema lo considera `operator` por ausencia de los claims `admin` o `unit`.
 
-2.  **Auto-Promoción del Primer Administrador (`src/app/(admin)/dashboard/users/actions.ts`):**
-    *   El sistema está diseñado para resolver el problema de "quién crea al primer admin".
-    *   La función de servidor `updateUser` contiene una lógica especial: si un usuario intenta asignarse a sí mismo el rol de `admin`, el sistema primero verifica si ya existe algún otro administrador en la base de datos (`admins.length === 0`).
-    *   Si no existe **ningún otro administrador**, la operación se permite, y el usuario se convierte en el primer y único administrador.
+2.  **Promoción de Roles por un Administrador (`src/app/(admin)/dashboard/users/page.tsx`):**
+    *   Un administrador existente debe ir a la página "Usuarios" (`/dashboard/users`).
+    *   Ahí, puede cambiar el rol de cualquier usuario a `admin`, `operator` o `unit` usando un menú desplegable.
+    *   La función de servidor `updateUser` verifica que quien hace la llamada sea un administrador y luego aplica los Custom Claims correspondientes al usuario objetivo (`admin: true`, `unit: true`, o ninguno para `operator`).
 
-3.  **Promoción por un Administrador Existente (`src/app/(admin)/dashboard/users/actions.ts`):**
-    *   Una vez que existe al menos un administrador, la lógica anterior se desactiva.
-    *   Ahora, para que un `operator` se convierta en `admin`, un administrador existente debe ir a la página "Usuarios" (`/dashboard/users`) y hacer clic en "Hacer Admin".
-    *   La función `updateUser` verifica el `idToken` de la persona que hace la llamada. Solo permitirá la operación si el token contiene el claim `admin: true`.
+3.  **Auto-Promoción del Primer Administrador (`src/app/(admin)/dashboard/users/actions.ts`):**
+    *   Para evitar un bloqueo inicial, si no existe ningún administrador en el sistema, el primer usuario que se asigne a sí mismo el rol de `admin` tendrá éxito.
 
 4.  **Verificación de Rol en la Interfaz (`src/app/(admin)/layout.tsx`):**
-    *   Cuando un usuario inicia sesión, el componente `AuthProvider` no solo verifica si está autenticado, sino que fuerza una actualización de su `idToken` (`currentUser.getIdTokenResult(true)`).
-    *   Este token contiene los Custom Claims. El layout extrae el claim `admin` y lo guarda en el estado del contexto `AuthContext` (`userRole`).
-    *   Componentes como `AdminDashboardPage` y `SettingsDropdown` usan el hook `useAuth()` para acceder a este rol y decidir si muestran (`userRole === 'admin'`) u ocultan (`userRole === 'operator'`) los botones de "Estaciones" y "Usuarios".
+    *   Cuando un usuario inicia sesión, el `AuthProvider` lee sus Custom Claims. El rol (`admin`, `operator`, `unit`) y `stationId` se almacenan en el `AuthContext`.
+    *   La interfaz se adapta dinámicamente:
+        *   Los **admins** ven todos los menús (Analíticas, Estaciones, Usuarios).
+        *   Los **operators** solo ven el dashboard de alertas filtrado por su estación.
+        *   Las **units** serán redirigidas a una interfaz especial de misión.
 
-### 5.3. Flujo de Despacho y Asignación de Alertas (Admin/Operator)
+### 5.3. Flujo de Despacho y Gestión en Campo (Unidad)
 
-Este flujo describe cómo las alertas se asignan a estaciones específicas y cómo los operadores ven solo lo que les corresponde.
+Este flujo describe cómo una alerta es manejada por el personal de emergencia en el campo.
 
-1.  **Asignación de Operadores a Estaciones (Admin - `src/app/(admin)/dashboard/users/page.tsx`):**
-    *   Un administrador va a la página de "Usuarios".
-    *   Para cada usuario con rol de `operator`, aparece un menú desplegable (`<Select />`) con la lista de estaciones (leídas de la colección `stations`).
-    *   El administrador selecciona una estación para el operador. Esta acción llama a la función `handleStationChange`, que a su vez invoca la acción de servidor `updateUser` en `actions.ts`.
-    *   La función `updateUser` hace dos cosas:
-        *   Establece el `stationId` en el documento del operador en la colección `users`.
-        *   Añade un **Custom Claim** (`stationId`) al token de autenticación del operador. Este claim es la fuente de verdad para la seguridad.
+1.  **Asignación a la Unidad (Admin/Operator):**
+    *   Una nueva alerta llega al panel. El operador la abre y, en lugar de asignar solo una estación, ahora puede seleccionar una **unidad específica** (ej: "Ambulancia 123") de esa estación.
+    *   Al asignar, el documento de la alerta en Firestore se actualiza con `assignedUnitId` y el `status` cambia a `'assigned'`.
 
-2.  **Recepción y Asignación de Alertas (Admin - `src/components/admin/AlertDetailModal.tsx`):**
-    *   Una nueva alerta llega al dashboard del administrador (que ve todas las alertas).
-    *   El administrador hace clic en la alerta, abriendo el modal de detalles (`AlertDetailModal`).
-    *   Dentro del modal, hay un menú desplegable "Asignar Estación". El administrador selecciona la estación y hace clic en "Asignar".
-    *   La función `handleAssignStation` actualiza el documento de la alerta en la colección `alerts`, estableciendo los campos `assignedStationId` y `assignedStationName`, y cambiando el `status` a `'assigned'`.
+2.  **Recepción de la Misión (Unidad):**
+    *   El personal de la "Ambulancia 123" tiene sesión iniciada en una tablet o móvil.
+    *   Su interfaz, que estaba en espera, recibe la nueva alerta asignada en tiempo real.
+    *   La pantalla se actualiza mostrando un "Perfil de Misión" con:
+        *   Detalles de la emergencia (tipo, info del paciente).
+        *   Un mapa con la ruta desde su ubicación hasta el incidente.
+        *   Botones de acceso directo para "Navegar con Waze / Google Maps".
+        *   Una botonera para actualizar el estado del servicio.
 
-3.  **Filtrado de Alertas por Operador (Operator - `src/app/(admin)/dashboard/admin/page.tsx`):**
-    *   Un operador inicia sesión. El `AuthProvider` lee su `stationId` desde los Custom Claims del token y lo guarda en el contexto (`useAuth`).
-    *   La función `fetchAlerts` en el dashboard usa el `stationId` del contexto. En lugar de pedir todas las alertas, construye su consulta a Firestore de la siguiente manera: `query(alertsRef, where("assignedStationId", "==", stationId), ...)`.
-    *   Las reglas de seguridad de Firestore (`firestore.rules`) permiten esta consulta específica.
-    *   Como resultado, el operador solo ve en su lista y en su mapa las alertas que han sido explícitamente asignadas a su estación.
+3.  **Actualización desde el Campo (Unidad):**
+    *   La unidad sale de la estación y su personal presiona el botón **`En Ruta`** en su pantalla.
+    *   Al llegar, presionan **`En el Lugar`**.
+    *   Mientras atienden al paciente, presionan **`Atendiendo`**.
+    *   Si lo trasladan, presionan **`Trasladando`**.
+    *   Cada vez que presionan un botón, el `status` del documento de la alerta en Firestore se actualiza instantáneamente.
+
+4.  **Sincronización con el Panel:**
+    *   El operador en la central ve los cambios de estado en el panel de administración en tiempo real. Esto reduce la necesidad de comunicación constante por radio para actualizaciones de estado, permitiendo que la comunicación se centre en lo crítico.
+
+5.  **Finalización del Servicio (Unidad):**
+    *   La unidad finaliza el servicio presionando **`Atendido en Lugar`** o **`Finalizada en Hospital`**.
+    *   La misión desaparece de su pantalla, y la unidad queda marcada como "disponible" para la siguiente emergencia.
 
 ---
 
@@ -357,74 +364,69 @@ Esta sección describe el propósito y el proceso de cada uno de los 9 estados q
   4.  El **Panel de Administración** recibe la alerta en tiempo real y la muestra como "Nueva".
 
 ### 6.2. Estado: `assigned` (Asignada)
-- **Propósito:** Un operador ha tomado la alerta y la ha asignado a una estación específica.
+- **Propósito:** Un operador ha tomado la alerta y la ha asignado a una estación o unidad específica.
 - **Diagrama:**
-  `[Panel Admin] --(Selecciona Estación)--> [Sistema/Firestore] --(Actualiza doc. a 'assigned')--> [Panel Admin]`
+  `[Panel Admin] --(Selecciona Unidad)--> [Sistema/Firestore] --(Actualiza doc. a 'assigned')--> [Panel Unidad]`
 - **Descripción:**
   1.  Un **Operador/Admin** ve la alerta "Nueva" en el panel.
   2.  Abre el modal de detalles de la alerta.
-  3.  Selecciona una estación de la lista y hace clic en "Asignar".
-  4.  El **Panel de Administración** envía la actualización a Firestore.
-  5.  **Firestore** actualiza el estado del documento de la alerta a `status: 'assigned'` y guarda el `assignedStationId`.
+  3.  Selecciona una unidad de emergencia de la lista.
+  4.  El **Panel de Administración** actualiza el documento de la alerta con el `assignedUnitId` y el estado a `status: 'assigned'`.
+  5.  La **Interfaz de la Unidad** recibe la misión en tiempo real.
 
 ### 6.3. Estado: `en_route` (En Ruta)
-- **Propósito:** La unidad de emergencia (ambulancia, etc.) de la estación asignada ya está en camino.
+- **Propósito:** La unidad de emergencia ha salido de la estación y está en camino.
 - **Diagrama:**
-  `[Unidad Emergencia] --(Notifica por Radio)--> [Operador] --(Actualiza en Panel)--> [Sistema/Firestore: 'en_route']`
+  `[Panel Unidad] --(Botón 'En Ruta')--> [Sistema/Firestore: 'en_route'] --> [Panel Admin]`
 - **Descripción:**
-  1.  La **Unidad de Emergencia** confirma al operador (por radio, teléfono) que ha salido de la estación.
-  2.  El **Operador** en el panel abre los detalles de la alerta.
-  3.  Selecciona el nuevo estado "En Ruta" y lo guarda.
-  4.  **Firestore** actualiza el documento a `status: 'en_route'`.
+  1.  El personal de la **Unidad** presiona el botón "En Ruta" en su dispositivo.
+  2.  **Firestore** actualiza el documento a `status: 'en_route'`.
+  3.  El **Panel de Administración** refleja el cambio de estado en tiempo real.
 
 ### 6.4. Estado: `on_scene` (En el Lugar)
 - **Propósito:** La unidad de emergencia ha llegado al lugar del incidente.
 - **Diagrama:**
-  `[Unidad Emergencia] --(Confirma Llegada)--> [Operador] --(Actualiza en Panel)--> [Sistema/Firestore: 'on_scene']`
+  `[Panel Unidad] --(Botón 'En el Lugar')--> [Sistema/Firestore: 'on_scene'] --> [Panel Admin]`
 - **Descripción:**
-  1.  La **Unidad de Emergencia** llega a la ubicación de la alerta y lo comunica al operador.
-  2.  El **Operador** actualiza el estado en el panel a "En el Lugar".
-  3.  **Firestore** actualiza el documento a `status: 'on_scene'`.
+  1.  La **Unidad de Emergencia** llega y presiona "En el Lugar".
+  2.  **Firestore** actualiza el documento a `status: 'on_scene'`.
+  3.  El **Panel de Administración** refleja el cambio.
 
 ### 6.5. Estado: `attending` (Atendiendo)
 - **Propósito:** Los paramédicos o bomberos están activamente atendiendo al paciente o la situación.
 - **Diagrama:**
-  `[Unidad Emergencia] --(Inicia Atención)--> [Operador] --(Actualiza en Panel)--> [Sistema/Firestore: 'attending']`
+  `[Panel Unidad] --(Botón 'Atendiendo')--> [Sistema/Firestore: 'attending'] --> [Panel Admin]`
 - **Descripción:**
-  1.  El personal de la **Unidad de Emergencia** comienza los primeros auxilios o las maniobras necesarias.
-  2.  Informan al **Operador** que la atención ha comenzado.
-  3.  El **Operador** cambia el estado de la alerta a "Atendiendo" en el panel.
-  4.  **Firestore** actualiza el documento a `status: 'attending'`.
+  1.  El personal de la **Unidad** comienza a trabajar y presiona "Atendiendo".
+  2.  **Firestore** actualiza el documento a `status: 'attending'`.
+  3.  El **Panel de Administración** refleja el cambio.
 
 ### 6.6. Estado: `transporting` (Trasladando)
 - **Propósito:** El paciente necesita ser llevado a un hospital y la unidad está en camino hacia allí.
 - **Diagrama:**
-  `[Unidad Emergencia] --(Inicia Traslado)--> [Operador] --(Actualiza en Panel)--> [Sistema/Firestore: 'transporting']`
+  `[Panel Unidad] --(Botón 'Trasladando')--> [Sistema/Firestore: 'transporting'] --> [Panel Admin]`
 - **Descripción:**
-  1.  La **Unidad de Emergencia** decide que es necesario el traslado a un centro asistencial e inicia el viaje.
-  2.  Notifica al **Operador** sobre el traslado.
-  3.  El **Operador** actualiza el estado a "Trasladando" en el panel.
-  4.  **Firestore** actualiza el documento a `status: 'transporting'`.
+  1.  La **Unidad** inicia el traslado y presiona "Trasladando".
+  2.  **Firestore** actualiza el documento a `status: 'transporting'`.
+  3.  El **Panel de Administración** refleja el cambio.
 
 ### 6.7. Estado: `patient_attended` (Atendido en Lugar)
-- **Propósito:** El paciente fue atendido en el lugar y no necesitó traslado a un hospital. El servicio ha finalizado.
+- **Propósito:** El paciente fue atendido en el lugar y no necesitó traslado. El servicio ha finalizado.
 - **Diagrama:**
-  `[Unidad Emergencia] --(Reporta Fin de Servicio)--> [Operador] --(Actualiza en Panel)--> [Sistema/Firestore: 'patient_attended']`
+  `[Panel Unidad] --(Botón 'Atendido en Lugar')--> [Sistema/Firestore: 'patient_attended']`
 - **Descripción:**
-  1.  La **Unidad de Emergencia** atiende al paciente en la escena y determina que no es necesario el traslado.
-  2.  Informa al **Operador** que el servicio ha concluido en el lugar.
-  3.  El **Operador** selecciona el estado "Atendido en Lugar" para cerrar el caso.
-  4.  **Firestore** actualiza el documento a `status: 'patient_attended'`, finalizando la alerta.
+  1.  La **Unidad** concluye el servicio en la escena y presiona "Atendido en Lugar".
+  2.  **Firestore** actualiza el documento a `status: 'patient_attended'`, finalizando la alerta.
+  3.  La misión se cierra en el **Panel de la Unidad** y en el **Panel de Administración**.
 
 ### 6.8. Estado: `resolved` (Finalizada en Hospital)
 - **Propósito:** La unidad llegó al hospital, entregó al paciente y el servicio ha concluido.
 - **Diagrama:**
-  `[Unidad Emergencia] --(Confirma Llegada a Hospital)--> [Operador] --(Actualiza en Panel)--> [Sistema/Firestore: 'resolved']`
+  `[Panel Unidad] --(Botón 'Finalizada en Hospital')--> [Sistema/Firestore: 'resolved']`
 - **Descripción:**
-  1.  La **Unidad de Emergencia** que estaba en estado "Trasladando" llega al hospital.
-  2.  Entrega al paciente y queda libre. Informa de esto al **Operador**.
-  3.  El **Operador** selecciona el estado "Finalizada en Hospital" para cerrar el caso.
-  4.  **Firestore** actualiza el documento a `status: 'resolved'`, finalizando la alerta.
+  1.  La **Unidad** entrega al paciente en el hospital y presiona "Finalizada en Hospital".
+  2.  **Firestore** actualiza el documento a `status: 'resolved'`, finalizando la alerta.
+  3.  La misión se cierra en ambos paneles.
 
 ### 6.9. Estado: `cancelled` (Cancelada)
 - **Propósito:** La alerta se anula antes de ser completada.
@@ -433,8 +435,8 @@ Esta sección describe el propósito y el proceso de cada uno de los 9 estados q
 - **Diagrama (Opción 2: Operador):**
   `[Operador] --(Cancela en Panel)--> [Sistema/Firestore: 'cancelled']`
 - **Descripción:**
-  1.  **Opción 1:** El **Usuario** que creó la alerta la cancela desde su aplicación. La app actualiza el estado en Firestore a `status: 'cancelled'`.
-  2.  **Opción 2:** Un **Operador** determina que la alerta es una falsa alarma o ya no es necesaria y la cancela manualmente desde el panel, especificando una razón. El panel actualiza el estado en Firestore a `status: 'cancelled'`.
+  1.  **Opción 1:** El **Usuario** que creó la alerta la cancela desde su aplicación.
+  2.  **Opción 2:** Un **Operador** la cancela manualmente desde el panel.
 
 ---
 

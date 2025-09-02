@@ -50,7 +50,7 @@ export type StationData = {
     createdAt: Timestamp | Date | any;
 }
 
-export type UserRole = 'admin' | 'operator';
+export type UserRole = 'admin' | 'operator' | 'unit';
 
 export type UserProfile = {
     uid: string;

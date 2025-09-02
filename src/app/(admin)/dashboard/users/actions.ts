@@ -5,13 +5,14 @@ import { initializeApp, getApps, App, cert } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { ServiceAccount } from 'firebase-admin';
 import { firestore } from '@/lib/firebase-admin';
+import type { UserRole } from '@/lib/types';
 
 // This is a type for the data we send to the client to avoid sending the whole UserRecord
 export type UserRecordWithRole = {
     uid: string;
     email?: string;
     displayName?: string;
-    role: 'admin' | 'operator';
+    role: UserRole;
     disabled: boolean;
     creationTime: string;
     lastSignInTime: string;
@@ -47,6 +48,12 @@ const checkAdminApp = () => {
     return getAuth(adminApp);
 }
 
+const determineRole = (claims: { [key: string]: any }): UserRole => {
+    if (claims.admin === true) return 'admin';
+    if (claims.unit === true) return 'unit';
+    return 'operator';
+}
+
 /**
  * A server action to get a list of all users from Firebase Authentication.
  */
@@ -74,7 +81,7 @@ export async function getUsers(idToken: string | undefined): Promise<{ success: 
                 uid: user.uid,
                 email: user.email,
                 displayName: user.displayName,
-                role: user.customClaims?.admin === true ? 'admin' : 'operator' as 'admin' | 'operator',
+                role: determineRole(user.customClaims || {}),
                 disabled: user.disabled,
                 creationTime: user.metadata.creationTime,
                 lastSignInTime: user.metadata.lastSignInTime,
@@ -101,7 +108,7 @@ export async function getUsers(idToken: string | undefined): Promise<{ success: 
 export async function updateUser(
     uid: string, 
     idToken: string | undefined, 
-    updates: { role?: 'admin' | 'operator', stationId?: string | null }
+    updates: { role?: UserRole, stationId?: string | null }
 ): Promise<{ success: boolean, error?: string }> {
      try {
         const adminAuth = checkAdminApp();
@@ -115,17 +122,31 @@ export async function updateUser(
 
         // --- Role Update Logic ---
         if (updates.role) {
-            const listUsersResult = await adminAuth.listUsers(1000);
-            const admins = listUsersResult.users.filter(user => user.customClaims?.admin === true);
-            
-            const isFirstAdminSetup = admins.length === 0 && decodedToken.uid === uid && updates.role === 'admin';
-            if (decodedToken.admin !== true && !isFirstAdminSetup) {
-                 return { success: false, error: 'No tienes permisos de administrador para cambiar roles.' };
+            if (decodedToken.admin !== true) {
+                 const listUsersResult = await adminAuth.listUsers(1);
+                 const isFirstAdminSetup = listUsersResult.users.length === 0 && decodedToken.uid === uid && updates.role === 'admin';
+                 if (!isFirstAdminSetup) {
+                    return { success: false, error: 'No tienes permisos de administrador para cambiar roles.' };
+                 }
             }
-            if (admins.length === 1 && admins[0].uid === uid && updates.role === 'operator') {
-                return { success: false, error: 'No puedes quitar el rol al último administrador.'}
+             
+            // Check if trying to remove the last admin
+            if (currentClaims.admin === true && updates.role !== 'admin') {
+                const listUsersResult = await adminAuth.listUsers(1000);
+                const admins = listUsersResult.users.filter(user => user.customClaims?.admin === true);
+                if (admins.length === 1 && admins[0].uid === uid) {
+                     return { success: false, error: 'No puedes quitar el rol al último administrador.'}
+                }
             }
+
+            // Set new claims based on role
             currentClaims.admin = updates.role === 'admin';
+            currentClaims.unit = updates.role === 'unit';
+            // Operator is the default (no admin or unit claim)
+            if(updates.role === 'operator') {
+                delete currentClaims.admin;
+                delete currentClaims.unit;
+            }
         }
         
         // --- Station Update Logic ---
@@ -147,8 +168,10 @@ export async function updateUser(
         // Atomically set all claims
         await adminAuth.setCustomUserClaims(uid, currentClaims);
         
-        // After setting claims, it's good practice to inform the client to refresh the token.
-        // The client-side logic should handle this.
+        // Update user doc in Firestore as well for consistency
+        const userDocRef = firestore.collection('users').doc(uid);
+        await userDocRef.set({ role: updates.role }, { merge: true });
+        
         return { success: true };
 
     } catch (error: any) {
