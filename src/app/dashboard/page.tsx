@@ -12,7 +12,7 @@ import { getAuth, onAuthStateChanged, signOut, type User } from "firebase/auth";
 import { getFirestore, doc, getDoc, setDoc, serverTimestamp, collection, GeoPoint, updateDoc } from "firebase/firestore";
 import { firebaseApp } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, LogOut, User as UserIcon, WifiOff } from "lucide-react";
+import { Loader2, LogOut, User as UserIcon, WifiOff, CarCrash, Flame, HeartCrack, HelpingHand } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
@@ -299,34 +299,30 @@ export default function DashboardPage() {
                     <Button 
                         onClick={handleActivateEmergency} 
                         disabled={isActivating} 
-                        className="relative w-full h-24 bg-slate-800/50 rounded-2xl p-4 shadow-lg flex flex-col justify-center items-center text-white gap-2 transition-transform transform active:scale-95 hover:bg-slate-800 border border-blue-500 hover:border-blue-400"
+                        className="h-24 bg-gradient-to-br from-blue-500 to-blue-700 rounded-2xl p-4 shadow-lg flex items-center justify-center text-white transition-transform transform active:scale-95 hover:scale-105"
                     >
-                        <div className="absolute top-3 left-3 w-3 h-3 rounded-full bg-blue-500 animate-pulse"></div>
-                        <span className="font-bold text-base text-center">Accidente de Tránsito</span>
+                        <span className="font-bold text-lg text-center">Accidente Vehicular</span>
                     </Button>
                     <Button 
                         onClick={handleActivateEmergency} 
                         disabled={isActivating} 
-                        className="relative w-full h-24 bg-slate-800/50 rounded-2xl p-4 shadow-lg flex flex-col justify-center items-center text-white gap-2 transition-transform transform active:scale-95 hover:bg-slate-800 border border-orange-500 hover:border-orange-400"
+                        className="h-24 bg-gradient-to-br from-orange-500 to-red-600 rounded-2xl p-4 shadow-lg flex items-center justify-center text-white transition-transform transform active:scale-95 hover:scale-105"
                     >
-                        <div className="absolute top-3 left-3 w-3 h-3 rounded-full bg-orange-500 animate-pulse"></div>
-                        <span className="font-bold text-base text-center">Incendio</span>
+                        <span className="font-bold text-lg text-center">Reportar Incendio</span>
                     </Button>
                     <Button 
                         onClick={handleActivateEmergency} 
                         disabled={isActivating} 
-                        className="relative w-full h-24 bg-slate-800/50 rounded-2xl p-4 shadow-lg flex flex-col justify-center items-center text-white gap-2 transition-transform transform active:scale-95 hover:bg-slate-800 border border-rose-500 hover:border-rose-400"
+                        className="h-24 bg-gradient-to-br from-rose-500 to-fuchsia-600 rounded-2xl p-4 shadow-lg flex items-center justify-center text-white transition-transform transform active:scale-95 hover:scale-105"
                     >
-                        <div className="absolute top-3 left-3 w-3 h-3 rounded-full bg-rose-500 animate-pulse"></div>
-                        <span className="font-bold text-base text-center">Emergencia Médica</span>
+                        <span className="font-bold text-lg text-center">Crisis Médica</span>
                     </Button>
                     <Button 
                         onClick={handleActivateEmergency} 
                         disabled={isActivating} 
-                        className="relative w-full h-24 bg-slate-800/50 rounded-2xl p-4 shadow-lg flex flex-col justify-center items-center text-white gap-2 transition-transform transform active:scale-95 hover:bg-slate-800 border border-teal-500 hover:border-teal-400"
+                        className="h-24 bg-gradient-to-br from-teal-500 to-cyan-600 rounded-2xl p-4 shadow-lg flex items-center justify-center text-white transition-transform transform active:scale-95 hover:scale-105"
                     >
-                        <div className="absolute top-3 left-3 w-3 h-3 rounded-full bg-teal-500 animate-pulse"></div>
-                        <span className="font-bold text-base text-center">Ayuda a un Tercero</span>
+                        <span className="font-bold text-lg text-center">Ayudar a Alguien</span>
                     </Button>
                 </div>
 
@@ -369,3 +365,5 @@ export default function DashboardPage() {
     </MobileAppContainer>
   );
 }
+
+    
