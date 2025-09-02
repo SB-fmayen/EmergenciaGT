@@ -10,7 +10,7 @@ import { auth, firestore } from "@/lib/firebase";
 import { signOut } from "firebase/auth";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
-import { LogOut, RefreshCw, Bell, Zap, CheckCircle, Clock, MapPin, Building, Loader2, HardHat, Users, LayoutDashboard, Truck, Siren, Check, Stethoscope, Hospital, UserCheck } from "lucide-react";
+import { LogOut, RefreshCw, Bell, Zap, CheckCircle, Clock, MapPin, Building, Loader2, HardHat, Users, LayoutDashboard, Truck, Siren, Check, Stethoscope, Hospital, UserCheck, AlertTriangle } from "lucide-react";
 import dynamic from 'next/dynamic';
 import { collection, onSnapshot, query, where, getDoc, doc, orderBy, Query, Timestamp, getDocs } from "firebase/firestore";
 import type { AlertData, MedicalData, StationData } from "@/lib/types";
@@ -218,7 +218,8 @@ export default function AdminDashboardPage() {
             const matchesStatus = statusFilter === "all" || alert.status === statusFilter;
             const matchesSearch = searchTerm === "" || 
                                   alert.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                  (alert.userInfo?.fullName && alert.userInfo.fullName.toLowerCase().includes(searchTerm.toLowerCase()));
+                                  (alert.userInfo?.fullName && alert.userInfo.fullName.toLowerCase().includes(searchTerm.toLowerCase())) ||
+                                  (alert.type && alert.type.toLowerCase().includes(searchTerm.toLowerCase()));
             return matchesStatus && matchesSearch;
         });
     }, [alerts, statusFilter, searchTerm]);
@@ -380,7 +381,7 @@ export default function AdminDashboardPage() {
                      <div className="flex space-x-4">
                         <Input 
                             type="text" 
-                            placeholder="Buscar por ID o nombre..." 
+                            placeholder="Buscar por ID, nombre o tipo..." 
                             className="flex-1"
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
@@ -427,7 +428,12 @@ export default function AdminDashboardPage() {
                                             {getStatusIcon(alert.status)}
                                             {getStatusText(alert.status)}
                                         </span>
-                                        <span className={`px-2 py-0.5 text-xs font-medium rounded-full bg-orange-500/20 text-orange-400 dark:text-orange-300`}>{alert.severity}</span>
+                                        {alert.type && (
+                                            <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 text-xs font-medium rounded-full bg-cyan-500/20 text-cyan-400`}>
+                                                <AlertTriangle className="h-3 w-3" />
+                                                {alert.type}
+                                            </span>
+                                        )}
                                     </div>
                                     <span className="text-sm text-muted-foreground">{alert.timestamp ? formatDistanceToNow((alert.timestamp as Timestamp).toDate(), { addSuffix: true, locale: es }) : 'hace un momento'}</span>
                                 </div>

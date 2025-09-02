@@ -35,6 +35,7 @@ export type AlertData = {
     timestamp: Timestamp | Date | any; // Any para permitir serverTimestamp()
     location: GeoPoint;
     status: AlertStatus;
+    type?: string; // Campo para el tipo de alerta (ej. 'Pánico', 'Incendio')
     isAnonymous?: boolean;
     cancellationReason?: string;
     assignedStationId?: string;

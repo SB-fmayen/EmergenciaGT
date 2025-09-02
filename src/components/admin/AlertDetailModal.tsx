@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { X, Map, User, Info, Ambulance, Loader2, HardHat } from "lucide-react";
+import { X, Map, User, Info, Ambulance, Loader2, HardHat, AlertTriangle } from "lucide-react";
 import type { EnrichedAlert } from "@/app/(admin)/dashboard/admin/page";
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -30,10 +30,10 @@ interface AlertDetailModalProps {
     userRole: 'admin' | 'operator' | null;
 }
 
-const InfoRow = ({ label, value, valueClass }: { label: string, value?: string | number, valueClass?: string }) => (
+const InfoRow = ({ label, value, valueClass }: { label: string, value?: string | number, children?: React.ReactNode, valueClass?: string }) => (
     <div>
         <p className="font-semibold text-muted-foreground">{label}:</p>
-        <p className={`mt-1 ${valueClass || 'text-foreground'}`}>{value || 'No disponible'}</p>
+        {value ? <p className={`mt-1 ${valueClass || 'text-foreground'}`}>{value}</p> : <div className="mt-1">{children || 'No disponible'}</div>}
     </div>
 );
 
@@ -76,7 +76,6 @@ export function AlertDetailModal({ isOpen, onClose, alert, stations, onCenterMap
 
     if (!alert) return null;
 
-    // Convert Firestore Timestamp to JS Date object safely.
     const reportDate = alert.timestamp && typeof (alert.timestamp as any).toDate === 'function' 
         ? (alert.timestamp as Timestamp).toDate() 
         : alert.timestamp as Date;
@@ -142,7 +141,7 @@ export function AlertDetailModal({ isOpen, onClose, alert, stations, onCenterMap
                             <h3 className="font-bold text-lg mb-4 flex items-center gap-2 text-muted-foreground"><User/>Información del Usuario</h3>
                             <div className="space-y-3 text-sm">
                                 <InfoRow label="Nombre" value={alert.isAnonymous ? "Usuario Anónimo" : alert.userInfo?.fullName} />
-                                <InfoRow label="Edad" value={alert.isAnonymous ? "N/A" : `${alert.userInfo?.age} años`} />
+                                <InfoRow label="Edad" value={alert.isAnonymous ? "N/A" : `${alert.userInfo?.age || ''} años`} />
                                 <InfoRow label="Tipo de Sangre" value={alert.isAnonymous ? "N/A" : alert.userInfo?.bloodType} />
                                 <InfoRow label="Condiciones" value={alert.isAnonymous ? "N/A" : alert.userInfo?.conditions?.join(', ') || 'Ninguna'} />
                                 <InfoRow label="Contacto" value={alert.isAnonymous ? "N/A" : alert.userInfo?.emergencyContacts?.[0]?.phone || 'No registrado'} />
@@ -153,16 +152,24 @@ export function AlertDetailModal({ isOpen, onClose, alert, stations, onCenterMap
                              <h3 className="font-bold text-lg mb-4 flex items-center gap-2 text-muted-foreground"><Info />Información del Evento</h3>
                             <div className="space-y-3 text-sm">
                                 <InfoRow label="ID de Evento" value={alert.id} />
+                                <InfoRow label="Tipo de Alerta">
+                                    <span className="inline-flex items-center gap-1.5 px-2 py-0.5 text-xs font-medium rounded-full bg-cyan-500/20 text-cyan-400">
+                                        <AlertTriangle className="h-3 w-3" />
+                                        {alert.type || 'Pánico General'}
+                                    </span>
+                                </InfoRow>
                                 <InfoRow label="Hora de Reporte" value={reportDate ? format(reportDate, "dd/MM/yyyy, hh:mm:ss a", { locale: es }) : 'N/A'} />
-                                <InfoRow label="Severidad (IA)" value={alert.severity} valueClass="px-2 py-0.5 inline-block text-xs rounded-full bg-orange-500/20 text-orange-600 dark:text-orange-300" />
-                                <InfoRow label="Estado Actual" value={getStatusText(alert.status)} valueClass={`px-2 py-0.5 inline-block text-xs rounded-full ${getStatusBadge(alert.status)}`} />
+                                <InfoRow label="Estado Actual">
+                                     <span className={`px-2 py-0.5 inline-block text-xs rounded-full ${getStatusBadge(alert.status)}`}>
+                                        {getStatusText(alert.status)}
+                                    </span>
+                                </InfoRow>
                                 <InfoRow label="Coordenadas" value={`${alert.location.latitude.toFixed(6)}, ${alert.location.longitude.toFixed(6)}`} />
                                 <InfoRow label="Razón Cancelación" value={alert.cancellationReason} />
                             </div>
                         </div>
                     </div>
 
-                    {/* Assigned Station - Only for Admins */}
                     {userRole === 'admin' && (
                      <div className="mb-6 p-4 bg-primary/10 rounded-lg border border-primary/50">
                          <h3 className="font-bold text-lg mb-3 flex items-center gap-2 text-primary"><HardHat />Asignar Estación</h3>

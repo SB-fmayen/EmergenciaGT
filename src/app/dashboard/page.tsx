@@ -12,7 +12,7 @@ import { getAuth, onAuthStateChanged, signOut, type User } from "firebase/auth";
 import { getFirestore, doc, getDoc, setDoc, serverTimestamp, collection, GeoPoint, updateDoc } from "firebase/firestore";
 import { firebaseApp } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, LogOut, User as UserIcon, WifiOff, CarCrash, Flame, HeartCrack, HelpingHand } from "lucide-react";
+import { Loader2, LogOut, User as UserIcon, WifiOff } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
@@ -120,8 +120,9 @@ export default function DashboardPage() {
   /**
    * Se ejecuta cuando el botón de pánico es activado.
    * Obtiene la ubicación, verifica la conexión y crea la alerta en Firestore.
+   * @param alertType - El tipo de alerta a registrar (ej. 'Pánico', 'Incendio').
    */
-  const handleActivateEmergency = async () => {
+  const handleActivateEmergency = async (alertType: string) => {
     setIsActivating(true);
     const user = auth.currentUser;
     if (!user) {
@@ -130,7 +131,6 @@ export default function DashboardPage() {
       return;
     }
     
-    // Toast de carga inicial
     const { id: loadingToastId, dismiss: dismissLoadingToast } = toast({ 
       description: <div className="flex items-center gap-2 text-white"><Loader2 className="animate-spin" /> Obteniendo tu ubicación...</div>,
       duration: Infinity,
@@ -145,7 +145,6 @@ export default function DashboardPage() {
         return;
     }
 
-    // Comportamiento si la app está Offline
     if (!isOnline) {
       toast({
         title: "Estás sin conexión",
@@ -168,15 +167,14 @@ export default function DashboardPage() {
         timestamp: serverTimestamp(),
         location: new GeoPoint(location.latitude, location.longitude),
         status: 'new',
+        type: alertType, // Guardar el tipo de alerta
         isAnonymous: user.isAnonymous,
       };
 
-      // setDoc se encargará de la escritura offline si no hay conexión
       await setDoc(alertDocRef, newAlert);
       
       setAlertData(newAlert);
       
-      // Solo mostrar el modal de "ayuda en camino" si hay conexión
       if (isOnline) {
         setEmergencyModalOpen(true);
       }
@@ -197,7 +195,6 @@ export default function DashboardPage() {
   };
   
   const handleShowAlerts = () => {
-    // Los usuarios anónimos no tienen historial persistente
     if (currentUser?.isAnonymous) {
         toast({ title: "Modo Invitado", description: "El historial de alertas solo está disponible para usuarios registrados." });
         return;
@@ -254,7 +251,6 @@ export default function DashboardPage() {
     }
   };
 
-  // Muestra un loader mientras se cargan los datos
   if (loading) {
     return (
         <MobileAppContainer className="bg-slate-900 justify-center items-center">
@@ -291,38 +287,38 @@ export default function DashboardPage() {
         </header>
 
         <main className="flex-1 flex flex-col justify-center p-6 space-y-8">
-            <PanicButton onActivate={handleActivateEmergency} />
+            <PanicButton onActivate={() => handleActivateEmergency('Pánico')} />
             
             <div>
                  <h2 className="text-base font-bold text-center text-white mb-4">¿O es una de estas emergencias?</h2>
                  <div className="grid grid-cols-2 gap-4">
                     <Button 
-                        onClick={handleActivateEmergency} 
+                        onClick={() => handleActivateEmergency('Accidente Vehicular')} 
                         disabled={isActivating} 
                         className="h-24 bg-gradient-to-br from-blue-500 to-blue-700 rounded-2xl p-4 shadow-lg flex items-center justify-center text-white transition-transform transform active:scale-95 hover:scale-105"
                     >
                         <span className="font-bold text-lg text-center">Accidente Vehicular</span>
                     </Button>
                     <Button 
-                        onClick={handleActivateEmergency} 
+                        onClick={() => handleActivateEmergency('Incendio')} 
                         disabled={isActivating} 
                         className="h-24 bg-gradient-to-br from-orange-500 to-red-600 rounded-2xl p-4 shadow-lg flex items-center justify-center text-white transition-transform transform active:scale-95 hover:scale-105"
                     >
-                        <span className="font-bold text-lg text-center">Reportar Incendio</span>
+                        <span className="font-bold text-lg text-center">Incendio</span>
                     </Button>
                     <Button 
-                        onClick={handleActivateEmergency} 
+                        onClick={() => handleActivateEmergency('Crisis Médica')} 
                         disabled={isActivating} 
                         className="h-24 bg-gradient-to-br from-rose-500 to-fuchsia-600 rounded-2xl p-4 shadow-lg flex items-center justify-center text-white transition-transform transform active:scale-95 hover:scale-105"
                     >
                         <span className="font-bold text-lg text-center">Crisis Médica</span>
                     </Button>
                     <Button 
-                        onClick={handleActivateEmergency} 
+                        onClick={() => handleActivateEmergency('Asistencia Ciudadana')} 
                         disabled={isActivating} 
                         className="h-24 bg-gradient-to-br from-teal-500 to-cyan-600 rounded-2xl p-4 shadow-lg flex items-center justify-center text-white transition-transform transform active:scale-95 hover:scale-105"
                     >
-                        <span className="font-bold text-lg text-center">Ayudar a Alguien</span>
+                        <span className="font-bold text-lg text-center">Asistencia Ciudadana</span>
                     </Button>
                 </div>
 
@@ -365,5 +361,3 @@ export default function DashboardPage() {
     </MobileAppContainer>
   );
 }
-
-    
