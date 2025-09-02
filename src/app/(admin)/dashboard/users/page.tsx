@@ -42,22 +42,23 @@ function StationUnitSelector({ user, stations, disabled }: { user: UserRecordWit
     }, [selectedStationId, toast]);
 
     // This is the only function that calls the server action
-    const handleUnitChange = async (uid:string, newUnitId: string | null) => {
+    const handleUnitChange = async (newUnitId: string | null) => {
         if (!selectedStationId) {
             toast({ title: "Error", description: "Selecciona una estación primero.", variant: "destructive" });
             return;
         }
         // Send station and unit together to ensure atomicity
-        await updateUser(uid, await auth.currentUser?.getIdToken(), { unitId: newUnitId, stationId: selectedStationId });
+        await updateUser(user.uid, await auth.currentUser?.getIdToken(), { unitId: newUnitId, stationId: selectedStationId });
         // The page will refresh via onAuthStateChanged listener in the parent component
     }
 
     const handleStationSelection = (newStationId: string | null) => {
-        setSelectedStationId(newStationId || '');
-        if (user.stationId !== newStationId) {
+        const newId = newStationId === 'none' ? null : newStationId;
+        setSelectedStationId(newId || '');
+        if (user.stationId !== newId) {
             // If station changes, we must reset the unit, but we do it via a server call
             // to ensure the user's claims are cleaned up correctly.
-            handleUnitChange(user.uid, null);
+            updateUser(user.uid, await auth.currentUser?.getIdToken(), { stationId: newId, unitId: null });
         }
     }
 
@@ -66,7 +67,7 @@ function StationUnitSelector({ user, stations, disabled }: { user: UserRecordWit
         <div className="flex gap-2">
             <Select 
                 value={selectedStationId} 
-                onValueChange={(value) => handleStationSelection(value === 'none' ? null : value)}
+                onValueChange={handleStationSelection}
                 disabled={disabled}
             >
                 <SelectTrigger className="w-[180px]">
@@ -84,15 +85,15 @@ function StationUnitSelector({ user, stations, disabled }: { user: UserRecordWit
 
             {user.role === 'unit' && (
                 <Select
-                    value={user.unitId || ''}
-                    onValueChange={(value) => handleUnitChange(user.uid, value === 'none' ? null : value)}
+                    value={user.unitId || 'none'}
+                    onValueChange={(value) => handleUnitChange(value === 'none' ? null : value)}
                     disabled={disabled || !selectedStationId || loadingUnits}
                 >
                     <SelectTrigger className="w-[180px]">
                         <SelectValue placeholder={loadingUnits ? "Cargando..." : "Asignar unidad..."} />
                     </SelectTrigger>
                     <SelectContent>
-                         <SelectItem value="">
+                         <SelectItem value="none">
                             <span className="text-muted-foreground">Ninguna</span>
                         </SelectItem>
                         {units.map(unit => (
@@ -282,4 +283,5 @@ export default function UsersPage() {
   );
 }
 
+    
     
