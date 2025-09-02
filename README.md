@@ -27,7 +27,7 @@ Solo necesitas tener una cosa instalada en tu sistema antes de empezar:
     *   Descomprime el archivo `.zip` en una carpeta de fácil acceso en tu computadora (por ejemplo, en tu Escritorio). La carpeta que se cree al descomprimir (probablemente llamada `emergenciagt`) será la **raíz del proyecto**.
 
     > **Visualización de la Estructura de Carpetas:**
-    > Una vez descomprimido, tu proyecto se verá así. **La carpeta raíz es `emergenciag`**:
+    > Una vez descomprimido, tu proyecto se verá así. **La carpeta raíz es `emergenciagt`**:
     > ```
     > emergenciagt/       <-- Esta es la carpeta RAÍZ del proyecto.
     > ├── node_modules/   <-- (Se crea automáticamente con `npm install`)
@@ -46,6 +46,7 @@ Solo necesitas tener una cosa instalada en tu sistema antes de empezar:
     ```bash
     npm install
     ```
+    > **Nota:** Este comando no crea archivos sueltos. Su principal trabajo es crear una nueva carpeta llamada **`node_modules`** en la raíz de tu proyecto. Si ves esa carpeta, ¡el comando funcionó!
 
 3.  **Configurar Variables de Entorno (Clave de Admin):**
     *   Este es el paso más importante para que las funciones de administrador (gestionar usuarios, estaciones) funcionen en tu PC. Necesitas darle a tu aplicación local una "llave" para que Firebase sepa que tiene permisos de administrador.
@@ -470,5 +471,3 @@ El proyecto está organizado siguiendo las convenciones de Next.js App Router.
 - **`firestore.rules`**: **Archivo crítico** que define las reglas de seguridad de la base de datos Firestore, especificando quién puede leer, escribir o actualizar cada colección.
 - **`next.config.ts`**: Configuración de Next.js.
 - **`tailwind.config.ts`**: Configuración de Tailwind CSS y el tema de la aplicación.
-
-    

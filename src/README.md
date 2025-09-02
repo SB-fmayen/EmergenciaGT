@@ -389,5 +389,3 @@ El proyecto está organizado siguiendo las convenciones de Next.js App Router.
 - **`firestore.rules`**: **Archivo crítico** que define las reglas de seguridad de la base de datos Firestore, especificando quién puede leer, escribir o actualizar cada colección.
 - **`next.config.ts`**: Configuración de Next.js.
 - **`tailwind.config.ts`**: Configuración de Tailwind CSS y el tema de la aplicación.
-
-    
