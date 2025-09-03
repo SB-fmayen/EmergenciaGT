@@ -107,31 +107,29 @@ function ProtectedLayout({ children }: { children: ReactNode }) {
       return;
     }
     
-    // Redirect logged-in users away from login
-    if (user && isAuthPage) {
-      if (userRole === 'unit') {
-        router.push('/mission');
-      } else {
-        router.push('/dashboard/admin');
-      }
-      return;
-    }
-
-    // Specific role-based routing
     if (user) {
-      if (userRole === 'unit' && !isMissionPage) {
-        // Units should ONLY be on the mission page
-        router.push('/mission');
-      } else if ((userRole === 'admin' || userRole === 'operator') && isMissionPage) {
-        // Admins/operators should not be on the mission page
-        router.push('/dashboard/admin');
-      } else if (userRole === 'operator') {
-        const adminPages = ['/dashboard/stations', '/dashboard/users', '/dashboard/analytics'];
-        if (adminPages.some(page => pathname.startsWith(page))) {
-            toast({ title: "Acceso Denegado", description: "No tienes permisos para acceder a esta página.", variant: "destructive" });
-            router.push('/dashboard/admin');
+        if (isAuthPage) {
+            // Logged-in user on login page, redirect them
+            if (userRole === 'unit') {
+                router.push('/mission');
+            } else {
+                router.push('/dashboard/admin');
+            }
+            return;
         }
-      }
+
+        // Role-based routing for users who are already logged in
+        if (userRole === 'unit' && !isMissionPage) {
+            router.push('/mission');
+        } else if ((userRole === 'admin' || userRole === 'operator') && isMissionPage) {
+            router.push('/dashboard/admin');
+        } else if (userRole === 'operator') {
+            const adminOnlyPages = ['/dashboard/stations', '/dashboard/users', '/dashboard/analytics'];
+            if (adminOnlyPages.some(page => pathname.startsWith(page))) {
+                toast({ title: "Acceso Denegado", description: "No tienes permisos para acceder a esta página.", variant: "destructive" });
+                router.push('/dashboard/admin');
+            }
+        }
     }
 
   }, [user, userRole, loading, router, pathname, toast]);
