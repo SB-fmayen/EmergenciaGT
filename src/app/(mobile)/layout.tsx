@@ -85,25 +85,20 @@ export const useAuth = () => {
 
 function ProtectedMobileLayout({ children }: { children: ReactNode }) {
   const router = useRouter();
-  const pathname = usePathname();
   const { user, userRole, loading } = useAuth();
 
   useEffect(() => {
     if (loading) return; 
 
-    // Si no hay usuario, redirigir a la página de login de admin.
-    // Asumimos que los usuarios de unidad usan la misma página de login.
     if (!user) {
       router.replace('/login');
       return;
     }
     
-    // Si el usuario no tiene el rol 'unit', no debería estar aquí.
-    // Lo mandamos a la página de admin.
     if (userRole && userRole !== 'unit') {
         router.replace('/dashboard/admin');
     }
-  }, [user, userRole, loading, router, pathname]);
+  }, [user, userRole, loading, router]);
 
   if (loading) {
     return (
@@ -114,7 +109,7 @@ function ProtectedMobileLayout({ children }: { children: ReactNode }) {
     );
   }
 
-  // Previene el parpadeo de la página de misión.
+  // Prevents flicker for unauthorized roles or non-users
   if (!user || userRole !== 'unit') {
      return (
        <div className="bg-slate-900 min-h-screen flex justify-center items-center">

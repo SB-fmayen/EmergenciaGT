@@ -104,9 +104,10 @@ function ProtectedLayout({ children }: { children: ReactNode }) {
     if (user) {
         // User is logged in
         if (userRole === 'unit') {
-            if (!pathname.startsWith('/mission')) {
-                 router.replace('/mission');
-            }
+            // A unit should never be in the admin layout.
+            // The login page itself will handle the initial redirect.
+            // This is a safety net.
+            router.replace('/mission');
             return;
         }
 
@@ -115,6 +116,7 @@ function ProtectedLayout({ children }: { children: ReactNode }) {
                 router.replace('/dashboard/admin');
                 return;
             }
+            // Admin-only page protection
             if (userRole === 'operator') {
                 const adminOnlyPages = ['/dashboard/stations', '/dashboard/users', '/dashboard/analytics'];
                 if (adminOnlyPages.some(page => pathname.startsWith(page))) {
@@ -123,14 +125,13 @@ function ProtectedLayout({ children }: { children: ReactNode }) {
                 }
             }
         }
-
     } else {
         // User is not logged in
         if (!isAuthPage) {
             router.replace('/login');
         }
     }
-
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, userRole, loading, router, pathname, toast]);
 
   if (loading) {

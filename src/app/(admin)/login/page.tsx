@@ -75,11 +75,13 @@ export default function AdminLoginPage() {
       
       // Force refresh of claims and redirect based on role
       const idTokenResult = await userCredential.user.getIdTokenResult(true);
-      const userRole = idTokenResult.claims.admin ? 'admin' : (idTokenResult.claims.unit ? 'unit' : 'operator');
+      const claims = idTokenResult.claims;
 
-      if (userRole === 'unit') {
-          router.replace('/mission');
+      if (claims.unit === true) {
+          // Forzar una recarga completa para asegurar que el layout correcto se cargue
+          window.location.href = '/mission';
       } else {
+          // Para admin y operator, la redirección del router es suficiente
           router.replace('/dashboard/admin');
       }
 
