@@ -25,16 +25,19 @@ interface EnrichedMissionAlert extends AlertData {
     userInfo?: MedicalData;
 }
 
-function StatusButton({ newStatus, currentStatus, children, icon, className = '' }: { newStatus: AlertData['status'], currentStatus: AlertData['status'], children: React.ReactNode, icon: React.ReactNode, className?: string}) {
+function StatusButton({ newStatus, currentStatus, onClick, children, icon, className = '' }: { newStatus: AlertData['status'], currentStatus: AlertData['status'], onClick: (status: AlertData['status']) => void, children: React.ReactNode, icon: React.ReactNode, className?: string, disabled?: boolean}) {
+    const isCurrent = newStatus === currentStatus;
+    const isDisabled = (children as any).props.disabled;
+
     return (
-    <Button 
-        className={`h-auto py-3 text-base flex-1 ${className}`}
-        onClick={() => (children as any).props.onClick(newStatus)}
-        disabled={(children as any).props.disabled || newStatus === currentStatus}
-    >
-        {newStatus === currentStatus ? <Check className="mr-2 h-5 w-5"/> : icon}
-        {children}
-    </Button>
+        <Button 
+            className={`h-auto py-3 text-base flex-1 ${className}`}
+            onClick={() => onClick(newStatus)}
+            disabled={isDisabled || isCurrent}
+        >
+            {isCurrent ? <Check className="mr-2 h-5 w-5"/> : icon}
+            {children}
+        </Button>
     );
 }
 
@@ -94,7 +97,7 @@ export default function MissionPage() {
         try {
             await signOut(auth);
             toast({ title: "Sesión cerrada" });
-            router.push('/login');
+            router.push('/auth');
         } catch (error) {
             toast({ title: "Error al cerrar sesión", variant: "destructive" });
         }
@@ -200,5 +203,3 @@ export default function MissionPage() {
         </MobileAppContainer>
     );
 }
-
-    
