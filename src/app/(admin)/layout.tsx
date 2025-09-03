@@ -102,32 +102,29 @@ function ProtectedLayout({ children }: { children: ReactNode }) {
     const isAuthPage = pathname.startsWith('/login');
     const isMissionPage = pathname.startsWith('/mission');
 
-    // If user is not logged in and not on the login page, redirect to login
     if (!user && !isAuthPage) {
       router.replace('/login');
       return;
     }
     
     if (user) {
-        // If user is logged in, but on the login page, redirect them away.
-        // This is handled by the login page itself now, but this is a good fallback.
-        if (isAuthPage) {
-            const destination = userRole === 'unit' ? '/mission' : '/dashboard/admin';
-            router.replace(destination);
-            return;
-        }
-
-        // Role-based routing for users who are already logged in and navigating
-        if (userRole === 'unit' && !isMissionPage) {
-            router.replace('/mission');
-        } else if ((userRole === 'admin' || userRole === 'operator') && isMissionPage) {
-            router.replace('/dashboard/admin');
-        } else if (userRole === 'operator') {
-            // Prevent operators from accessing admin-only pages
-            const adminOnlyPages = ['/dashboard/stations', '/dashboard/users', '/dashboard/analytics'];
-            if (adminOnlyPages.some(page => pathname.startsWith(page))) {
-                toast({ title: "Acceso Denegado", description: "No tienes permisos para acceder a esta página.", variant: "destructive" });
+        // This is the core redirection logic based on roles.
+        // It's the single source of truth for where a logged-in user should be.
+        if (userRole === 'unit') {
+            if (!isMissionPage) {
+                router.replace('/mission');
+            }
+        } else if (userRole === 'admin' || userRole === 'operator') {
+            if (isMissionPage || isAuthPage) {
                 router.replace('/dashboard/admin');
+            }
+            // Prevent operators from accessing admin-only pages
+            if (userRole === 'operator') {
+                const adminOnlyPages = ['/dashboard/stations', '/dashboard/users', '/dashboard/analytics'];
+                if (adminOnlyPages.some(page => pathname.startsWith(page))) {
+                    toast({ title: "Acceso Denegado", description: "No tienes permisos para acceder a esta página.", variant: "destructive" });
+                    router.replace('/dashboard/admin');
+                }
             }
         }
     }
@@ -143,7 +140,7 @@ function ProtectedLayout({ children }: { children: ReactNode }) {
     );
   }
 
-  // Prevents flicker of the login page while redirecting
+  // Prevents flicker of protected pages while redirecting unauthenticated users
   if (!user && !pathname.startsWith('/login')) {
      return (
        <div className="bg-slate-900 min-h-screen flex justify-center items-center">

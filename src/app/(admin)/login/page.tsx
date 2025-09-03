@@ -68,32 +68,19 @@ export default function AdminLoginPage() {
         lastLogin: serverTimestamp(),
       }, { merge: true });
 
-      // Forzar la recarga del token para obtener los claims más recientes. CRUCIAL.
-      const idTokenResult = await userCredential.user.getIdTokenResult(true);
-      const claims = idTokenResult.claims;
-
-      let role: UserRole = 'operator';
-      if (claims.admin === true) {
-        role = 'admin';
-      } else if (claims.unit === true) {
-        role = 'unit';
-      }
-
       toast({
         title: "Inicio de Sesión Exitoso",
         description: `Bienvenido. Redirigiendo...`,
       });
       
-      const destination = role === 'unit' ? '/mission' : '/dashboard/admin';
-      
-      // Usar router.replace para evitar que el usuario pueda volver a la página de login.
-      router.replace(destination);
+      // Let the ProtectedLayout in layout.tsx handle the redirection based on role.
+      // This avoids race conditions. We just push to a default protected route.
+      router.replace('/dashboard/admin');
 
     } catch (error: any) {
       handleFirebaseAuthError(error);
-      setLoading(false); // Asegurarse de parar el loading en caso de error.
-    } 
-    // No poner setLoading(false) aquí, porque la redirección se encargará de cambiar la página.
+      setLoading(false);
+    }
   };
   
   const handleRegister = async (e: React.FormEvent) => {
