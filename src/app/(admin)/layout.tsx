@@ -15,6 +15,7 @@ interface AuthContextType {
   userRole: UserRole | null;
   loading: boolean;
   stationId?: string; // This now comes from the token
+  unitId?: string;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -22,12 +23,14 @@ const AuthContext = createContext<AuthContextType>({
   userRole: null,
   loading: true,
   stationId: undefined,
+  unitId: undefined,
 });
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [userRole, setUserRole] = useState<UserRole | null>(null);
   const [stationId, setStationId] = useState<string | undefined>(undefined);
+  const [unitId, setUnitId] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -49,22 +52,26 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             
             setUserRole(role);
 
-            // Get stationId directly from the token if it exists
-            if ((role === 'operator' || role === 'unit') && claims.stationId) {
-                setStationId(claims.stationId as string);
+            // Get stationId and unitId directly from the token if it exists
+            if ((role === 'operator' || role === 'unit')) {
+                setStationId(claims.stationId as string | undefined);
+                setUnitId(claims.unitId as string | undefined);
             } else {
                 setStationId(undefined);
+                setUnitId(undefined);
             }
         } catch (error) {
             console.error("Error fetching user claims:", error);
             // Default to a safe state on error
             setUserRole('operator');
             setStationId(undefined);
+            setUnitId(undefined);
         }
       } else {
         setUser(null);
         setUserRole(null);
         setStationId(undefined);
+        setUnitId(undefined);
       }
       setLoading(false);
     });
@@ -73,7 +80,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, userRole, loading, stationId }}>
+    <AuthContext.Provider value={{ user, userRole, loading, stationId, unitId }}>
       {children}
     </AuthContext.Provider>
   );
