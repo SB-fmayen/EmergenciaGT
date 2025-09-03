@@ -1,4 +1,5 @@
 
+
 "use client"
 
 import { useState, useEffect, useCallback } from "react";
@@ -76,8 +77,8 @@ export function AlertDetailModal({ isOpen, onClose, alert, stations, onCenterMap
     // Estados para la asignación
     const [availableUnits, setAvailableUnits] = useState<UnitData[]>([]);
     const [loadingUnits, setLoadingUnits] = useState(false);
-    const [selectedStationId, setSelectedStationId] = useState<string | undefined>(alert.assignedStationId);
-    const [selectedUnitId, setSelectedUnitId] = useState<string | undefined>(alert.assignedUnitId);
+    const [selectedStationId, setSelectedStationId] = useState<string | undefined>(undefined);
+    const [selectedUnitId, setSelectedUnitId] = useState<string | undefined>(undefined);
     
     const [selectedStatus, setSelectedStatus] = useState<AlertStatus>(alert.status);
 
@@ -114,6 +115,8 @@ export function AlertDetailModal({ isOpen, onClose, alert, stations, onCenterMap
     // Cargar unidades cuando se selecciona una estación
     useEffect(() => {
         if (selectedStationId) {
+            // Limpiar selección de unidad al cambiar de estación
+            setSelectedUnitId(undefined);
             fetchAvailableUnits(selectedStationId);
         } else {
             setAvailableUnits([]);
@@ -123,10 +126,11 @@ export function AlertDetailModal({ isOpen, onClose, alert, stations, onCenterMap
 
     // Resetear estados internos cuando el modal se abre o la alerta cambia
     useEffect(() => {
-        if(isOpen) {
+        if (isOpen) {
             setSelectedStatus(alert.status);
-            setSelectedStationId(alert.assignedStationId);
-            setSelectedUnitId(alert.assignedUnitId);
+            // Si la alerta ya está asignada, precarga los selectores. Si no, los deja vacíos.
+            setSelectedStationId(alert.assignedStationId || undefined);
+            setSelectedUnitId(alert.assignedUnitId || undefined);
         }
     }, [isOpen, alert]);
 
@@ -234,7 +238,7 @@ export function AlertDetailModal({ isOpen, onClose, alert, stations, onCenterMap
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                                 <label className="text-sm font-medium text-primary/90">1. Seleccionar Estación</label>
-                                <Select onValueChange={setSelectedStationId} value={selectedStationId}>
+                                <Select onValueChange={setSelectedStationId} value={selectedStationId || ''}>
                                     <SelectTrigger className="w-full mt-1">
                                         <SelectValue placeholder="Seleccionar estación..." />
                                     </SelectTrigger>
@@ -247,7 +251,7 @@ export function AlertDetailModal({ isOpen, onClose, alert, stations, onCenterMap
                             </div>
                              <div>
                                 <label className="text-sm font-medium text-primary/90">2. Seleccionar Unidad</label>
-                                <Select onValueChange={setSelectedUnitId} value={selectedUnitId} disabled={!selectedStationId || loadingUnits}>
+                                <Select onValueChange={setSelectedUnitId} value={selectedUnitId || ''} disabled={!selectedStationId || loadingUnits}>
                                     <SelectTrigger className="w-full mt-1">
                                         <SelectValue placeholder={loadingUnits ? "Cargando..." : "Seleccionar unidad..."} />
                                     </SelectTrigger>
@@ -272,10 +276,11 @@ export function AlertDetailModal({ isOpen, onClose, alert, stations, onCenterMap
                                 {isAssigning ? <Loader2 className="animate-spin" /> : "Asignar y Notificar"}
                             </Button>
                          </div>
-                         <div className="mt-4 text-sm text-primary/80">
-                             <p><strong>Unidad Asignada:</strong> {alert.assignedUnitName || 'Ninguna'}</p>
-                             <p><strong>Estación:</strong> {alert.assignedStationName || 'Ninguna'}</p>
-                         </div>
+                         {alert.assignedUnitName && (
+                            <div className="mt-4 text-sm text-primary/80 border-t border-primary/20 pt-2">
+                                <p><strong>Asignación Actual:</strong> {alert.assignedUnitName} ({alert.assignedStationName})</p>
+                            </div>
+                         )}
                     </div>
                     )}
                 </div>
