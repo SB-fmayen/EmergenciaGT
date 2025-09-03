@@ -9,14 +9,13 @@ import { ArrowLeft, Loader2, RefreshCw, ShieldCheck, HardHat, Ambulance } from "
 import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
 import { getUsers, updateUser, type UserRecordWithRole } from "./actions";
-import { Badge } from "@/components/ui/badge";
 import { auth, firestore } from "@/lib/firebase";
-import { collection, onSnapshot, query, where, getDocs } from "firebase/firestore";
+import { collection, onSnapshot, query } from "firebase/firestore";
 import type { StationData, UserRole, UnitData } from "@/lib/types";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 
-function StationUnitSelector({ user, stations, disabled }: { user: UserRecordWith-Role, stations: StationData[], disabled: boolean }) {
+function StationUnitSelector({ user, stations, disabled }: { user: UserRecordWithRole, stations: StationData[], disabled: boolean }) {
     const [units, setUnits] = useState<UnitData[]>([]);
     const [loadingUnits, setLoadingUnits] = useState(false);
     const { toast } = useToast();
@@ -52,6 +51,7 @@ function StationUnitSelector({ user, stations, disabled }: { user: UserRecordWit
     const handleStationSelection = (newStationIdValue: string) => {
         const newId = newStationIdValue === 'none' ? '' : newStationIdValue;
         setSelectedStationId(newId);
+        // Reset unit selection when station changes
         setSelectedUnitId('none');
     };
 
@@ -72,7 +72,8 @@ function StationUnitSelector({ user, stations, disabled }: { user: UserRecordWit
 
         if (!result.success) {
             toast({ title: "Error", description: result.error, variant: "destructive" });
-            setSelectedUnitId(user.unitId || 'none'); // Revert on failure
+            // Revert on failure
+            setSelectedUnitId(user.unitId || 'none'); 
         } else {
             toast({title: "Asignación actualizada", description: "La unidad ha sido asignada correctamente."})
         }
@@ -195,7 +196,7 @@ export default function UsersPage() {
   
   const isStationAssignmentDisabled = (role: UserRole) => {
       return role === 'admin';
-  }
+  };
 
   return (
     <div className="flex flex-col min-h-screen bg-background text-foreground">
@@ -225,7 +226,7 @@ export default function UsersPage() {
             <CardDescription>
                 Asigna roles y estaciones a los usuarios. Los operadores y unidades solo verán las alertas de su estación.
             </CardDescription>
-          </Header>
+          </CardHeader>
           <CardContent>
             {loading && users.length === 0 ? (
               <div className="flex justify-center items-center h-40">
