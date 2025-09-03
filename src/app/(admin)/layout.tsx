@@ -101,29 +101,33 @@ function ProtectedLayout({ children }: { children: ReactNode }) {
 
     const isAuthPage = pathname.startsWith('/login');
 
-    if (!user && !isAuthPage) {
-      router.replace('/login');
-      return;
-    }
-    
     if (user) {
+        // User is logged in
         if (userRole === 'unit') {
-            // Si un usuario de unidad intenta acceder a cualquier página de admin, redirigirlo a su interfaz.
-            router.replace('/mission');
-            return;
-        }
-
-        if (isAuthPage) {
-            router.replace('/dashboard/admin');
-            return;
-        }
-
-        if (userRole === 'operator') {
-            const adminOnlyPages = ['/dashboard/stations', '/dashboard/users', '/dashboard/analytics'];
-            if (adminOnlyPages.some(page => pathname.startsWith(page))) {
-                toast({ title: "Acceso Denegado", description: "No tienes permisos para acceder a esta página.", variant: "destructive" });
-                router.replace('/dashboard/admin');
+            if (!pathname.startsWith('/mission')) {
+                 router.replace('/mission');
             }
+            return;
+        }
+
+        if (userRole === 'admin' || userRole === 'operator') {
+            if (isAuthPage) {
+                router.replace('/dashboard/admin');
+                return;
+            }
+            if (userRole === 'operator') {
+                const adminOnlyPages = ['/dashboard/stations', '/dashboard/users', '/dashboard/analytics'];
+                if (adminOnlyPages.some(page => pathname.startsWith(page))) {
+                    toast({ title: "Acceso Denegado", description: "No tienes permisos para acceder a esta página.", variant: "destructive" });
+                    router.replace('/dashboard/admin');
+                }
+            }
+        }
+
+    } else {
+        // User is not logged in
+        if (!isAuthPage) {
+            router.replace('/login');
         }
     }
 
