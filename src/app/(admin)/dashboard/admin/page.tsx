@@ -227,7 +227,7 @@ export default function AdminDashboardPage() {
     const kpis = useMemo(() => {
         const activeOrAssigned = alerts.filter(a => a.status === 'new' || a.status === 'assigned').length;
         const inProgress = alerts.filter(a => ['en_route', 'on_scene', 'attending', 'transporting'].includes(a.status)).length;
-        const resolved = alerts.filter(a => a.status === 'resolved' || a.status === 'patient_attended').length;
+        const resolved = alerts.filter(a => ['resolved', 'patient_attended', 'cancelled'].includes(a.status)).length;
         return {
             active: activeOrAssigned,
             inProgress: inProgress,

@@ -72,6 +72,7 @@ export default function MissionPage() {
         const missionQuery = query(
             alertsRef,
             where("assignedUnitId", "==", unitId),
+            // La misión se considera activa en estos estados. Al cambiar a "patient_attended", "resolved" o "cancelled", desaparecerá.
             where("status", "in", ["assigned", "en_route", "on_scene", "attending", "transporting"])
         );
 

@@ -16,7 +16,7 @@ import type { EnrichedAlert } from "@/app/(admin)/dashboard/admin/page";
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import type { AlertStatus, StationData, UnitData } from "@/lib/types";
-import { doc, updateDoc, Timestamp, collection, onSnapshot, query, where } from "firebase/firestore";
+import { doc, updateDoc, Timestamp, collection, onSnapshot, query, where, getDocs } from "firebase/firestore";
 import { firestore } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 
@@ -74,7 +74,7 @@ export function AlertDetailModal({ isOpen, onClose, alert, stations, onCenterMap
     const [isAssigning, setIsAssigning] = useState(false);
     
     // Estados para la asignación
-    const [units, setUnits] = useState<UnitData[]>([]);
+    const [availableUnits, setAvailableUnits] = useState<UnitData[]>([]);
     const [loadingUnits, setLoadingUnits] = useState(false);
     const [selectedStationId, setSelectedStationId] = useState<string | undefined>(alert.assignedStationId);
     const [selectedUnitId, setSelectedUnitId] = useState<string | undefined>(alert.assignedUnitId);
@@ -82,32 +82,44 @@ export function AlertDetailModal({ isOpen, onClose, alert, stations, onCenterMap
     const [selectedStatus, setSelectedStatus] = useState<AlertStatus>(alert.status);
 
     if (!alert) return null;
+    
+    const fetchAvailableUnits = useCallback(async (stationId: string) => {
+        setLoadingUnits(true);
+
+        try {
+            // 1. Obtener todas las alertas que están activas
+            const activeStatuses: AlertStatus[] = ['assigned', 'en_route', 'on_scene', 'attending', 'transporting'];
+            const activeAlertsQuery = query(collection(firestore, "alerts"), where("status", "in", activeStatuses));
+            const activeAlertsSnapshot = await getDocs(activeAlertsQuery);
+            const busyUnitIds = new Set(activeAlertsSnapshot.docs.map(doc => doc.data().assignedUnitId).filter(id => id));
+
+            // 2. Obtener todas las unidades de la estación seleccionada
+            const unitsRef = collection(firestore, "stations", stationId, "unidades");
+            const allUnitsSnapshot = await getDocs(unitsRef);
+            const allUnits = allUnitsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as UnitData));
+            
+            // 3. Filtrar las unidades para excluir las que están ocupadas
+            const units = allUnits.filter(unit => !busyUnitIds.has(unit.id));
+            setAvailableUnits(units);
+
+        } catch (error) {
+            console.error("Error fetching available units:", error);
+            toast({ title: "Error", description: "No se pudieron verificar las unidades disponibles.", variant: "destructive" });
+            setAvailableUnits([]);
+        } finally {
+            setLoadingUnits(false);
+        }
+    }, [toast]);
 
     // Cargar unidades cuando se selecciona una estación
     useEffect(() => {
-        let unsubscribe: () => void;
         if (selectedStationId) {
-            setLoadingUnits(true);
-            const unitsRef = collection(firestore, "stations", selectedStationId, "unidades");
-            const q = query(unitsRef, where("disponible", "==", true));
-            
-            unsubscribe = onSnapshot(q, (snapshot) => {
-                const unitsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as UnitData));
-                setUnits(unitsData);
-                setLoadingUnits(false);
-            }, (error) => {
-                console.error("Error fetching units:", error);
-                toast({ title: "Error", description: "No se pudieron cargar las unidades de la estación.", variant: "destructive" });
-                setLoadingUnits(false);
-            });
+            fetchAvailableUnits(selectedStationId);
         } else {
-            setUnits([]);
+            setAvailableUnits([]);
             setSelectedUnitId(undefined);
         }
-        return () => {
-            if (unsubscribe) unsubscribe();
-        };
-    }, [selectedStationId, toast]);
+    }, [selectedStationId, fetchAvailableUnits]);
 
     // Resetear estados internos cuando el modal se abre o la alerta cambia
     useEffect(() => {
@@ -153,7 +165,7 @@ export function AlertDetailModal({ isOpen, onClose, alert, stations, onCenterMap
         setIsAssigning(true);
         try {
             const station = stations.find(s => s.id === selectedStationId);
-            const unit = units.find(u => u.id === selectedUnitId);
+            const unit = availableUnits.find(u => u.id === selectedUnitId);
 
             const alertRef = doc(firestore, "alerts", alert.id);
             await updateDoc(alertRef, { 
@@ -244,8 +256,8 @@ export function AlertDetailModal({ isOpen, onClose, alert, stations, onCenterMap
                                             <div className="flex items-center justify-center p-2">
                                                 <Loader2 className="h-4 w-4 animate-spin" />
                                             </div>
-                                        ) : units.length > 0 ? (
-                                            units.map(unit => (
+                                        ) : availableUnits.length > 0 ? (
+                                            availableUnits.map(unit => (
                                                 <SelectItem key={unit.id} value={unit.id}>{unit.nombre}</SelectItem>
                                             ))
                                         ) : (
