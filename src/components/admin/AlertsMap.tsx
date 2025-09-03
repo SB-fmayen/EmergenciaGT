@@ -113,7 +113,9 @@ export default function AlertsMap({ alerts, selectedAlert, theme }: AlertsMapPro
 
         // Añadir o actualizar marcadores
         alerts.forEach(alert => {
-             if (alert.status !== 'resolved' && alert.status !== 'cancelled') {
+             const isFinalState = alert.status === 'resolved' || alert.status === 'cancelled' || alert.status === 'patient_attended';
+
+             if (!isFinalState) {
                 const popupContent = `
                     <div style="color: #333;">
                         <b>Alerta: ${alert.id.substring(0,8)}</b><br>
@@ -136,7 +138,7 @@ export default function AlertsMap({ alerts, selectedAlert, theme }: AlertsMapPro
                     markersRef.current[alert.id] = marker;
                 }
              } else {
-                // Si la alerta está resuelta o cancelada y tiene un marcador, removerlo
+                // Si la alerta está en un estado final y tiene un marcador, removerlo
                 if (markersRef.current[alert.id]) {
                     markersRef.current[alert.id].remove();
                     delete markersRef.current[alert.id];
