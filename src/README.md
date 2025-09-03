@@ -1,4 +1,3 @@
-
 # EmergenciaGT - Documentación del Proyecto
 
 ## 1. Visión General del Proyecto
