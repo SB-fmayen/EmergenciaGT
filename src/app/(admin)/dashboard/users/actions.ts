@@ -179,36 +179,32 @@ export async function updateUser(
                 return { success: false, error: 'No tienes permisos de administrador para asignar unidades.' };
             }
 
-            // Only proceed with unit validation if we are NOT clearing it as part of a role change
-            const isClearingAssignments = (updates.role === 'admin' || updates.role === 'operator') || updates.unitId === null;
-
-            if (!isClearingAssignments) {
-                const stationIdForUnit = updates.stationId || currentClaims.stationId;
-                if (!stationIdForUnit) {
-                    return { success: false, error: 'Se debe asignar una estación antes de asignar una unidad.'};
-                }
-
-                // Check if the new unit is already assigned
-                const newUnitRef = firestore.collection('stations').doc(stationIdForUnit).collection('unidades').doc(updates.unitId!);
-                const newUnitSnap = await newUnitRef.get();
-                if (newUnitSnap.exists() && newUnitSnap.data()?.uid) {
-                    return { success: false, error: 'Esta unidad ya está asignada a otro usuario.' };
-                }
-
-                await newUnitRef.set({ uid: uid }, { merge: true }); // Assign new unit
-                currentClaims.unitId = updates.unitId;
-                await userDocRef.set({ unitId: updates.unitId }, { merge: true });
-            }
-             
-            // Remove previous unit assignment if it exists
-            if (currentClaims.unitId && currentClaims.stationId) {
+            const isClearingUnit = updates.unitId === null;
+            
+            // Remove previous unit assignment if it exists and a new one is being set, or if it's being cleared
+            if (currentClaims.unitId && (updates.unitId !== currentClaims.unitId) && currentClaims.stationId) {
                 const oldUnitRef = firestore.collection('stations').doc(currentClaims.stationId).collection('unidades').doc(currentClaims.unitId);
                 await oldUnitRef.set({ uid: null }, { merge: true });
             }
-            
-            if (updates.unitId === null) {
+
+            if (isClearingUnit) {
                 delete currentClaims.unitId;
                 await userDocRef.set({ unitId: null }, { merge: true });
+            } else {
+                 const stationIdForUnit = updates.stationId || currentClaims.stationId;
+                 if (!stationIdForUnit) {
+                    return { success: false, error: 'Se debe asignar una estación antes de asignar una unidad.'};
+                }
+                const newUnitRef = firestore.collection('stations').doc(stationIdForUnit).collection('unidades').doc(updates.unitId!);
+                const newUnitSnap = await newUnitRef.get();
+
+                if (newUnitSnap.exists && newUnitSnap.data()?.uid && newUnitSnap.data()?.uid !== uid) {
+                    return { success: false, error: 'Esta unidad ya está asignada a otro usuario.' };
+                }
+
+                await newUnitRef.set({ uid: uid }, { merge: true });
+                currentClaims.unitId = updates.unitId;
+                await userDocRef.set({ unitId: updates.unitId }, { merge: true });
             }
         }
         
