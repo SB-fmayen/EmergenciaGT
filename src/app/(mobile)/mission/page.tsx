@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
-import { useAuth } from '@/app/(admin)/layout';
+import { useAuth } from '@/app/(mobile)/layout';
 import { firestore } from '@/lib/firebase';
 import { collection, query, where, onSnapshot, doc, getDoc, updateDoc, Timestamp } from 'firebase/firestore';
 import type { AlertData, MedicalData, UserRole } from '@/lib/types';
@@ -179,7 +179,7 @@ export default function MissionPage() {
                                     </div>
                                     <hr className="border-slate-700 my-3"/>
                                      <div className="flex gap-2">
-                                        <StatusButton newStatus="patient_attended" currentStatus={mission.status} icon={<UserCheck className="mr-2"/>} className="bg-teal-600 hover:bg-teal-700">Atendido en Lugar</StatusButton>
+                                        <StatusButton newStatus="patient_attended" currentStatus={mission.status} icon={<UserCheck className="mr-2"/>} className="bg-teal-600 hover:bg-teal-700">Atendido en Lugar</Button>
                                         <StatusButton newStatus="resolved" currentStatus={mission.status} icon={<Check className="mr-2"/>} className="bg-green-600 hover:bg-green-700">Finalizada en Hospital</StatusButton>
                                     </div>
                                 </CardContent>
@@ -204,4 +204,3 @@ export default function MissionPage() {
         </div>
     );
 }
-

@@ -7,14 +7,13 @@ import { Loader2 } from 'lucide-react';
 import 'leaflet/dist/leaflet.css';
 import { onAuthStateChanged, type User } from "firebase/auth";
 import { auth } from "@/lib/firebase";
-import { useToast } from '@/hooks/use-toast';
 import type { UserRole } from '@/lib/types';
 
 interface AuthContextType {
   user: User | null;
   userRole: UserRole | null;
   loading: boolean;
-  stationId?: string; // This now comes from the token
+  stationId?: string;
   unitId?: string;
 }
 
@@ -39,11 +38,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (currentUser) {
         setUser(currentUser);
         try {
-            // Force refresh the token to get the latest custom claims
             const idTokenResult = await currentUser.getIdTokenResult(true); 
             const claims = idTokenResult.claims;
             
-            let role: UserRole = 'operator'; // Default role
+            let role: UserRole = 'operator';
             if (claims.admin === true) {
                 role = 'admin';
             } else if (claims.unit === true) {
@@ -51,17 +49,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             }
             
             setUserRole(role);
-
-            // Get stationId and unitId directly from the token if it exists
             setStationId(claims.stationId as string | undefined);
             setUnitId(claims.unitId as string | undefined);
 
         } catch (error) {
             console.error("Error fetching user claims:", error);
-            // Default to a safe state on error
-            setUserRole('operator');
-            setStationId(undefined);
-            setUnitId(undefined);
+            setUserRole('operator'); // Fallback
         }
       } else {
         setUser(null);
@@ -90,56 +83,39 @@ export const useAuth = () => {
   return context;
 };
 
-function ProtectedLayout({ children }: { children: ReactNode }) {
+function ProtectedMobileLayout({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const { user, userRole, loading } = useAuth();
-  const { toast } = useToast();
 
   useEffect(() => {
     if (loading) return; 
 
-    const isAuthPage = pathname.startsWith('/login');
-
-    if (!user && !isAuthPage) {
+    // Si no hay usuario, redirigir a la página de login de admin.
+    // Asumimos que los usuarios de unidad usan la misma página de login.
+    if (!user) {
       router.replace('/login');
       return;
     }
     
-    if (user) {
-        if (userRole === 'unit') {
-            // Si un usuario de unidad intenta acceder a cualquier página de admin, redirigirlo a su interfaz.
-            router.replace('/mission');
-            return;
-        }
-
-        if (isAuthPage) {
-            router.replace('/dashboard/admin');
-            return;
-        }
-
-        if (userRole === 'operator') {
-            const adminOnlyPages = ['/dashboard/stations', '/dashboard/users', '/dashboard/analytics'];
-            if (adminOnlyPages.some(page => pathname.startsWith(page))) {
-                toast({ title: "Acceso Denegado", description: "No tienes permisos para acceder a esta página.", variant: "destructive" });
-                router.replace('/dashboard/admin');
-            }
-        }
+    // Si el usuario no tiene el rol 'unit', no debería estar aquí.
+    // Lo mandamos a la página de admin.
+    if (userRole && userRole !== 'unit') {
+        router.replace('/dashboard/admin');
     }
-
-  }, [user, userRole, loading, router, pathname, toast]);
+  }, [user, userRole, loading, router, pathname]);
 
   if (loading) {
     return (
       <div className="bg-slate-900 min-h-screen flex flex-col justify-center items-center text-white">
         <Loader2 className="w-12 h-12 animate-spin" />
-        <p className="mt-4 text-lg">Verificando sesión y permisos...</p>
+        <p className="mt-4 text-lg">Verificando sesión de unidad...</p>
       </div>
     );
   }
 
-  // Prevents flicker of protected pages while redirecting unauthenticated users
-  if (!user && !pathname.startsWith('/login')) {
+  // Previene el parpadeo de la página de misión.
+  if (!user || userRole !== 'unit') {
      return (
        <div className="bg-slate-900 min-h-screen flex justify-center items-center">
             <Loader2 className="w-12 h-12 text-white animate-spin" />
@@ -151,10 +127,10 @@ function ProtectedLayout({ children }: { children: ReactNode }) {
 }
 
 
-export default function AdminLayout({ children }: { children: ReactNode }) {
+export default function MobileUnitLayout({ children }: { children: ReactNode }) {
     return (
         <AuthProvider>
-            <ProtectedLayout>{children}</ProtectedLayout>
+            <ProtectedMobileLayout>{children}</ProtectedMobileLayout>
         </AuthProvider>
     )
 }

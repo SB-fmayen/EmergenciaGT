@@ -15,7 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
-import type { UserProfile, UserRole } from "@/lib/types";
+import type { UserProfile } from "@/lib/types";
 
 type AuthView = "login" | "register" | "forgotPassword";
 
@@ -73,9 +73,15 @@ export default function AdminLoginPage() {
         description: `Bienvenido. Redirigiendo...`,
       });
       
-      // Let the ProtectedLayout in layout.tsx handle the redirection based on role.
-      // This avoids race conditions. We just push to a default protected route.
-      router.replace('/dashboard/admin');
+      // Force refresh of claims and redirect based on role
+      const idTokenResult = await userCredential.user.getIdTokenResult(true);
+      const userRole = idTokenResult.claims.admin ? 'admin' : (idTokenResult.claims.unit ? 'unit' : 'operator');
+
+      if (userRole === 'unit') {
+          router.replace('/mission');
+      } else {
+          router.replace('/dashboard/admin');
+      }
 
     } catch (error: any) {
       handleFirebaseAuthError(error);
