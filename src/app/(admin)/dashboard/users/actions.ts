@@ -125,6 +125,16 @@ export async function updateUser(
         const targetUser = await adminAuth.getUser(uid);
         const currentClaims = targetUser.customClaims || {};
         const userDocRef = firestore.collection('users').doc(uid);
+        const userDocSnap = await userDocRef.get();
+
+        const updatesForFirestore: any = {};
+        
+        // Ensure base user profile exists
+        if (!userDocSnap.exists) {
+            updatesForFirestore.uid = targetUser.uid;
+            updatesForFirestore.email = targetUser.email;
+            updatesForFirestore.createdAt = targetUser.metadata.creationTime;
+        }
 
         // --- Role Update Logic ---
         if (updates.role) {
@@ -147,6 +157,7 @@ export async function updateUser(
             const newRole = updates.role;
             currentClaims.admin = newRole === 'admin';
             currentClaims.unit = newRole === 'unit';
+            updatesForFirestore.role = newRole;
 
             if(newRole === 'operator') {
                 delete currentClaims.admin;
@@ -157,9 +168,8 @@ export async function updateUser(
             if (newRole === 'operator' || newRole === 'admin') {
                 delete currentClaims.stationId;
                 delete currentClaims.unitId;
-                await userDocRef.set({ stationId: null, unitId: null, role: newRole }, { merge: true });
-            } else {
-                 await userDocRef.set({ role: newRole }, { merge: true });
+                updatesForFirestore.stationId = null;
+                updatesForFirestore.unitId = null;
             }
         }
         
@@ -173,15 +183,15 @@ export async function updateUser(
             if (updates.stationId === null) {
                 delete currentClaims.stationId;
                 delete currentClaims.unitId; // Can't have a unit without a station
-                await userDocRef.set({ stationId: null, unitId: null }, { merge: true });
+                updatesForFirestore.stationId = null;
+                updatesForFirestore.unitId = null;
             } else {
                 currentClaims.stationId = updates.stationId;
+                updatesForFirestore.stationId = updates.stationId;
                 // If station is changing, unit must be cleared.
                 if (updates.stationId !== currentClaims.stationId) {
                     delete currentClaims.unitId;
-                    await userDocRef.set({ stationId: updates.stationId, unitId: null }, { merge: true });
-                } else {
-                    await userDocRef.set({ stationId: updates.stationId }, { merge: true });
+                    updatesForFirestore.unitId = null;
                 }
             }
         }
@@ -196,18 +206,23 @@ export async function updateUser(
 
             if (isClearingUnit) {
                 delete currentClaims.unitId;
-                await userDocRef.set({ unitId: null }, { merge: true });
+                updatesForFirestore.unitId = null;
             } else {
                  if (!finalStationId) {
                     return { success: false, error: 'Se debe asignar una estación antes de asignar una unidad.'};
                 }
                 currentClaims.unitId = updates.unitId;
-                await userDocRef.set({ unitId: updates.unitId }, { merge: true });
+                updatesForFirestore.unitId = updates.unitId;
             }
         }
         
         // Atomically set all claims
         await adminAuth.setCustomUserClaims(uid, currentClaims);
+
+        // Update Firestore document with all gathered changes
+        if (Object.keys(updatesForFirestore).length > 0) {
+            await userDocRef.set(updatesForFirestore, { merge: true });
+        }
         
         return { success: true };
 
