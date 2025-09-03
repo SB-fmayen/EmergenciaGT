@@ -15,6 +15,7 @@ import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { MobileAppContainer } from '@/components/MobileAppContainer';
 import { Separator } from '@/components/ui/separator';
+import Link from 'next/link';
 
 const MissionMap = dynamic(() => import('@/components/admin/AlertsMap'), { 
   ssr: false,
@@ -157,8 +158,10 @@ export default function MissionPage() {
                     <Button onClick={handleRefresh} variant="ghost" size="icon" className="text-slate-300 hover:bg-slate-700/50 hover:text-white" disabled={loading}>
                         <RefreshCw className={`h-5 w-5 ${loading ? 'animate-spin' : ''}`} />
                     </Button>
-                    <Button onClick={() => router.push('/alerts')} variant="ghost" size="icon" className="text-slate-300 hover:bg-slate-700/50 hover:text-white">
-                        <History className="h-5 w-5"/>
+                    <Button asChild variant="ghost" size="icon" className="text-slate-300 hover:bg-slate-700/50 hover:text-white">
+                        <Link href="/alerts">
+                            <History className="h-5 w-5"/>
+                        </Link>
                     </Button>
                     <Button onClick={handleLogout} variant="ghost" size="icon" className="text-red-400 hover:bg-red-500/10 hover:text-red-400">
                         <LogOut className="h-5 w-5"/>

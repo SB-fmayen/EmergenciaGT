@@ -22,7 +22,7 @@ import { useAuth } from "@/app/(mobile)/layout";
  */
 export default function AlertsPage() {
   const router = useRouter();
-  const { user, userRole, unitId } = useAuth();
+  const { user, userRole, unitId, loading: authLoading } = useAuth();
   const firestore = getFirestore(firebaseApp);
   const { toast } = useToast();
 
@@ -34,62 +34,64 @@ export default function AlertsPage() {
   const [alertToCancel, setAlertToCancel] = useState<AlertData | null>(null);
   const [isCancelling, setIsCancelling] = useState(false);
 
-  /**
-   * Obtiene las alertas desde Firestore basado en el rol del usuario.
-   */
-  const fetchAlerts = useCallback(async (uid: string, role: string | null, assignedUnitId?: string) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const alertsRef = collection(firestore, "alerts");
-      let q;
-
-      if (role === 'unit' && assignedUnitId) {
-        // Para unidades, buscar por assignedUnitId, sin importar el estado.
-        q = query(alertsRef, where("assignedUnitId", "==", assignedUnitId), orderBy("timestamp", "desc"));
-      } else {
-        // Para usuarios normales, buscar por userId
-        q = query(alertsRef, where("userId", "==", uid), orderBy("timestamp", "desc"));
-      }
-      
-      const querySnapshot = await getDocs(q);
-      const userAlerts = querySnapshot.docs.map(doc => {
-        const data = doc.data();
-        // Firestore Timestamps need to be converted to JS Dates
-        const date = data.timestamp instanceof Timestamp ? data.timestamp.toDate() : new Date();
-
-        return {
-          id: doc.id,
-          ...data,
-          timestamp: date,
-        } as AlertData;
-      });
-      
-      setAlerts(userAlerts);
-    } catch (e: any) {
-      console.error("Error fetching alerts:", e);
-      if (e.code === 'failed-precondition') {
-          setError("La base de datos requiere un índice para esta consulta. Por favor, créalo en la consola de Firebase. El error en la consola te dará un enlace para crearlo automáticamente.");
-      } else {
-          setError("No se pudieron cargar las alertas.");
-      }
-    } finally {
-      setLoading(false);
-    }
-  }, [firestore]);
-
-
   useEffect(() => {
-    // We wait for the user object to be available to decide what to fetch.
-    if (user) {
-      fetchAlerts(user.uid, userRole, unitId);
-    } else if (user === null) {
-      // If user is explicitly null (auth state loaded, no user), redirect.
-      router.push("/auth");
+    const fetchAlerts = async () => {
+      if (!user) return;
+  
+      setLoading(true);
+      setError(null);
+      
+      try {
+        const alertsRef = collection(firestore, "alerts");
+        let q;
+  
+        if (userRole === 'unit' && unitId) {
+          // Para unidades, buscar por assignedUnitId, sin importar el estado.
+          q = query(alertsRef, where("assignedUnitId", "==", unitId), orderBy("timestamp", "desc"));
+        } else {
+          // Para usuarios normales, buscar por userId
+          q = query(alertsRef, where("userId", "==", user.uid), orderBy("timestamp", "desc"));
+        }
+        
+        const querySnapshot = await getDocs(q);
+        const userAlerts = querySnapshot.docs.map(doc => {
+          const data = doc.data();
+          const date = data.timestamp instanceof Timestamp ? data.timestamp.toDate() : new Date();
+  
+          return {
+            id: doc.id,
+            ...data,
+            timestamp: date,
+          } as AlertData;
+        });
+        
+        setAlerts(userAlerts);
+      } catch (e: any) {
+        console.error("Error fetching alerts:", e);
+        if (e.code === 'failed-precondition') {
+            setError("La base de datos requiere un índice para esta consulta. Por favor, créalo en la consola de Firebase. El error en la consola te dará un enlace para crearlo automáticamente.");
+        } else {
+            setError("No se pudieron cargar las alertas.");
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+  
+    // Esperamos a que la autenticación termine y tengamos un usuario.
+    if (!authLoading) {
+      if (user) {
+        fetchAlerts();
+      } else {
+        // Si no hay usuario, podemos dejar de cargar o redirigir.
+        setLoading(false);
+        router.push('/auth');
+      }
     }
-    // The dependency array ensures this runs when user, userRole, or unitId changes.
+  
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, userRole, unitId]);
+  }, [user, userRole, unitId, authLoading, firestore, router]);
+  
 
   const handleOpenCancelModal = (alert: AlertData) => {
     setAlertToCancel(alert);
