@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import { MobileAppContainer } from "@/components/MobileAppContainer";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Loader2, Clock, MapPin, CheckCircle, AlertTriangle, Send, ShieldX, UserCheck, Truck, Siren, Hospital, HardHat, FileClock } from "lucide-react";
-import { getAuth, onAuthStateChanged, type User as FirebaseUser } from "firebase/auth";
 import { getFirestore, collection, query, where, getDocs, orderBy, Timestamp, doc, updateDoc } from "firebase/firestore";
 import { firebaseApp } from "@/lib/firebase";
 import type { AlertData, AlertStatus } from "@/lib/types";
@@ -69,6 +68,7 @@ export default function AlertsPage() {
       const userAlerts = querySnapshot.docs.map(doc => {
         const data = doc.data();
         const timestamp = data.timestamp;
+        // Firestore Timestamps need to be converted to JS Dates
         const date = timestamp instanceof Timestamp ? timestamp.toDate() : new Date();
 
         return {
@@ -82,7 +82,7 @@ export default function AlertsPage() {
     } catch (e: any) {
       console.error("Error fetching alerts:", e);
       if (e.code === 'failed-precondition') {
-          setError("La base de datos requiere un índice para esta consulta. Por favor, créalo en la consola de Firebase.");
+          setError("La base de datos requiere un índice para esta consulta. Por favor, créalo en la consola de Firebase. La consola te dará un enlace para crearlo automáticamente si intentas esta acción allí.");
       } else {
           setError("No se pudieron cargar las alertas.");
       }
@@ -138,7 +138,7 @@ export default function AlertsPage() {
       case 'attending': return { text: 'Atendiendo', icon: Hospital, color: 'text-fuchsia-400' };
       case 'transporting': return { text: 'Trasladando', icon: Ambulance, color: 'text-purple-400' };
       case 'patient_attended': return { text: 'Atendido en Lugar', icon: UserCheck, color: 'text-teal-400' };
-      case 'resolved': return { text: 'Resuelta', icon: CheckCircle, color: 'text-green-400' };
+      case 'resolved': return { text: 'Finalizada en Hospital', icon: CheckCircle, color: 'text-green-400' };
       case 'cancelled': return { text: 'Cancelada', icon: ShieldX, color: 'text-gray-400' };
       default: return { text: 'Desconocido', icon: AlertTriangle, color: 'text-gray-400' };
     }
@@ -225,9 +225,9 @@ export default function AlertsPage() {
               <p className="text-white mt-4">Cargando historial...</p>
             </div>
           ) : error ? (
-             <div className="text-center py-10 text-red-400 bg-red-900/50 rounded-lg">
-              <p className="font-bold">Error</p>
-              <p className="text-sm">{error}</p>
+             <div className="text-center py-10 text-red-400 bg-red-900/50 rounded-lg p-4">
+              <p className="font-bold">Error de Base de Datos</p>
+              <p className="text-sm mt-2">{error}</p>
             </div>
           ) : alerts.length > 0 ? (
             alerts.map(alert => <AlertCard key={alert.id} alert={alert} />)
@@ -250,5 +250,3 @@ export default function AlertsPage() {
     </MobileAppContainer>
   );
 }
-
-    
