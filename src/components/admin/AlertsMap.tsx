@@ -56,6 +56,21 @@ const createAlertIcon = (status: AlertStatus) => {
     });
 };
 
+const getStatusTextInSpanish = (status: AlertStatus) => {
+    switch (status) {
+        case 'new': return 'Nueva';
+        case 'assigned': return 'Asignada';
+        case 'en_route': return 'En Ruta';
+        case 'on_scene': return 'En el Lugar';
+        case 'attending': return 'Atendiendo';
+        case 'transporting': return 'Trasladando';
+        case 'patient_attended': return 'Atendido en Lugar';
+        case 'resolved': return 'Finalizada en Hospital';
+        case 'cancelled': return 'Cancelada';
+        default: return status;
+    }
+};
+
 
 interface AlertsMapProps {
     alerts: EnrichedAlert[];
@@ -117,10 +132,11 @@ export default function AlertsMap({ alerts, selectedAlert, theme }: AlertsMapPro
 
              if (!isFinalState) {
                 const popupContent = `
-                    <div style="color: #333;">
+                    <div style="color: #333; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';">
                         <b>Alerta: ${alert.id.substring(0,8)}</b><br>
+                        Tipo: ${alert.type || 'Pánico General'}<br>
                         Usuario: ${alert.isAnonymous ? 'Anónimo' : (alert.userInfo?.fullName || 'Registrado')}<br>
-                        Estado: ${alert.status}
+                        Estado: ${getStatusTextInSpanish(alert.status)}
                     </div>
                 `;
 
