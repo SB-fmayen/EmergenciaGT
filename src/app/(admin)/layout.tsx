@@ -53,13 +53,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             setUserRole(role);
 
             // Get stationId and unitId directly from the token if it exists
-            if ((role === 'operator' || role === 'unit')) {
-                setStationId(claims.stationId as string | undefined);
-                setUnitId(claims.unitId as string | undefined);
-            } else {
-                setStationId(undefined);
-                setUnitId(undefined);
-            }
+            setStationId(claims.stationId as string | undefined);
+            setUnitId(claims.unitId as string | undefined);
+
         } catch (error) {
             console.error("Error fetching user claims:", error);
             // Default to a safe state on error

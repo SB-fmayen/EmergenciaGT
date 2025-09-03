@@ -143,29 +143,28 @@ export async function updateUser(
                      return { success: false, error: 'No puedes quitar el rol al último administrador.'}
                 }
             }
+            
+            const newRole = updates.role;
+            currentClaims.admin = newRole === 'admin';
+            currentClaims.unit = newRole === 'unit';
 
-            currentClaims.admin = updates.role === 'admin';
-            currentClaims.unit = updates.role === 'unit';
-
-            if(updates.role === 'operator') {
+            if(newRole === 'operator') {
                 delete currentClaims.admin;
                 delete currentClaims.unit;
-            } else if (updates.role === 'admin') { // Admins shouldn't be tied to stations/units
-                delete currentClaims.stationId;
-                delete currentClaims.unitId;
-                await userDocRef.set({ stationId: null, unitId: null, role: 'admin' }, { merge: true });
             }
 
-            // If changing to operator or admin, clear assignments
-            if (updates.role === 'operator' || updates.role === 'admin') {
+            // If changing to operator or admin, assignments must be cleared.
+            if (newRole === 'operator' || newRole === 'admin') {
                 delete currentClaims.stationId;
                 delete currentClaims.unitId;
-                await userDocRef.set({ stationId: null, unitId: null }, { merge: true });
+                await userDocRef.set({ stationId: null, unitId: null, role: newRole }, { merge: true });
+            } else {
+                 await userDocRef.set({ role: newRole }, { merge: true });
             }
-
-            await userDocRef.set({ role: updates.role }, { merge: true });
         }
         
+        const finalStationId = updates.stationId ?? currentClaims.stationId;
+
         // --- Station Update Logic ---
         if (typeof updates.stationId !== 'undefined') {
              if (decodedToken.admin !== true) {
@@ -177,7 +176,13 @@ export async function updateUser(
                 await userDocRef.set({ stationId: null, unitId: null }, { merge: true });
             } else {
                 currentClaims.stationId = updates.stationId;
-                await userDocRef.set({ stationId: updates.stationId }, { merge: true });
+                // If station is changing, unit must be cleared.
+                if (updates.stationId !== currentClaims.stationId) {
+                    delete currentClaims.unitId;
+                    await userDocRef.set({ stationId: updates.stationId, unitId: null }, { merge: true });
+                } else {
+                    await userDocRef.set({ stationId: updates.stationId }, { merge: true });
+                }
             }
         }
         
@@ -187,17 +192,15 @@ export async function updateUser(
                 return { success: false, error: 'No tienes permisos de administrador para asignar unidades.' };
             }
             
-            const stationIdForUnit = updates.stationId || currentClaims.stationId;
             const isClearingUnit = updates.unitId === null;
 
             if (isClearingUnit) {
                 delete currentClaims.unitId;
                 await userDocRef.set({ unitId: null }, { merge: true });
             } else {
-                if (!stationIdForUnit) {
+                 if (!finalStationId) {
                     return { success: false, error: 'Se debe asignar una estación antes de asignar una unidad.'};
                 }
-                // No need to check if unit is already assigned, as multiple users can be in one unit.
                 currentClaims.unitId = updates.unitId;
                 await userDocRef.set({ unitId: updates.unitId }, { merge: true });
             }

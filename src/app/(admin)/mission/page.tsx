@@ -25,7 +25,7 @@ interface EnrichedMissionAlert extends AlertData {
 }
 
 export default function MissionPage() {
-    const { user, userRole } = useAuth();
+    const { user, unitId } = useAuth(); // Usamos unitId del hook
     const { toast } = useToast();
     const router = useRouter();
 
@@ -46,7 +46,7 @@ export default function MissionPage() {
     }, []);
 
     useEffect(() => {
-        if (!user || userRole !== 'unit') {
+        if (!user || !unitId) { // Esperamos a que unitId esté disponible
             setLoading(false);
             return;
         }
@@ -54,7 +54,7 @@ export default function MissionPage() {
         const alertsRef = collection(firestore, "alerts");
         const missionQuery = query(
             alertsRef,
-            where("assignedUnitId", "==", user.uid),
+            where("assignedUnitId", "==", unitId),
             where("status", "in", ["assigned", "en_route", "on_scene", "attending", "transporting"])
         );
 
@@ -74,7 +74,7 @@ export default function MissionPage() {
         });
 
         return () => unsubscribe();
-    }, [user, userRole, fetchMissionDetails, toast]);
+    }, [user, unitId, fetchMissionDetails, toast]);
     
     const handleLogout = async () => {
         try {
@@ -174,7 +174,7 @@ export default function MissionPage() {
                                         <StatusButton newStatus="on_scene" currentStatus={mission.status} icon={<Siren className="mr-2"/>} className="bg-orange-600 hover:bg-orange-700">En el Lugar</StatusButton>
                                     </div>
                                      <div className="flex gap-2">
-                                        <StatusButton newStatus="attending" currentStatus={mission.status} icon={<Stethoscope className="mr-2"/>} className="bg-fuchsia-600 hover:bg-fuchsia-700">Atendiendo</Route>
+                                        <StatusButton newStatus="attending" currentStatus={mission.status} icon={<Stethoscope className="mr-2"/>} className="bg-fuchsia-600 hover:bg-fuchsia-700">Atendiendo</StatusButton>
                                         <StatusButton newStatus="transporting" currentStatus={mission.status} icon={<Hospital className="mr-2"/>} className="bg-sky-600 hover:bg-sky-700">Trasladando</StatusButton>
                                     </div>
                                     <hr className="border-slate-700 my-3"/>
