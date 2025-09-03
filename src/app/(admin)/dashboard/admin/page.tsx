@@ -12,8 +12,8 @@ import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import { LogOut, RefreshCw, Bell, Zap, CheckCircle, Clock, MapPin, Building, Loader2, HardHat, Users, LayoutDashboard, Truck, Siren, Check, Stethoscope, Hospital, UserCheck, AlertTriangle } from "lucide-react";
 import dynamic from 'next/dynamic';
-import { collection, onSnapshot, query, where, getDoc, doc, orderBy, Query, Timestamp, getDocs } from "firebase/firestore";
-import type { AlertData, MedicalData, StationData } from "@/lib/types";
+import { collection, onSnapshot, query, where, getDoc, doc, orderBy, type Query, Timestamp, getDocs } from "firebase/firestore";
+import type { AlertData, MedicalData, StationData, UnitData, UserRole } from "@/lib/types";
 import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { AlertDetailModal } from "@/components/admin/AlertDetailModal";
@@ -21,11 +21,22 @@ import Link from 'next/link';
 import { SettingsDropdown } from '@/components/admin/SettingsDropdown';
 import { useAuth } from "@/app/(admin)/layout";
 
+// Se usa dynamic import para el mapa, ya que Leaflet interactúa directamente con el DOM de la ventana,
+// lo cual solo es posible en el lado del cliente. `ssr: false` previene que se intente renderizar en el servidor.
 const AlertsMap = dynamic(() => import('@/components/admin/AlertsMap'), { 
   ssr: false,
   loading: () => <div className="h-full w-full bg-background flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
 });
 
+/**
+ * Interfaz que extiende una alerta con datos adicionales para mostrar en la UI.
+ * @property {MedicalData} [userInfo] - Información médica del usuario que generó la alerta.
+ * @property {string} [eta] - Tiempo estimado de llegada (funcionalidad futura).
+ * @property {{ name: string }} [stationInfo] - Información de la estación asignada.
+ * @property {string} [statusClass] - Clase CSS para estilizar según el estado.
+ * @property {string} [severityClass] - Clase CSS para estilizar según la severidad.
+ * @property {string} [severity] - Nivel de severidad de la alerta.
+ */
 export interface EnrichedAlert extends AlertData {
     userInfo?: MedicalData;
     eta?: string;
@@ -35,30 +46,44 @@ export interface EnrichedAlert extends AlertData {
     severity?: string;
 }
 
-
+/**
+ * Componente principal del Dashboard de Administración.
+ * Muestra KPIs, una lista de alertas en tiempo real y un mapa interactivo.
+ * Su comportamiento se adapta según el rol del usuario (admin vs. operator).
+ */
 export default function AdminDashboardPage() {
     const router = useRouter();
     const { toast } = useToast();
+    // Obtiene el usuario, rol y stationId del contexto de autenticación.
     const { user, userRole, stationId } = useAuth();
     
-    const [theme, setTheme] = useState("dark");
-    const [alerts, setAlerts] = useState<EnrichedAlert[]>([]);
-    const [stations, setStations] = useState<StationData[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [selectedAlert, setSelectedAlert] = useState<EnrichedAlert | null>(null);
-    const [isModalOpen, setIsModalOpen] = useState(false);
+    // --- ESTADOS DEL COMPONENTE ---
+    const [theme, setTheme] = useState("dark"); // Estado para el tema (claro/oscuro)
+    const [alerts, setAlerts] = useState<EnrichedAlert[]>([]); // Lista de alertas enriquecidas
+    const [stations, setStations] = useState<StationData[]>([]); // Lista de estaciones (solo para admins)
+    const [loading, setLoading] = useState(true); // Estado de carga general
+    const [selectedAlert, setSelectedAlert] = useState<EnrichedAlert | null>(null); // Alerta seleccionada para ver en detalle
+    const [isModalOpen, setIsModalOpen] = useState(false); // Visibilidad del modal de detalle
     
-    const [searchTerm, setSearchTerm] = useState("");
-    const [statusFilter, setStatusFilter] = useState("all");
+    const [searchTerm, setSearchTerm] = useState(""); // Término de búsqueda para filtrar alertas
+    const [statusFilter, setStatusFilter] = useState("all"); // Filtro por estado de alerta
 
+    // --- REFS ---
+    // Ref para controlar si la carga inicial ya se completó (para evitar notificaciones de alertas viejas).
     const initialLoadDone = useRef(false);
+    // Ref para almacenar la función de desuscripción de la escucha en tiempo real de Firestore.
     const unsubscribeFromAlerts = useRef<() => void>();
 
+    /**
+     * Procesa los datos crudos de las alertas y los enriquece con información del usuario.
+     * @param {AlertData[]} alertsData - Array de alertas obtenidas de Firestore.
+     */
     const processAlerts = useCallback(async (alertsData: AlertData[]) => {
       try {
         const enrichedAlerts = await Promise.all(
             alertsData.map(async (alert) => {
                 let userInfo: MedicalData | undefined = undefined;
+                // Si la alerta tiene un userId y no es anónima, busca los datos médicos.
                 if (alert.userId && !alert.isAnonymous) {
                      const userDocRef = doc(firestore, "medicalInfo", alert.userId);
                      const userDocSnap = await getDoc(userDocRef);
@@ -67,6 +92,7 @@ export default function AdminDashboardPage() {
                      }
                 }
                 
+                // Placeholder para una futura lógica de severidad.
                 const severity = 'Crítica';
                 return {
                     ...alert,
@@ -78,7 +104,7 @@ export default function AdminDashboardPage() {
                 };
             })
         );
-        // Ordenar en el cliente para todos los roles
+        // Ordena las alertas por fecha, de la más reciente a la más antigua.
         enrichedAlerts.sort((a, b) => (b.timestamp as Timestamp).toMillis() - (a.timestamp as Timestamp).toMillis());
         setAlerts(enrichedAlerts);
 
@@ -91,10 +117,16 @@ export default function AdminDashboardPage() {
       }
     }, [toast]);
 
+    /**
+     * Establece la escucha en tiempo real (listener) a la colección de alertas en Firestore.
+     * La consulta se adapta según el rol del usuario.
+     */
     const fetchAlerts = useCallback(async () => {
+         // Si el rol aún no se ha determinado, no hace nada.
          if (!userRole) return;
          setLoading(true);
 
+         // Si ya existe una suscripción, la cancela para evitar duplicados.
          if (unsubscribeFromAlerts.current) {
             unsubscribeFromAlerts.current();
          }
@@ -102,20 +134,25 @@ export default function AdminDashboardPage() {
         const alertsRef = collection(firestore, "alerts");
         let q: Query;
         
+        // Si es admin, obtiene todas las alertas, ordenadas por fecha.
         if (userRole === 'admin') {
             q = query(alertsRef, orderBy("timestamp", "desc"));
-        } else if (userRole === 'operator') {
+        } 
+        // Si es operador, filtra las alertas por la estación a la que está asignado.
+        else if (userRole === 'operator') {
              if (!stationId) {
+                // Si el operador no tiene estación asignada, no muestra alertas.
                 setAlerts([]);
                 setLoading(false);
                 return;
             }
-            q = query(alertsRef, where("assignedStationId", "==", stationId));
+            q = query(alertsRef, where("assignedStationId", "==", stationId), orderBy("timestamp", "desc"));
         } else {
             setLoading(false);
             return;
         }
 
+        // Crea el listener de Firestore. `onSnapshot` se ejecuta cada vez que hay un cambio.
         unsubscribeFromAlerts.current = onSnapshot(q, async (querySnapshot) => {
             const alertsData: AlertData[] = querySnapshot.docs.map(doc => ({
                 id: doc.id,
@@ -123,6 +160,7 @@ export default function AdminDashboardPage() {
                 timestamp: doc.data().timestamp,
             })) as AlertData[];
             
+            // Lógica para notificar solo de nuevas alertas después de la carga inicial.
             if (initialLoadDone.current) {
                 const newAlerts = alertsData.filter(a => a.status === 'new' && !alerts.some(old => old.id === a.id));
                 if (newAlerts.length > 0) {
@@ -144,12 +182,18 @@ export default function AdminDashboardPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [userRole, stationId, processAlerts]);
 
+    /**
+     * Efecto de inicialización del componente.
+     * Carga el tema, las estaciones (si es admin) y las alertas.
+     */
     useEffect(() => {
+        // Recupera el tema guardado en localStorage.
         const savedTheme = localStorage.getItem("theme") || "dark";
         setTheme(savedTheme);
         document.documentElement.className = savedTheme;
 
         let stationsUnsub: (() => void) | undefined;
+        // Si es admin, también se suscribe a los cambios en la colección de estaciones.
         if (userRole === 'admin') {
             stationsUnsub = onSnapshot(collection(firestore, "stations"), 
                 (snapshot) => {
@@ -165,10 +209,13 @@ export default function AdminDashboardPage() {
             setStations([]);
         }
         
+        // Inicia la carga de alertas una vez que el rol del usuario está definido.
         if (userRole) {
             fetchAlerts(); 
         }
 
+        // Función de limpieza: se ejecuta cuando el componente se desmonta.
+        // Cancela las suscripciones a Firestore para evitar fugas de memoria.
         return () => {
              if (stationsUnsub) {
                 stationsUnsub();
@@ -181,6 +228,9 @@ export default function AdminDashboardPage() {
     }, [userRole, stationId]); 
 
 
+    /**
+     * Cambia el tema de la aplicación entre claro y oscuro.
+     */
     const toggleTheme = () => {
         const newTheme = theme === "light" ? "dark" : "light";
         setTheme(newTheme);
@@ -188,21 +238,35 @@ export default function AdminDashboardPage() {
         document.documentElement.className = newTheme;
     };
     
+    /**
+     * Maneja el clic en una alerta de la lista, abriendo el modal de detalle.
+     * @param {EnrichedAlert} alert - La alerta seleccionada.
+     */
     const handleAlertClick = (alert: EnrichedAlert) => {
         setSelectedAlert(alert);
         setIsModalOpen(true);
     };
     
+    /**
+     * Centra el mapa en una alerta específica, sin abrir el modal.
+     * @param {EnrichedAlert} alert - La alerta a centrar.
+     */
     const handleMapCentering = (alert: EnrichedAlert) => {
         setSelectedAlert(alert);
         setIsModalOpen(false); 
     }
 
+    /**
+     * Cierra el modal de detalle y limpia la alerta seleccionada.
+     */
     const handleCloseModal = () => {
         setIsModalOpen(false);
         setSelectedAlert(null);
     }
 
+    /**
+     * Cierra la sesión del usuario y lo redirige a la página de login.
+     */
     const handleLogout = async () => {
         try {
             await signOut(auth);
@@ -213,6 +277,10 @@ export default function AdminDashboardPage() {
         }
     };
 
+    /**
+     * Filtra la lista de alertas basándose en el término de búsqueda y el filtro de estado.
+     * Se memoriza con `useMemo` para evitar recalcular en cada renderizado.
+     */
     const filteredAlerts = useMemo(() => {
         return alerts.filter(alert => {
             const matchesStatus = statusFilter === "all" || alert.status === statusFilter;
@@ -224,6 +292,10 @@ export default function AdminDashboardPage() {
         });
     }, [alerts, statusFilter, searchTerm]);
 
+    /**
+     * Calcula los Key Performance Indicators (KPIs) a partir de la lista de alertas.
+     * Memorizado con `useMemo` para eficiencia.
+     */
     const kpis = useMemo(() => {
         const activeOrAssigned = alerts.filter(a => a.status === 'new' || a.status === 'assigned').length;
         const inProgress = alerts.filter(a => ['en_route', 'on_scene', 'attending', 'transporting'].includes(a.status)).length;
@@ -235,6 +307,11 @@ export default function AdminDashboardPage() {
         }
     }, [alerts]);
 
+    /**
+     * Devuelve la clase CSS correspondiente para la insignia de estado.
+     * @param {string} status - El estado de la alerta.
+     * @returns {string} - Clases de Tailwind para el estilo.
+     */
     const getStatusBadge = (status: string) => {
         switch (status) {
             case 'new': return 'bg-red-500/20 text-red-400';
@@ -250,6 +327,11 @@ export default function AdminDashboardPage() {
         }
     };
 
+    /**
+     * Traduce el identificador de estado a un texto legible en español.
+     * @param {string} status - El estado de la alerta.
+     * @returns {string} - El texto del estado en español.
+     */
     const getStatusText = (status: string) => {
         switch (status) {
             case 'new': return 'Nueva';
@@ -265,6 +347,11 @@ export default function AdminDashboardPage() {
         }
     };
 
+    /**
+     * Devuelve el ícono correspondiente para cada estado de alerta.
+     * @param {string} status - El estado de la alerta.
+     * @returns {JSX.Element | null} - El componente del ícono.
+     */
     const getStatusIcon = (status: string) => {
         switch (status) {
             case 'new': return <Bell className="h-3 w-3" />;
@@ -278,7 +365,7 @@ export default function AdminDashboardPage() {
             case 'cancelled': return <Check className="h-3 w-3" />;
             default: return null;
         }
-    }
+    };
 
   return (
     <>
@@ -293,6 +380,7 @@ export default function AdminDashboardPage() {
                     <h1 className="text-2xl font-bold text-foreground">Consola de Emergencias</h1>
                 </div>
                 <div className="flex items-center space-x-4">
+                    {/* Renderiza los botones de navegación solo si el usuario es administrador */}
                     {userRole === 'admin' && (
                        <>
                         <Link href="/dashboard/analytics">
@@ -329,6 +417,7 @@ export default function AdminDashboardPage() {
       </header>
       
       <main className="flex-1 p-6 container mx-auto">
+        {/* Sección de KPIs */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -369,6 +458,7 @@ export default function AdminDashboardPage() {
         </div>
         
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {/* Columna de la Lista de Alertas */}
             <div className="bg-card rounded-lg shadow-lg border border-border flex flex-col">
                 <div className="p-6 border-b border-border">
                     <div className="flex items-center justify-between mb-4">
@@ -439,7 +529,7 @@ export default function AdminDashboardPage() {
                                 </div>
                                 <div className="mb-3">
                                     <p className="font-medium text-foreground">{alert.isAnonymous ? "Usuario Anónimo" : alert.userInfo?.fullName || "Usuario Registrado"}</p>
-                                    <p className="text-sm text-muted-foreground">Incidente reportado, {alert.assignedStationId ? "asignado" : "pendiente de asignación"}</p>
+                                    <p className="text-sm text-muted-foreground">Incidente reportado, {alert.assignedStationId ? `asignado a ${alert.assignedStationName}` : "pendiente de asignación"}</p>
                                 </div>
                                  <div className="flex items-center justify-between text-sm">
                                     <div className="text-muted-foreground flex items-center gap-2">
@@ -448,7 +538,7 @@ export default function AdminDashboardPage() {
                                     </div>
                                     <div className="text-muted-foreground flex items-center gap-2">
                                          <Building className="h-4 w-4"/>
-                                        <span>{alert.stationInfo?.name || "Sin asignar"}</span>
+                                        <span>{alert.assignedStationName || "Sin asignar"}</span>
                                     </div>
                                     <Button variant="link" className="p-0 h-auto text-primary hover:text-primary/80">Ver Detalle</Button>
                                 </div>
@@ -458,6 +548,7 @@ export default function AdminDashboardPage() {
                 </div>
             </div>
 
+             {/* Columna del Mapa */}
              <div className="bg-card rounded-lg shadow-lg border border-border flex flex-col">
                  <div className="p-6 border-b border-border">
                     <h2 className="text-xl font-bold text-foreground">Mapa de Incidentes</h2>
@@ -472,6 +563,7 @@ export default function AdminDashboardPage() {
         </div>
       </main>
     </div>
+    {/* Renderiza el modal de detalle solo si hay una alerta seleccionada */}
      {selectedAlert && (
         <AlertDetailModal 
             isOpen={isModalOpen}
@@ -481,7 +573,7 @@ export default function AdminDashboardPage() {
             onCenterMap={handleMapCentering}
             userRole={userRole}
         />
-     )}
+    )}
     </>
   );
 }

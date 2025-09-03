@@ -2,16 +2,22 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { firestore } from "@/lib/firebase-admin"; // Usar el SDK de Admin
+import { firestore } from "@/lib/firebase-admin"; // Usar el SDK de Admin para operaciones de backend
 import type { StationData, UnitData } from "@/lib/types";
 import { GeoPoint, Timestamp } from "firebase-admin/firestore";
 
+/**
+ * Server Action para crear una nueva estación en Firestore.
+ * @param {FormData} formData - Datos del formulario con la información de la estación.
+ * @returns {Promise<{success: boolean, error?: string}>} - Objeto con el resultado de la operación.
+ */
 export async function createStation(formData: FormData) {
   const name = formData.get("name") as string;
   const address = formData.get("address") as string;
   const latitudeStr = formData.get("latitude") as string;
   const longitudeStr = formData.get("longitude") as string;
 
+  // Validación básica de campos.
   if (!name || !address || !latitudeStr || !longitudeStr) {
     return { success: false, error: "Todos los campos son requeridos." };
   }
@@ -31,10 +37,11 @@ export async function createStation(formData: FormData) {
       createdAt: Timestamp.now(),
     };
     
-    // Crear la estación
+    // Añade el nuevo documento a la colección "stations".
     await firestore.collection("stations").add(stationData);
 
-    revalidatePath("/dashboard/stations"); // Actualiza la vista
+    // Invalida el caché de la ruta para que Next.js la vuelva a renderizar con los datos actualizados.
+    revalidatePath("/dashboard/stations"); 
     return { success: true };
   } catch (error: any) {
     console.error("Error creating station (admin action):", error);
@@ -42,6 +49,12 @@ export async function createStation(formData: FormData) {
   }
 }
 
+/**
+ * Server Action para actualizar una estación existente en Firestore.
+ * @param {string} stationId - ID del documento de la estación a actualizar.
+ * @param {FormData} formData - Datos del formulario con la nueva información.
+ * @returns {Promise<{success: boolean, error?: string}>} - Objeto con el resultado de la operación.
+ */
 export async function updateStation(stationId: string, formData: FormData) {
     const name = formData.get("name") as string;
     const address = formData.get("address") as string;
@@ -61,6 +74,7 @@ export async function updateStation(stationId: string, formData: FormData) {
 
     try {
         const stationRef = firestore.collection("stations").doc(stationId);
+        // Actualiza los campos especificados del documento.
         await stationRef.update({
             name,
             address,
@@ -75,15 +89,22 @@ export async function updateStation(stationId: string, formData: FormData) {
     }
 }
 
-
+/**
+ * Server Action para eliminar una estación y todas sus unidades asociadas.
+ * @param {string} stationId - ID de la estación a eliminar.
+ * @returns {Promise<{success: boolean, error?: string}>} - Objeto con el resultado.
+ */
 export async function deleteStation(stationId: string) {
     try {
+        // Primero, elimina todas las unidades en la subcolección para evitar documentos huérfanos.
         const unitsSnapshot = await firestore.collection("stations").doc(stationId).collection("unidades").get();
-        const batch = firestore.batch();
+        const batch = firestore.batch(); // Usa un batch para eliminar múltiples documentos en una sola operación atómica.
         unitsSnapshot.docs.forEach(doc => {
             batch.delete(doc.ref);
         });
         await batch.commit();
+
+        // Luego, elimina el documento de la estación principal.
         await firestore.collection("stations").doc(stationId).delete();
         
         revalidatePath("/dashboard/stations");
@@ -97,6 +118,12 @@ export async function deleteStation(stationId: string) {
 
 // --- Acciones para Unidades ---
 
+/**
+ * Server Action para crear una nueva unidad dentro de una estación.
+ * @param {string} stationId - ID de la estación a la que pertenece la unidad.
+ * @param {FormData} formData - Datos del formulario con la información de la unidad.
+ * @returns {Promise<{success: boolean, error?: string}>} - Resultado de la operación.
+ */
 export async function createUnit(stationId: string, formData: FormData) {
     const nombre = formData.get("nombre") as string;
     const tipo = formData.get("tipo") as string;
@@ -109,8 +136,9 @@ export async function createUnit(stationId: string, formData: FormData) {
         const newUnit: Omit<UnitData, 'id'> = {
             nombre,
             tipo: tipo as UnitData['tipo'],
-            disponible: true,
+            disponible: true, // Por defecto, una nueva unidad está disponible.
         };
+        // Añade la nueva unidad a la subcolección "unidades" de la estación correspondiente.
         await firestore.collection("stations").doc(stationId).collection("unidades").add(newUnit);
         revalidatePath("/dashboard/stations");
         return { success: true };
@@ -119,6 +147,13 @@ export async function createUnit(stationId: string, formData: FormData) {
     }
 }
 
+/**
+ * Server Action para actualizar una unidad existente.
+ * @param {string} stationId - ID de la estación.
+ * @param {string} unitId - ID de la unidad a actualizar.
+ * @param {FormData} formData - Nuevos datos para la unidad.
+ * @returns {Promise<{success: boolean, error?: string}>} - Resultado.
+ */
 export async function updateUnit(stationId: string, unitId: string, formData: FormData) {
     const nombre = formData.get("nombre") as string;
     const tipo = formData.get("tipo") as string;
@@ -128,6 +163,7 @@ export async function updateUnit(stationId: string, unitId: string, formData: Fo
     }
 
     try {
+        // Actualiza el documento de la unidad en la subcolección.
         await firestore.collection("stations").doc(stationId).collection("unidades").doc(unitId).update({
             nombre,
             tipo,
@@ -139,12 +175,19 @@ export async function updateUnit(stationId: string, unitId: string, formData: Fo
     }
 }
 
+/**
+ * Server Action para eliminar una unidad de una estación.
+ * @param {string} stationId - ID de la estación.
+ * @param {string} unitId - ID de la unidad a eliminar.
+ * @returns {Promise<{success: boolean, error?: string}>} - Resultado.
+ */
 export async function deleteUnit(stationId: string, unitId: string) {
     try {
         await firestore.collection("stations").doc(stationId).collection("unidades").doc(unitId).delete();
         revalidatePath("/dashboard/stations");
         return { success: true };
     } catch (error: any) {
+        console.error(`Error deleting unit ${unitId} from station ${stationId}:`, error);
         return { success: false, error: `Error eliminando la unidad: ${error.message}` };
     }
 }
