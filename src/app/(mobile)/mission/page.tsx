@@ -6,7 +6,7 @@ import { useAuth } from '@/app/(mobile)/layout';
 import { firestore } from '@/lib/firebase';
 import { collection, query, where, onSnapshot, doc, getDoc, updateDoc, Timestamp, getDocs } from 'firebase/firestore';
 import type { AlertData, MedicalData } from '@/lib/types';
-import { Loader2, LogOut, Check, Hospital, Siren, Stethoscope, Truck, UserCheck, Wind, MapPin, User, FileText, HeartPulse, History, RefreshCw } from 'lucide-react';
+import { Loader2, LogOut, Check, Hospital, Siren, Stethoscope, Truck, UserCheck, Wind, MapPin, User, FileText, HeartPulse, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { signOut } from 'firebase/auth';
@@ -15,7 +15,6 @@ import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { MobileAppContainer } from '@/components/MobileAppContainer';
 import { Separator } from '@/components/ui/separator';
-import Link from 'next/link';
 
 const MissionMap = dynamic(() => import('@/components/admin/AlertsMap'), { 
   ssr: false,
@@ -157,11 +156,6 @@ export default function MissionPage() {
                 <div className="flex items-center gap-1">
                     <Button onClick={handleRefresh} variant="ghost" size="icon" className="text-slate-300 hover:bg-slate-700/50 hover:text-white" disabled={loading}>
                         <RefreshCw className={`h-5 w-5 ${loading ? 'animate-spin' : ''}`} />
-                    </Button>
-                    <Button asChild variant="ghost" size="icon" className="text-slate-300 hover:bg-slate-700/50 hover:text-white">
-                        <Link href="/alerts">
-                            <History className="h-5 w-5"/>
-                        </Link>
                     </Button>
                     <Button onClick={handleLogout} variant="ghost" size="icon" className="text-red-400 hover:bg-red-500/10 hover:text-red-400">
                         <LogOut className="h-5 w-5"/>
