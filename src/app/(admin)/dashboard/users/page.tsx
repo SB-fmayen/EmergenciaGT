@@ -41,24 +41,19 @@ function StationUnitSelector({ user, stations, disabled }: { user: UserRecordWit
         }
     }, [selectedStationId, toast]);
 
-    // This is the only function that calls the server action
     const handleUnitChange = async (newUnitId: string | null) => {
         if (!selectedStationId) {
             toast({ title: "Error", description: "Selecciona una estación primero.", variant: "destructive" });
             return;
         }
-        // Send station and unit together to ensure atomicity
         await updateUser(user.uid, await auth.currentUser?.getIdToken(), { unitId: newUnitId, stationId: selectedStationId });
-        // The page will refresh via onAuthStateChanged listener in the parent component
     }
 
-    const handleStationSelection = (newStationId: string | null) => {
+    const handleStationSelection = async (newStationId: string | null) => {
         const newId = newStationId === 'none' ? null : newStationId;
         setSelectedStationId(newId || '');
         if (user.stationId !== newId) {
-            // If station changes, we must reset the unit, but we do it via a server call
-            // to ensure the user's claims are cleaned up correctly.
-            updateUser(user.uid, await auth.currentUser?.getIdToken(), { stationId: newId, unitId: null });
+            await updateUser(user.uid, await auth.currentUser?.getIdToken(), { stationId: newId, unitId: null });
         }
     }
 
@@ -157,7 +152,6 @@ export default function UsersPage() {
     const idToken = await auth.currentUser?.getIdToken();
     let updates: { role: UserRole, stationId?: string | null, unitId?: string | null } = { role: newRole };
 
-    // Si el rol cambia a admin, desvinculamos estación y unidad
     if (newRole === 'admin' || newRole === 'operator') {
         updates.stationId = null;
         updates.unitId = null;
@@ -282,6 +276,3 @@ export default function UsersPage() {
     </div>
   );
 }
-
-    
-    
