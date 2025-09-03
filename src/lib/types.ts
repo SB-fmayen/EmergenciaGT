@@ -57,7 +57,6 @@ export type UnitData = {
     nombre: string;
     tipo: "Ambulancia" | "etc...";
     disponible: boolean;
-    uid: string | null;
 }
 
 export type UserRole = 'admin' | 'operator' | 'unit';

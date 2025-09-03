@@ -16,7 +16,7 @@ import type { StationData, UserRole, UnitData } from "@/lib/types";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 
-function StationUnitSelector({ user, stations, disabled }: { user: UserRecordWithRole, stations: StationData[], disabled: boolean }) {
+function StationUnitSelector({ user, stations, disabled }: { user: UserRecordWith-Role, stations: StationData[], disabled: boolean }) {
     const [units, setUnits] = useState<UnitData[]>([]);
     const [loadingUnits, setLoadingUnits] = useState(false);
     const { toast } = useToast();
@@ -49,29 +49,25 @@ function StationUnitSelector({ user, stations, disabled }: { user: UserRecordWit
         }
     }, [selectedStationId, toast]);
 
-    const handleStationChange = (newStationIdValue: string) => {
+    const handleStationSelection = (newStationIdValue: string) => {
         const newId = newStationIdValue === 'none' ? '' : newStationIdValue;
         setSelectedStationId(newId);
-        // Reset unit selection when station changes
-        if (user.stationId !== newId) {
-             setSelectedUnitId('none');
-             // Server call to clear assignments
-             updateUser(user.uid, auth.currentUser?.getIdToken(), { stationId: newId || null, unitId: null });
-        }
+        setSelectedUnitId('none');
     };
 
     const handleUnitChange = async (newUnitIdValue: string) => {
-        const newId = newUnitIdValue === 'none' ? null : newUnitIdValue;
-        if (!selectedStationId && newId) {
+        const newUnitId = newUnitIdValue === 'none' ? null : newUnitIdValue;
+        
+        if (!selectedStationId && newUnitId) {
             toast({ title: "Error", description: "Selecciona una estación primero.", variant: "destructive" });
             return;
         }
-        
+
         setSelectedUnitId(newUnitIdValue);
         
         const result = await updateUser(user.uid, await auth.currentUser?.getIdToken(), { 
             stationId: selectedStationId, 
-            unitId: newId 
+            unitId: newUnitId 
         });
 
         if (!result.success) {
@@ -87,7 +83,7 @@ function StationUnitSelector({ user, stations, disabled }: { user: UserRecordWit
         <div className="flex gap-2">
             <Select 
                 value={selectedStationId || 'none'}
-                onValueChange={handleStationChange}
+                onValueChange={handleStationSelection}
                 disabled={disabled}
             >
                 <SelectTrigger className="w-[180px]">
@@ -117,8 +113,8 @@ function StationUnitSelector({ user, stations, disabled }: { user: UserRecordWit
                             <span className="text-muted-foreground">Ninguna</span>
                         </SelectItem>
                         {units.map(unit => (
-                             <SelectItem key={unit.id} value={unit.id} disabled={!!unit.uid && unit.uid !== user.uid}>
-                                {unit.nombre} {!!unit.uid && unit.uid !== user.uid ? '(Asignada)' : ''}
+                             <SelectItem key={unit.id} value={unit.id}>
+                                {unit.nombre}
                             </SelectItem>
                         ))}
                     </SelectContent>
@@ -229,7 +225,7 @@ export default function UsersPage() {
             <CardDescription>
                 Asigna roles y estaciones a los usuarios. Los operadores y unidades solo verán las alertas de su estación.
             </CardDescription>
-          </CardHeader>
+          </Header>
           <CardContent>
             {loading && users.length === 0 ? (
               <div className="flex justify-center items-center h-40">

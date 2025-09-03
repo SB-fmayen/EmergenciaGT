@@ -81,7 +81,6 @@ export function UnitList({ stationId }: UnitListProps) {
                         <TableRow>
                         <TableHead>Nombre</TableHead>
                         <TableHead>Tipo</TableHead>
-                        <TableHead>Asignada a</TableHead>
                         <TableHead className="text-right">Acciones</TableHead>
                         </TableRow>
                     </TableHeader>
@@ -90,17 +89,6 @@ export function UnitList({ stationId }: UnitListProps) {
                         <TableRow key={unit.id}>
                             <TableCell className="font-medium">{unit.nombre}</TableCell>
                             <TableCell>{unit.tipo}</TableCell>
-                            <TableCell>
-                                {unit.uid ? (
-                                    <Badge variant="secondary" className="flex items-center gap-1 w-fit">
-                                        <UserCheck className="h-3 w-3 text-green-500" /> Usuario Asignado
-                                    </Badge>
-                                ) : (
-                                     <Badge variant="outline" className="flex items-center gap-1 w-fit">
-                                        <UserX className="h-3 w-3 text-muted-foreground" /> Sin asignar
-                                    </Badge>
-                                )}
-                            </TableCell>
                             <TableCell className="text-right space-x-1">
                                 <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setUnitToEdit(unit)}>
                                     <Edit className="h-4 w-4 text-yellow-500" />
@@ -112,7 +100,7 @@ export function UnitList({ stationId }: UnitListProps) {
                         </TableRow>
                         )) : (
                         <TableRow>
-                            <TableCell colSpan={4} className="text-center h-24">
+                            <TableCell colSpan={3} className="text-center h-24">
                             No hay unidades registradas para esta estación.
                             </TableCell>
                         </TableRow>

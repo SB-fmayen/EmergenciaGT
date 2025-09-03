@@ -110,7 +110,6 @@ export async function createUnit(stationId: string, formData: FormData) {
             nombre,
             tipo: tipo as UnitData['tipo'],
             disponible: true,
-            uid: null,
         };
         await firestore.collection("stations").doc(stationId).collection("unidades").add(newUnit);
         revalidatePath("/dashboard/stations");
