@@ -68,6 +68,7 @@ export default function AdminLoginPage() {
         lastLogin: serverTimestamp(),
       }, { merge: true });
 
+      // Forzar la recarga del token para obtener los claims más recientes. CRUCIAL.
       const idTokenResult = await userCredential.user.getIdTokenResult(true);
       const claims = idTokenResult.claims;
 
@@ -80,22 +81,19 @@ export default function AdminLoginPage() {
 
       toast({
         title: "Inicio de Sesión Exitoso",
-        description: `Bienvenido. Redirigiendo a tu panel...`,
+        description: `Bienvenido. Redirigiendo...`,
       });
       
-      if (role === 'unit') {
-        router.push("/mission");
-      } else {
-        router.push("/dashboard/admin");
-      }
-      // Force a refresh to ensure layout gets the latest user state.
-      router.refresh();
+      const destination = role === 'unit' ? '/mission' : '/dashboard/admin';
+      
+      // Usar router.replace para evitar que el usuario pueda volver a la página de login.
+      router.replace(destination);
 
     } catch (error: any) {
       handleFirebaseAuthError(error);
-    } finally {
-        setLoading(false);
-    }
+      setLoading(false); // Asegurarse de parar el loading en caso de error.
+    } 
+    // No poner setLoading(false) aquí, porque la redirección se encargará de cambiar la página.
   };
   
   const handleRegister = async (e: React.FormEvent) => {

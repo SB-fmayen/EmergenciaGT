@@ -102,32 +102,32 @@ function ProtectedLayout({ children }: { children: ReactNode }) {
     const isAuthPage = pathname.startsWith('/login');
     const isMissionPage = pathname.startsWith('/mission');
 
+    // If user is not logged in and not on the login page, redirect to login
     if (!user && !isAuthPage) {
-      router.push('/login');
+      router.replace('/login');
       return;
     }
     
     if (user) {
+        // If user is logged in, but on the login page, redirect them away.
+        // This is handled by the login page itself now, but this is a good fallback.
         if (isAuthPage) {
-            // Logged-in user on login page, redirect them
-            if (userRole === 'unit') {
-                router.push('/mission');
-            } else {
-                router.push('/dashboard/admin');
-            }
+            const destination = userRole === 'unit' ? '/mission' : '/dashboard/admin';
+            router.replace(destination);
             return;
         }
 
-        // Role-based routing for users who are already logged in
+        // Role-based routing for users who are already logged in and navigating
         if (userRole === 'unit' && !isMissionPage) {
-            router.push('/mission');
+            router.replace('/mission');
         } else if ((userRole === 'admin' || userRole === 'operator') && isMissionPage) {
-            router.push('/dashboard/admin');
+            router.replace('/dashboard/admin');
         } else if (userRole === 'operator') {
+            // Prevent operators from accessing admin-only pages
             const adminOnlyPages = ['/dashboard/stations', '/dashboard/users', '/dashboard/analytics'];
             if (adminOnlyPages.some(page => pathname.startsWith(page))) {
                 toast({ title: "Acceso Denegado", description: "No tienes permisos para acceder a esta página.", variant: "destructive" });
-                router.push('/dashboard/admin');
+                router.replace('/dashboard/admin');
             }
         }
     }
