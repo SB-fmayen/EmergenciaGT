@@ -83,34 +83,48 @@ export const useAuth = () => {
   return context;
 };
 
+// Este es el layout para las rutas bajo (mobile)
+// Protegerá las rutas que no son de autenticación como /mission y /alerts
 function ProtectedMobileLayout({ children }: { children: ReactNode }) {
   const router = useRouter();
+  const pathname = usePathname();
   const { user, userRole, loading } = useAuth();
+  
+  // Lista de rutas públicas dentro del grupo (mobile)
+  const publicRoutes = ['/auth', '/welcome', '/'];
 
   useEffect(() => {
     if (loading) return; 
 
-    if (!user) {
-      router.replace('/login');
-      return;
+    const isPublicPage = publicRoutes.includes(pathname);
+
+    if (user) {
+      // Si el usuario está logueado...
+      if (userRole === 'admin' || userRole === 'operator') {
+          // Si un admin/operador intenta acceder a una ruta móvil, redirigirlo a su panel
+          router.replace('/dashboard/admin');
+      }
+      // Si es rol 'unit' o 'citizen', se queda.
+      // La página de autenticación se encarga de redirigir si ya está logueado
+    } else {
+      // Si el usuario no está logueado y la página no es pública, redirigir a /auth
+      if (!isPublicPage) {
+        router.replace('/auth');
+      }
     }
-    
-    if (userRole && userRole !== 'unit') {
-        router.replace('/dashboard/admin');
-    }
-  }, [user, userRole, loading, router]);
+  }, [user, userRole, loading, router, pathname]);
 
   if (loading) {
     return (
       <div className="bg-slate-900 min-h-screen flex flex-col justify-center items-center text-white">
         <Loader2 className="w-12 h-12 animate-spin" />
-        <p className="mt-4 text-lg">Verificando sesión de unidad...</p>
+        <p className="mt-4 text-lg">Verificando sesión...</p>
       </div>
     );
   }
 
   // Prevents flicker for unauthorized roles or non-users
-  if (!user || userRole !== 'unit') {
+  if (!user && !publicRoutes.includes(pathname)) {
      return (
        <div className="bg-slate-900 min-h-screen flex justify-center items-center">
             <Loader2 className="w-12 h-12 text-white animate-spin" />
@@ -122,10 +136,12 @@ function ProtectedMobileLayout({ children }: { children: ReactNode }) {
 }
 
 
-export default function MobileUnitLayout({ children }: { children: ReactNode }) {
+export default function MobilePagesLayout({ children }: { children: ReactNode }) {
     return (
         <AuthProvider>
             <ProtectedMobileLayout>{children}</ProtectedMobileLayout>
         </AuthProvider>
     )
 }
+
+    

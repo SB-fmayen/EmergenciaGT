@@ -5,7 +5,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { MobileAppContainer } from "@/components/MobileAppContainer";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Loader2, Clock, MapPin, CheckCircle, AlertTriangle, Send, ShieldX, UserCheck, Truck, Siren, Hospital, HardHat } from "lucide-react";
+import { ArrowLeft, Loader2, Clock, MapPin, CheckCircle, AlertTriangle, Send, ShieldX, UserCheck, Truck, Siren, Hospital, HardHat, FileClock } from "lucide-react";
 import { getAuth, onAuthStateChanged, type User as FirebaseUser } from "firebase/auth";
 import { getFirestore, collection, query, where, getDocs, orderBy, Timestamp, doc, updateDoc } from "firebase/firestore";
 import { firebaseApp } from "@/lib/firebase";
@@ -14,17 +14,19 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { CancelAlertModal } from "@/components/dashboard/CancelAlertModal";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/app/(mobile)/layout";
 
 /**
- * Página que muestra el historial de alertas de un usuario.
+ * Página que muestra el historial de alertas.
+ * Para usuarios normales, muestra las alertas que han creado.
+ * Para usuarios con rol 'unit', muestra las alertas que han atendido.
  */
 export default function AlertsPage() {
   const router = useRouter();
-  const auth = getAuth(firebaseApp);
+  const { user, userRole, unitId, loading: authLoading } = useAuth();
   const firestore = getFirestore(firebaseApp);
   const { toast } = useToast();
 
-  const [currentUser, setCurrentUser] = useState<FirebaseUser | null>(null);
   const [alerts, setAlerts] = useState<AlertData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -33,37 +35,40 @@ export default function AlertsPage() {
   const [alertToCancel, setAlertToCancel] = useState<AlertData | null>(null);
   const [isCancelling, setIsCancelling] = useState(false);
 
-
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      if (user) {
-        setCurrentUser(user);
-        fetchAlerts(user.uid);
-      } else {
-        router.push("/auth");
-      }
-    });
-
-    return () => unsubscribe();
+    if (authLoading) {
+      return;
+    }
+    if (user) {
+      fetchAlerts(user.uid, userRole, unitId);
+    } else {
+      router.push("/auth");
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [auth]);
+  }, [user, userRole, unitId, authLoading]);
 
   /**
-   * Obtiene las alertas del usuario desde Firestore.
-   * @param uid - El ID del usuario.
+   * Obtiene las alertas desde Firestore basado en el rol del usuario.
    */
-  const fetchAlerts = async (uid: string) => {
+  const fetchAlerts = async (uid: string, role: string | null, assignedUnitId?: string) => {
     setLoading(true);
     setError(null);
     try {
       const alertsRef = collection(firestore, "alerts");
-      const q = query(alertsRef, where("userId", "==", uid), orderBy("timestamp", "desc"));
+      let q;
+
+      if (role === 'unit' && assignedUnitId) {
+        // Para unidades, buscar por assignedUnitId
+        q = query(alertsRef, where("assignedUnitId", "==", assignedUnitId), orderBy("timestamp", "desc"));
+      } else {
+        // Para usuarios normales, buscar por userId
+        q = query(alertsRef, where("userId", "==", uid), orderBy("timestamp", "desc"));
+      }
+      
       const querySnapshot = await getDocs(q);
       const userAlerts = querySnapshot.docs.map(doc => {
         const data = doc.data();
         const timestamp = data.timestamp;
-        
-        // El timestamp de firestore es un objeto, lo convertimos a Date de JS de forma segura
         const date = timestamp instanceof Timestamp ? timestamp.toDate() : new Date();
 
         return {
@@ -76,7 +81,6 @@ export default function AlertsPage() {
       setAlerts(userAlerts);
     } catch (e: any) {
       console.error("Error fetching alerts:", e);
-      // El error de índice de Firestore se mostrará aquí si no se ha creado
       if (e.code === 'failed-precondition') {
           setError("La base de datos requiere un índice para esta consulta. Por favor, créalo en la consola de Firebase.");
       } else {
@@ -111,7 +115,6 @@ export default function AlertsPage() {
         title: "Alerta Cancelada",
         description: "La alerta ha sido cancelada correctamente."
       });
-      // Actualizar el estado local para reflejar el cambio inmediatamente
       setAlerts(prevAlerts => 
         prevAlerts.map(alert => 
             alert.id === alertToCancel.id ? { ...alert, status: 'cancelled' } : alert
@@ -175,7 +178,7 @@ export default function AlertsPage() {
                 </a>
             </div>
         </div>
-        {(alert.status === 'new' || alert.status === 'assigned') && (
+        {userRole !== 'unit' && (alert.status === 'new' || alert.status === 'assigned') && (
              <Button 
                 variant="destructive" 
                 size="sm" 
@@ -190,6 +193,13 @@ export default function AlertsPage() {
     );
   };
 
+  const getHeaderText = () => {
+      if (userRole === 'unit') {
+          return { title: "Historial de Misiones", subtitle: "Tus servicios atendidos" };
+      }
+      return { title: "Historial de Alertas", subtitle: "Tus emergencias registradas" };
+  }
+
   return (
     <MobileAppContainer className="bg-slate-900">
       <div className="flex flex-col h-full">
@@ -203,16 +213,16 @@ export default function AlertsPage() {
             <ArrowLeft className="w-6 h-6" />
           </Button>
           <div>
-            <h1 className="text-xl font-bold">Historial de Alertas</h1>
-            <p className="text-yellow-100 text-sm">Tus emergencias registradas</p>
+            <h1 className="text-xl font-bold">{getHeaderText().title}</h1>
+            <p className="text-yellow-100 text-sm">{getHeaderText().subtitle}</p>
           </div>
         </header>
 
         <div className="flex-1 overflow-y-auto px-6 py-6 space-y-4">
-          {loading ? (
+          {loading || authLoading ? (
             <div className="text-center py-10">
               <Loader2 className="w-8 h-8 mx-auto text-white animate-spin" />
-              <p className="text-white mt-4">Cargando alertas...</p>
+              <p className="text-white mt-4">Cargando historial...</p>
             </div>
           ) : error ? (
              <div className="text-center py-10 text-red-400 bg-red-900/50 rounded-lg">
@@ -223,17 +233,22 @@ export default function AlertsPage() {
             alerts.map(alert => <AlertCard key={alert.id} alert={alert} />)
           ) : (
             <div className="text-center py-10 text-slate-400">
-              <p>No has generado ninguna alerta todavía.</p>
+                <FileClock className="w-12 h-12 mx-auto text-slate-500 mb-4" />
+                <p>No tienes alertas en tu historial.</p>
             </div>
           )}
         </div>
       </div>
-       <CancelAlertModal
-        isOpen={isCancelModalOpen}
-        onClose={handleCloseCancelModal}
-        onConfirm={handleConfirmCancellation}
-        isCancelling={isCancelling}
-      />
+      {userRole !== 'unit' && (
+        <CancelAlertModal
+          isOpen={isCancelModalOpen}
+          onClose={handleCloseCancelModal}
+          onConfirm={handleConfirmCancellation}
+          isCancelling={isCancelling}
+        />
+      )}
     </MobileAppContainer>
   );
 }
+
+    
