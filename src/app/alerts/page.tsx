@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { MobileAppContainer } from "@/components/MobileAppContainer";
 import { Button } from "@/components/ui/button";
@@ -22,7 +22,7 @@ import { useAuth } from "@/app/(mobile)/layout";
  */
 export default function AlertsPage() {
   const router = useRouter();
-  const { user, userRole, unitId, loading: authLoading } = useAuth();
+  const { user, userRole, unitId } = useAuth();
   const firestore = getFirestore(firebaseApp);
   const { toast } = useToast();
 
@@ -34,22 +34,10 @@ export default function AlertsPage() {
   const [alertToCancel, setAlertToCancel] = useState<AlertData | null>(null);
   const [isCancelling, setIsCancelling] = useState(false);
 
-  useEffect(() => {
-    if (authLoading) {
-      return;
-    }
-    if (user) {
-      fetchAlerts(user.uid, userRole, unitId);
-    } else {
-      router.push("/auth");
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, userRole, unitId, authLoading]);
-
   /**
    * Obtiene las alertas desde Firestore basado en el rol del usuario.
    */
-  const fetchAlerts = async (uid: string, role: string | null, assignedUnitId?: string) => {
+  const fetchAlerts = useCallback(async (uid: string, role: string | null, assignedUnitId?: string) => {
     setLoading(true);
     setError(null);
     try {
@@ -57,7 +45,7 @@ export default function AlertsPage() {
       let q;
 
       if (role === 'unit' && assignedUnitId) {
-        // Para unidades, buscar por assignedUnitId
+        // Para unidades, buscar por assignedUnitId, sin importar el estado.
         q = query(alertsRef, where("assignedUnitId", "==", assignedUnitId), orderBy("timestamp", "desc"));
       } else {
         // Para usuarios normales, buscar por userId
@@ -67,9 +55,8 @@ export default function AlertsPage() {
       const querySnapshot = await getDocs(q);
       const userAlerts = querySnapshot.docs.map(doc => {
         const data = doc.data();
-        const timestamp = data.timestamp;
         // Firestore Timestamps need to be converted to JS Dates
-        const date = timestamp instanceof Timestamp ? timestamp.toDate() : new Date();
+        const date = data.timestamp instanceof Timestamp ? data.timestamp.toDate() : new Date();
 
         return {
           id: doc.id,
@@ -82,14 +69,27 @@ export default function AlertsPage() {
     } catch (e: any) {
       console.error("Error fetching alerts:", e);
       if (e.code === 'failed-precondition') {
-          setError("La base de datos requiere un índice para esta consulta. Por favor, créalo en la consola de Firebase. La consola te dará un enlace para crearlo automáticamente si intentas esta acción allí.");
+          setError("La base de datos requiere un índice para esta consulta. Por favor, créalo en la consola de Firebase. El error en la consola te dará un enlace para crearlo automáticamente.");
       } else {
           setError("No se pudieron cargar las alertas.");
       }
     } finally {
       setLoading(false);
     }
-  };
+  }, [firestore]);
+
+
+  useEffect(() => {
+    // We wait for the user object to be available to decide what to fetch.
+    if (user) {
+      fetchAlerts(user.uid, userRole, unitId);
+    } else if (user === null) {
+      // If user is explicitly null (auth state loaded, no user), redirect.
+      router.push("/auth");
+    }
+    // The dependency array ensures this runs when user, userRole, or unitId changes.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, userRole, unitId]);
 
   const handleOpenCancelModal = (alert: AlertData) => {
     setAlertToCancel(alert);
@@ -219,7 +219,7 @@ export default function AlertsPage() {
         </header>
 
         <div className="flex-1 overflow-y-auto px-6 py-6 space-y-4">
-          {loading || authLoading ? (
+          {loading ? (
             <div className="text-center py-10">
               <Loader2 className="w-8 h-8 mx-auto text-white animate-spin" />
               <p className="text-white mt-4">Cargando historial...</p>
