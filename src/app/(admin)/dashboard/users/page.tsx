@@ -21,6 +21,14 @@ function StationUnitSelector({ user, stations, disabled }: { user: UserRecordWit
     const [loadingUnits, setLoadingUnits] = useState(false);
     const { toast } = useToast();
     const [selectedStationId, setSelectedStationId] = useState(user.stationId || '');
+    const [selectedUnitId, setSelectedUnitId] = useState(user.unitId || 'none');
+
+    // Effect to update internal state if user prop changes (e.g. after a fetchUsers)
+    useEffect(() => {
+        setSelectedStationId(user.stationId || '');
+        setSelectedUnitId(user.unitId || 'none');
+    }, [user.stationId, user.unitId]);
+
 
     useEffect(() => {
         if (selectedStationId) {
@@ -41,19 +49,36 @@ function StationUnitSelector({ user, stations, disabled }: { user: UserRecordWit
         }
     }, [selectedStationId, toast]);
 
-    const handleUnitChange = async (newUnitId: string | null) => {
-        if (!selectedStationId) {
+    const handleStationChange = (newStationIdValue: string) => {
+        const newId = newStationIdValue === 'none' ? '' : newStationIdValue;
+        setSelectedStationId(newId);
+        // Reset unit selection when station changes
+        if (user.stationId !== newId) {
+             setSelectedUnitId('none');
+             // Server call to clear assignments
+             updateUser(user.uid, auth.currentUser?.getIdToken(), { stationId: newId || null, unitId: null });
+        }
+    };
+
+    const handleUnitChange = async (newUnitIdValue: string) => {
+        const newId = newUnitIdValue === 'none' ? null : newUnitIdValue;
+        if (!selectedStationId && newId) {
             toast({ title: "Error", description: "Selecciona una estación primero.", variant: "destructive" });
             return;
         }
-        await updateUser(user.uid, await auth.currentUser?.getIdToken(), { unitId: newUnitId, stationId: selectedStationId });
-    }
+        
+        setSelectedUnitId(newUnitIdValue);
+        
+        const result = await updateUser(user.uid, await auth.currentUser?.getIdToken(), { 
+            stationId: selectedStationId, 
+            unitId: newId 
+        });
 
-    const handleStationSelection = async (newStationId: string | null) => {
-        const newId = newStationId === 'none' ? null : newStationId;
-        setSelectedStationId(newId || '');
-        if (user.stationId !== newId) {
-            await updateUser(user.uid, await auth.currentUser?.getIdToken(), { stationId: newId, unitId: null });
+        if (!result.success) {
+            toast({ title: "Error", description: result.error, variant: "destructive" });
+            setSelectedUnitId(user.unitId || 'none'); // Revert on failure
+        } else {
+            toast({title: "Asignación actualizada", description: "La unidad ha sido asignada correctamente."})
         }
     }
 
@@ -61,8 +86,8 @@ function StationUnitSelector({ user, stations, disabled }: { user: UserRecordWit
     return (
         <div className="flex gap-2">
             <Select 
-                value={selectedStationId} 
-                onValueChange={handleStationSelection}
+                value={selectedStationId || 'none'}
+                onValueChange={handleStationChange}
                 disabled={disabled}
             >
                 <SelectTrigger className="w-[180px]">
@@ -80,8 +105,8 @@ function StationUnitSelector({ user, stations, disabled }: { user: UserRecordWit
 
             {user.role === 'unit' && (
                 <Select
-                    value={user.unitId || 'none'}
-                    onValueChange={(value) => handleUnitChange(value === 'none' ? null : value)}
+                    value={selectedUnitId}
+                    onValueChange={handleUnitChange}
                     disabled={disabled || !selectedStationId || loadingUnits}
                 >
                     <SelectTrigger className="w-[180px]">
@@ -152,6 +177,7 @@ export default function UsersPage() {
     const idToken = await auth.currentUser?.getIdToken();
     let updates: { role: UserRole, stationId?: string | null, unitId?: string | null } = { role: newRole };
 
+    // When demoting from unit, or changing to admin, assignments must be cleared.
     if (newRole === 'admin' || newRole === 'operator') {
         updates.stationId = null;
         updates.unitId = null;
@@ -164,7 +190,7 @@ export default function UsersPage() {
       if (auth.currentUser?.uid === uid) {
           toast({ title: "Acción Requerida", description: "Cierra y vuelve a iniciar sesión para que tus nuevos permisos tomen efecto.", duration: 5000})
       }
-      fetchUsers();
+      fetchUsers(); // Refreshes the user list with the new state
     } else {
       toast({ title: "Error", description: result.error, variant: "destructive" });
     }
