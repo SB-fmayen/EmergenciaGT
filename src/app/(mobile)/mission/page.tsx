@@ -4,9 +4,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/app/(mobile)/layout';
 import { firestore } from '@/lib/firebase';
-import { collection, query, where, onSnapshot, doc, getDoc, updateDoc, Timestamp } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, doc, getDoc, updateDoc, Timestamp, getDocs } from 'firebase/firestore';
 import type { AlertData, MedicalData } from '@/lib/types';
-import { Loader2, LogOut, Check, Hospital, Siren, Stethoscope, Truck, UserCheck, Wind, MapPin, User, FileText, HeartPulse } from 'lucide-react';
+import { Loader2, LogOut, Check, Hospital, Siren, Stethoscope, Truck, UserCheck, Wind, MapPin, User, FileText, HeartPulse, History, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { signOut } from 'firebase/auth';
@@ -23,22 +23,6 @@ const MissionMap = dynamic(() => import('@/components/admin/AlertsMap'), {
 
 interface EnrichedMissionAlert extends AlertData {
     userInfo?: MedicalData;
-}
-
-function StatusButton({ newStatus, currentStatus, onClick, children, icon, className = '' }: { newStatus: AlertData['status'], currentStatus: AlertData['status'], onClick: (status: AlertData['status']) => void, children: React.ReactNode, icon: React.ReactNode, className?: string, disabled?: boolean}) {
-    const isCurrent = newStatus === currentStatus;
-    const isDisabled = (children as any).props.disabled;
-
-    return (
-        <Button 
-            className={`h-auto py-3 text-base flex-1 ${className}`}
-            onClick={() => onClick(newStatus)}
-            disabled={isDisabled || isCurrent}
-        >
-            {isCurrent ? <Check className="mr-2 h-5 w-5"/> : icon}
-            {children}
-        </Button>
-    );
 }
 
 export default function MissionPage() {
@@ -62,6 +46,38 @@ export default function MissionPage() {
         setMission({ ...alertData, userInfo });
     }, []);
 
+    const fetchMission = useCallback(async () => {
+        if (!user || !unitId) {
+            setLoading(false);
+            return;
+        }
+        setLoading(true);
+
+        const alertsRef = collection(firestore, "alerts");
+        const missionQuery = query(
+            alertsRef,
+            where("assignedUnitId", "==", unitId),
+            where("status", "in", ["assigned", "en_route", "on_scene", "attending", "transporting"])
+        );
+        
+        try {
+            const snapshot = await getDocs(missionQuery);
+            if (snapshot.docs.length > 0) {
+                const activeMissionDoc = snapshot.docs[0];
+                const missionData = { id: activeMissionDoc.id, ...activeMissionDoc.data() } as AlertData;
+                await fetchMissionDetails(missionData);
+            } else {
+                setMission(null);
+            }
+        } catch (error) {
+            console.error("Error fetching mission on refresh:", error);
+            toast({ title: "Error de Conexión", description: "No se pudo sincronizar con la central.", variant: "destructive" });
+        } finally {
+            setLoading(false);
+        }
+    }, [user, unitId, fetchMissionDetails, toast]);
+
+
     useEffect(() => {
         if (!user || !unitId) {
             setLoading(false);
@@ -72,7 +88,6 @@ export default function MissionPage() {
         const missionQuery = query(
             alertsRef,
             where("assignedUnitId", "==", unitId),
-            // La misión se considera activa en estos estados. Al cambiar a "patient_attended", "resolved" o "cancelled", desaparecerá.
             where("status", "in", ["assigned", "en_route", "on_scene", "attending", "transporting"])
         );
 
@@ -117,8 +132,12 @@ export default function MissionPage() {
             setUpdatingStatus(false);
         }
     };
+    
+    const handleRefresh = () => {
+        fetchMission();
+    }
 
-    if (loading) {
+    if (loading && !mission) {
         return (
             <MobileAppContainer className="bg-slate-900 justify-center items-center">
                 <Loader2 className="w-12 h-12 text-white animate-spin" />
@@ -134,9 +153,17 @@ export default function MissionPage() {
                     <h1 className="text-lg font-bold">Panel de Misión</h1>
                     <p className="text-sm text-slate-400">{mission ? `Unidad: ${mission.assignedUnitName}` : 'Sin misión activa'}</p>
                 </div>
-                <Button onClick={handleLogout} variant="ghost" size="icon" className="text-red-400 hover:bg-red-500/10 hover:text-red-400">
-                    <LogOut className="h-5 w-5"/>
-                </Button>
+                <div className="flex items-center gap-1">
+                    <Button onClick={handleRefresh} variant="ghost" size="icon" className="text-slate-300 hover:bg-slate-700/50 hover:text-white" disabled={loading}>
+                        <RefreshCw className={`h-5 w-5 ${loading ? 'animate-spin' : ''}`} />
+                    </Button>
+                    <Button onClick={() => router.push('/alerts')} variant="ghost" size="icon" className="text-slate-300 hover:bg-slate-700/50 hover:text-white">
+                        <History className="h-5 w-5"/>
+                    </Button>
+                    <Button onClick={handleLogout} variant="ghost" size="icon" className="text-red-400 hover:bg-red-500/10 hover:text-red-400">
+                        <LogOut className="h-5 w-5"/>
+                    </Button>
+                </div>
             </header>
 
             {mission ? (
