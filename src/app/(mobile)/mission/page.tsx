@@ -109,7 +109,8 @@ export default function MissionPage() {
         );
     }
     
-    const StatusButton = ({ newStatus, currentStatus, children, icon, className = '' }: { newStatus: AlertData['status'], currentStatus: AlertData['status'], children: React.ReactNode, icon: React.ReactNode, className?: string}) => (
+    function StatusButton({ newStatus, currentStatus, children, icon, className = '' }: { newStatus: AlertData['status'], currentStatus: AlertData['status'], children: React.ReactNode, icon: React.ReactNode, className?: string}) {
+      return (
         <Button 
             className={`h-auto py-3 text-base flex-1 ${className}`}
             onClick={() => handleUpdateStatus(newStatus)}
@@ -118,7 +119,8 @@ export default function MissionPage() {
             {newStatus === currentStatus ? <Check className="mr-2 h-5 w-5"/> : icon}
             {children}
         </Button>
-    )
+      );
+    }
 
     return (
         <div className="bg-slate-900 text-white min-h-screen">
@@ -179,7 +181,7 @@ export default function MissionPage() {
                                     </div>
                                     <hr className="border-slate-700 my-3"/>
                                      <div className="flex gap-2">
-                                        <StatusButton newStatus="patient_attended" currentStatus={mission.status} icon={<UserCheck className="mr-2"/>} className="bg-teal-600 hover:bg-teal-700">Atendido en Lugar</Button>
+                                        <StatusButton newStatus="patient_attended" currentStatus={mission.status} icon={<UserCheck className="mr-2"/>} className="bg-teal-600 hover:bg-teal-700">Atendido en Lugar</StatusButton>
                                         <StatusButton newStatus="resolved" currentStatus={mission.status} icon={<Check className="mr-2"/>} className="bg-green-600 hover:bg-green-700">Finalizada en Hospital</StatusButton>
                                     </div>
                                 </CardContent>
