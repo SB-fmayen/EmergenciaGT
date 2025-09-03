@@ -151,9 +151,15 @@ export default function AuthPage() {
   
   // Redirige si el usuario ya está logueado
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
         if (user) {
-            router.push('/dashboard');
+            const idTokenResult = await user.getIdTokenResult(true);
+            const claims = idTokenResult.claims;
+            if (claims.unit === true) {
+                router.replace('/mission');
+            } else {
+                router.replace('/dashboard');
+            }
         } else {
             setSessionChecked(true);
         }
@@ -167,9 +173,8 @@ export default function AuthPage() {
     setLoading(true);
     try {
         await action();
-        if(successPath) {
-          router.push(successPath);
-        }
+        // The redirection is now handled by the onAuthStateChanged effect
+        // or specifically in handleLogin for role-based redirects.
     } catch (error: any) {
         handleFirebaseAuthError(error);
     } finally {
@@ -193,23 +198,27 @@ export default function AuthPage() {
    */
   const handleLogin = (email: string, password: string, keepLoggedIn: boolean) => {
     handleAuthAction(async () => {
-      // **Lógica de Persistencia de Sesión**
-      // Antes de iniciar sesión, se establece el tipo de persistencia
-      // basado en la selección del usuario en el checkbox.
       const persistenceType = keepLoggedIn
-        ? browserLocalPersistence // Mantiene la sesión incluso al cerrar el navegador.
-        : browserSessionPersistence; // La sesión termina cuando el navegador se cierra.
+        ? browserLocalPersistence
+        : browserSessionPersistence;
       
       await setPersistence(auth, persistenceType);
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
 
-      // Proceder con el inicio de sesión
-      await signInWithEmailAndPassword(auth, email, password);
+      // Check for 'unit' role and redirect accordingly
+      const idTokenResult = await userCredential.user.getIdTokenResult(true);
+      const claims = idTokenResult.claims;
+
+      if (claims.unit === true) {
+          router.replace('/mission');
+      } else {
+          router.replace('/dashboard');
+      }
     });
   };
 
   const handlePasswordReset = (email: string) => {
     handleAuthAction(async () => {
-        // Verificar si el correo existe primero
         const signInMethods = await fetchSignInMethodsForEmail(auth, email);
         if (signInMethods.length === 0) {
             toast({ title: "Error", description: "El correo proporcionado no se encuentra registrado.", variant: "destructive" });

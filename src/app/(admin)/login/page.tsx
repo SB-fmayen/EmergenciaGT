@@ -73,17 +73,9 @@ export default function AdminLoginPage() {
         description: `Bienvenido. Redirigiendo...`,
       });
       
-      // Force refresh of claims and redirect based on role
-      const idTokenResult = await userCredential.user.getIdTokenResult(true);
-      const claims = idTokenResult.claims;
-
-      if (claims.unit === true) {
-          // Forzar una recarga completa para asegurar que el layout correcto se cargue
-          window.location.href = '/mission';
-      } else {
-          // Para admin y operator, la redirección del router es suficiente
-          router.replace('/dashboard/admin');
-      }
+      // En este login de admin, solo redirigimos al dashboard de admin.
+      // El layout se encargará de validar el rol.
+      router.replace('/dashboard/admin');
 
     } catch (error: any) {
       handleFirebaseAuthError(error);
