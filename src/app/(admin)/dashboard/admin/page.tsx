@@ -12,7 +12,7 @@ import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import { LogOut, RefreshCw, Bell, Zap, CheckCircle, Clock, MapPin, Building, Loader2, HardHat, Users, LayoutDashboard, Truck, Siren, Check, Stethoscope, Hospital, UserCheck, AlertTriangle } from "lucide-react";
 import dynamic from 'next/dynamic';
-import { collection, onSnapshot, query, where, getDoc, doc, orderBy, type Query, Timestamp, getDocs } from "firebase/firestore";
+import { collection, onSnapshot, query, where, getDocs, doc, orderBy, type Query, Timestamp } from "firebase/firestore";
 import type { AlertData, MedicalData, StationData, UnitData, UserRole } from "@/lib/types";
 import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -75,35 +75,43 @@ export default function AdminDashboardPage() {
     const unsubscribeFromAlerts = useRef<() => void>();
 
     /**
-     * Procesa los datos crudos de las alertas y los enriquece con información del usuario.
+     * Procesa los datos crudos de las alertas y los enriquece con información del usuario de forma eficiente.
      * @param {AlertData[]} alertsData - Array de alertas obtenidas de Firestore.
      */
     const processAlerts = useCallback(async (alertsData: AlertData[]) => {
       try {
-        const enrichedAlerts = await Promise.all(
-            alertsData.map(async (alert) => {
-                let userInfo: MedicalData | undefined = undefined;
-                // Si la alerta tiene un userId y no es anónima, busca los datos médicos.
-                if (alert.userId && !alert.isAnonymous) {
-                     const userDocRef = doc(firestore, "medicalInfo", alert.userId);
-                     const userDocSnap = await getDoc(userDocRef);
-                     if (userDocSnap.exists()) {
-                         userInfo = userDocSnap.data() as MedicalData;
-                     }
-                }
-                
-                // Placeholder para una futura lógica de severidad.
-                const severity = 'Crítica';
-                return {
-                    ...alert,
-                    userInfo,
-                    stationInfo: alert.assignedStationName ? { name: alert.assignedStationName } : undefined,
-                    statusClass: `status-${alert.status}`,
-                    severityClass: `severity-critical`,
-                    severity,
-                };
-            })
-        );
+        // 1. Recolectar todos los User IDs únicos de las alertas no anónimas.
+        const userIds = [...new Set(
+            alertsData
+                .filter(alert => alert.userId && !alert.isAnonymous)
+                .map(alert => alert.userId)
+        )];
+
+        let medicalInfoMap = new Map<string, MedicalData>();
+
+        // 2. Si hay User IDs, hacer UNA SOLA consulta a Firestore para obtener todos los datos médicos.
+        if (userIds.length > 0) {
+            const medicalInfoQuery = query(collection(firestore, "medicalInfo"), where("uid", "in", userIds));
+            const medicalInfoSnapshot = await getDocs(medicalInfoQuery);
+            medicalInfoSnapshot.forEach(doc => {
+                medicalInfoMap.set(doc.id, doc.data() as MedicalData);
+            });
+        }
+        
+        // 3. Enriquecer las alertas usando el mapa de datos médicos (mucho más rápido).
+        const enrichedAlerts = alertsData.map(alert => {
+            const userInfo = alert.userId ? medicalInfoMap.get(alert.userId) : undefined;
+            const severity = 'Crítica'; // Placeholder
+            return {
+                ...alert,
+                userInfo,
+                stationInfo: alert.assignedStationName ? { name: alert.assignedStationName } : undefined,
+                statusClass: `status-${alert.status}`,
+                severityClass: `severity-critical`,
+                severity,
+            };
+        });
+
         // Ordena las alertas por fecha, de la más reciente a la más antigua.
         enrichedAlerts.sort((a, b) => (b.timestamp as Timestamp).toMillis() - (a.timestamp as Timestamp).toMillis());
         setAlerts(enrichedAlerts);
@@ -121,7 +129,7 @@ export default function AdminDashboardPage() {
      * Establece la escucha en tiempo real (listener) a la colección de alertas en Firestore.
      * La consulta se adapta según el rol del usuario.
      */
-    const fetchAlerts = useCallback(async () => {
+    const fetchAlerts = useCallback(() => {
          // Si el rol aún no se ha determinado, no hace nada.
          if (!userRole) return;
          setLoading(true);
@@ -168,7 +176,7 @@ export default function AdminDashboardPage() {
                 }
             }
             
-            processAlerts(alertsData);
+            await processAlerts(alertsData);
         }, (error) => {
             console.error("Error en onSnapshot de Firestore:", error);
             if (error.code === 'permission-denied') {
@@ -179,8 +187,7 @@ export default function AdminDashboardPage() {
             setLoading(false);
         });
 
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [userRole, stationId, processAlerts]);
+    }, [userRole, stationId, processAlerts, toast]);
 
     /**
      * Efecto de inicialización del componente.
@@ -224,8 +231,7 @@ export default function AdminDashboardPage() {
                 unsubscribeFromAlerts.current();
              }
         }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [userRole, stationId]); 
+    }, [userRole, fetchAlerts, toast]); 
 
 
     /**
@@ -463,7 +469,7 @@ export default function AdminDashboardPage() {
                 <div className="p-6 border-b border-border">
                     <div className="flex items-center justify-between mb-4">
                         <h2 className="text-xl font-bold text-foreground">Alertas de Emergencia</h2>
-                        <Button variant="outline" onClick={() => fetchAlerts()} disabled={loading}>
+                        <Button variant="outline" onClick={fetchAlerts} disabled={loading}>
                             <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`}/>
                             Actualizar
                         </Button>
