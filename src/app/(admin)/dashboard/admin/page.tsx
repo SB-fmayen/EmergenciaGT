@@ -13,7 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { LogOut, RefreshCw, Bell, Zap, CheckCircle, Clock, MapPin, Building, Loader2, HardHat, Users, LayoutDashboard, Truck, Siren, Check, Stethoscope, Hospital, UserCheck, AlertTriangle } from "lucide-react";
 import dynamic from 'next/dynamic';
 import { collection, onSnapshot, query, where, getDocs, doc, orderBy, type Query, Timestamp } from "firebase/firestore";
-import type { AlertData, MedicalData, StationData, UnitData, UserRole } from "@/lib/types";
+import type { AlertData, MedicalData, StationData, UserRole } from "@/lib/types";
 import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { AlertDetailModal } from "@/components/admin/AlertDetailModal";
@@ -36,7 +36,7 @@ export interface EnrichedAlert extends AlertData {
 export default function AdminDashboardPage() {
     const router = useRouter();
     const { toast } = useToast();
-    const { user, userRole, stationId } = useAuth();
+    const { user, userRole } = useAuth();
     
     const [theme, setTheme] = useState("dark");
     const [alerts, setAlerts] = useState<EnrichedAlert[]>([]);
@@ -51,27 +51,28 @@ export default function AdminDashboardPage() {
     
     /**
      * Fetches alerts from the server action, which securely enriches them with medical data.
+     * This function is designed to be called manually (e.g., by a refresh button) or on initial load.
      */
     const fetchAlerts = useCallback(async () => {
-         if (!user) return;
          setLoading(true);
-
          try {
-            const idToken = await user.getIdToken(true); // Force refresh token
-            const result = await getEnrichedAlerts(idToken);
+            // Llama a la Server Action para obtener los datos ya procesados y serializados.
+            const result = await getEnrichedAlerts();
             
             if (result.success && result.alerts) {
-                // Convert the serialized timestamp back to a Date object for client-side use
+                // Convierte el objeto de timestamp serializado de vuelta a un objeto Timestamp de Firestore
+                // o a una Fecha de JS para poder usarlo en el cliente (ej. para formatear la fecha).
                 const clientAlerts = result.alerts.map(alert => ({
                     ...alert,
                     timestamp: new Timestamp(alert.timestamp._seconds, alert.timestamp._nanoseconds)
                 })) as EnrichedAlert[];
 
+                // Ordena las alertas en el cliente
                 clientAlerts.sort((a, b) => (b.timestamp as Timestamp).toMillis() - (a.timestamp as Timestamp).toMillis());
+                
                 setAlerts(clientAlerts);
-
             } else {
-                toast({ title: "Error al Cargar Alertas", description: result.error, variant: "destructive", duration: 10000 });
+                toast({ title: "Error al Cargar Alertas", description: result.error, variant: "destructive" });
             }
          } catch (error: any) {
              toast({ title: "Error de Conexión", description: `No se pudieron cargar las alertas: ${error.message}`, variant: "destructive" });
@@ -80,7 +81,7 @@ export default function AdminDashboardPage() {
          }
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [user, toast]);
+    }, [toast]);
 
     /**
      * Effect de inicialización del componente.
@@ -90,10 +91,10 @@ export default function AdminDashboardPage() {
         setTheme(savedTheme);
         document.documentElement.className = savedTheme;
 
-        if (user) {
-            fetchAlerts();
-        }
+        fetchAlerts();
 
+        // Si el usuario es admin, también cargamos las estaciones para poder asignarlas.
+        // Esto se puede hacer con una escucha en tiempo real ya que los datos de las estaciones no son sensibles.
         let stationsUnsub: (() => void) | undefined;
         if (userRole === 'admin') {
             stationsUnsub = onSnapshot(collection(firestore, "stations"), 
@@ -107,16 +108,17 @@ export default function AdminDashboardPage() {
                 }
             );
         } else {
-            setStations([]);
+            setStations([]); // No-admins no necesitan la lista de estaciones.
         }
 
+        // Función de limpieza para desuscribirse de la escucha de estaciones cuando el componente se desmonte.
         return () => {
              if (stationsUnsub) {
                 stationsUnsub();
              }
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [user, userRole]); 
+    }, [userRole]); // Depende del rol para saber si debe cargar las estaciones.
 
 
     /**
@@ -374,7 +376,6 @@ export default function AdminDashboardPage() {
                     ) : filteredAlerts.length === 0 ? (
                         <div className="text-center py-10 text-muted-foreground">
                             <p>No hay alertas que coincidan con los filtros.</p>
-                            {userRole === 'operator' && !stationId && <p className="text-sm mt-1">No tienes una estación asignada.</p>}
                         </div>
                     ) : (
                         filteredAlerts.map((alert) => (
