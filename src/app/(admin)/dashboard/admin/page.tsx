@@ -91,6 +91,8 @@ export default function AdminDashboardPage() {
 
         // 2. Si hay User IDs, hacer UNA SOLA consulta a Firestore para obtener todos los datos médicos.
         if (userIds.length > 0) {
+            // Nota: Firestore 'in' queries están limitadas a 30 elementos. Para una app real con más usuarios concurrentes,
+            // sería necesario dividir esto en múltiples consultas si userIds.length > 30. Para este caso, se asume que no se superará.
             const medicalInfoQuery = query(collection(firestore, "medicalInfo"), where("uid", "in", userIds));
             const medicalInfoSnapshot = await getDocs(medicalInfoQuery);
             medicalInfoSnapshot.forEach(doc => {
@@ -114,6 +116,7 @@ export default function AdminDashboardPage() {
 
         // Ordena las alertas por fecha, de la más reciente a la más antigua.
         enrichedAlerts.sort((a, b) => (b.timestamp as Timestamp).toMillis() - (a.timestamp as Timestamp).toMillis());
+        
         setAlerts(enrichedAlerts);
 
       } catch (processingError) {
@@ -121,7 +124,9 @@ export default function AdminDashboardPage() {
           toast({ title: "Error de Datos", description: "No se pudieron procesar los datos de las alertas.", variant: "destructive" });
       } finally {
           setLoading(false);
-          initialLoadDone.current = true;
+          if (!initialLoadDone.current) {
+            initialLoadDone.current = true;
+          }
       }
     }, [toast]);
 
@@ -156,27 +161,28 @@ export default function AdminDashboardPage() {
             }
             q = query(alertsRef, where("assignedStationId", "==", stationId), orderBy("timestamp", "desc"));
         } else {
+            // Si el rol no es admin ni operator, no muestra nada.
+            setAlerts([]);
             setLoading(false);
             return;
         }
 
         // Crea el listener de Firestore. `onSnapshot` se ejecuta cada vez que hay un cambio.
         unsubscribeFromAlerts.current = onSnapshot(q, async (querySnapshot) => {
-            const alertsData: AlertData[] = querySnapshot.docs.map(doc => ({
+            const currentAlerts = querySnapshot.docs.map(doc => ({
                 id: doc.id,
                 ...doc.data(),
-                timestamp: doc.data().timestamp,
             })) as AlertData[];
             
             // Lógica para notificar solo de nuevas alertas después de la carga inicial.
             if (initialLoadDone.current) {
-                const newAlerts = alertsData.filter(a => a.status === 'new' && !alerts.some(old => old.id === a.id));
+                const newAlerts = currentAlerts.filter(a => a.status === 'new' && !alerts.some(old => old.id === a.id));
                 if (newAlerts.length > 0) {
                    toast({ title: "¡Nueva Alerta!", description: `${newAlerts.length} nueva(s) emergencia(s) recibida(s).` });
                 }
             }
             
-            await processAlerts(alertsData);
+            await processAlerts(currentAlerts);
         }, (error) => {
             console.error("Error en onSnapshot de Firestore:", error);
             if (error.code === 'permission-denied') {
@@ -187,7 +193,7 @@ export default function AdminDashboardPage() {
             setLoading(false);
         });
 
-    }, [userRole, stationId, processAlerts, toast]);
+    }, [userRole, stationId, processAlerts, toast, alerts]);
 
     /**
      * Efecto de inicialización del componente.
@@ -583,3 +589,5 @@ export default function AdminDashboardPage() {
     </>
   );
 }
+
+    
