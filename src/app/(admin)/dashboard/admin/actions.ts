@@ -8,8 +8,8 @@
  */
 
 import { firestore } from '@/lib/firebase-admin';
-import type { AlertData, MedicalData, UserProfile } from '@/lib/types';
-import { Timestamp } from 'firebase-admin/firestore';
+import type { AlertData, MedicalData } from '@/lib/types';
+import { Timestamp, GeoPoint } from 'firebase-admin/firestore';
 
 // Este es un tipo extendido para el objeto de alerta que incluye la información del usuario.
 // Se usa para combinar los datos de la colección 'alerts' y 'medicalInfo'.
@@ -61,37 +61,48 @@ export async function getEnrichedAlerts(): Promise<{ success: boolean; alerts?: 
         }
         
         // **LA CORRECCIÓN CLAVE ESTÁ AQUÍ**
-        // Next.js no puede pasar objetos complejos como `Timestamp` de Firestore desde el servidor al cliente.
-        // Debemos convertir todos los timestamps a un formato serializable (un objeto simple).
-
-        const enrichedAlerts: EnrichedAlert[] = alertsData.map(alert => {
+        // Combina los datos PRIMERO, y LUEGO serializa el objeto completo.
+        const enrichedAlerts = alertsData.map(alert => {
              const userInfo = alert.userId ? medicalInfoMap.get(alert.userId) : undefined;
-             
-             // 1. Clonamos el objeto de alerta para no mutar el original.
-             const serializableAlert: any = { ...alert };
-
-             // 2. Convertimos el timestamp principal de la alerta.
-             if (serializableAlert.timestamp instanceof Timestamp) {
-                 serializableAlert.timestamp = {
-                    _seconds: serializableAlert.timestamp.seconds,
-                    _nanoseconds: serializableAlert.timestamp.nanoseconds,
-                 };
+             const enrichedAlert: EnrichedAlert = { ...alert };
+             if (userInfo) {
+                 enrichedAlert.userInfo = userInfo;
              }
 
-             // 3. Si existe userInfo, también convertimos cualquier timestamp que contenga.
-             if (userInfo) {
-                 const serializableUserInfo: any = { ...userInfo };
-                 // Firestore no almacena timestamps en medicalInfo, pero lo hacemos por si acaso.
-                 // Los campos como `createdAt` o `lastLogin` SÍ están en `users`.
-                 for (const key in serializableUserInfo) {
-                     if (serializableUserInfo[key] instanceof Timestamp) {
-                         serializableUserInfo[key] = {
-                             _seconds: serializableUserInfo[key].seconds,
-                             _nanoseconds: serializableUserInfo[key].nanoseconds,
-                         };
-                     }
+             // Ahora, serializa el objeto combinado para asegurar que no haya objetos complejos.
+             const serializableAlert: { [key: string]: any } = {};
+
+             for (const key in enrichedAlert) {
+                 const value = (enrichedAlert as any)[key];
+                 if (value instanceof Timestamp) {
+                     serializableAlert[key] = {
+                         _seconds: value.seconds,
+                         _nanoseconds: value.nanoseconds,
+                     };
+                 } else if (value instanceof GeoPoint) {
+                      serializableAlert[key] = {
+                         latitude: value.latitude,
+                         longitude: value.longitude,
+                     };
+                 } else if (key === 'userInfo' && value) {
+                    // Hay que asegurarse de que el userInfo también sea serializado
+                    const serializableUserInfo: { [key: string]: any } = {};
+                    for (const userKey in value) {
+                        const userValue = (value as any)[userKey];
+                        if (userValue instanceof Timestamp) {
+                             serializableUserInfo[userKey] = {
+                                 _seconds: userValue.seconds,
+                                 _nanoseconds: userValue.nanoseconds,
+                             };
+                        } else {
+                            serializableUserInfo[userKey] = userValue;
+                        }
+                    }
+                    serializableAlert[key] = serializableUserInfo;
                  }
-                 serializableAlert.userInfo = serializableUserInfo;
+                 else {
+                     serializableAlert[key] = value;
+                 }
              }
              
              return serializableAlert as EnrichedAlert;
