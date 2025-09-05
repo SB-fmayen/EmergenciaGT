@@ -1,5 +1,4 @@
 
-
 "use client"
 
 import { useState, useEffect, useCallback } from "react";
@@ -29,6 +28,7 @@ interface AlertDetailModalProps {
     stations: StationData[];
     onCenterMap: (alert: EnrichedAlert) => void;
     userRole: 'admin' | 'operator' | 'unit' | null;
+    onUpdate: () => void; // Callback to refresh the alerts list
 }
 
 const InfoRow = ({ label, value, valueClass, children }: { label: string, value?: string | number | null, children?: React.ReactNode, valueClass?: string }) => (
@@ -69,7 +69,7 @@ const getStatusText = (status: AlertStatus) => {
     }
 };
 
-export function AlertDetailModal({ isOpen, onClose, alert, stations, onCenterMap, userRole }: AlertDetailModalProps) {
+export function AlertDetailModal({ isOpen, onClose, alert, stations, onCenterMap, userRole, onUpdate }: AlertDetailModalProps) {
     const { toast } = useToast();
     const [isUpdating, setIsUpdating] = useState(false);
     const [isAssigning, setIsAssigning] = useState(false);
@@ -152,6 +152,7 @@ export function AlertDetailModal({ isOpen, onClose, alert, stations, onCenterMap
                 title: "Estado Actualizado",
                 description: `La alerta ${alert.id.substring(0, 8)} ha sido actualizada a "${getStatusText(selectedStatus)}".`
             });
+            onUpdate(); // Call the refresh function
             onClose();
         } catch (error) {
             console.error("Error updating status:", error);
@@ -180,6 +181,7 @@ export function AlertDetailModal({ isOpen, onClose, alert, stations, onCenterMap
                 status: 'assigned' // Automatically set to assigned
             });
             toast({ title: "Unidad Asignada", description: `La alerta ha sido asignada a ${unit?.nombre} de ${station?.name}.`});
+            onUpdate(); // Call the refresh function
             onClose();
         } catch (error) {
             console.error("Error assigning unit:", error);

@@ -20,193 +20,81 @@ import { AlertDetailModal } from "@/components/admin/AlertDetailModal";
 import Link from 'next/link';
 import { SettingsDropdown } from '@/components/admin/SettingsDropdown';
 import { useAuth } from "@/app/(admin)/layout";
+import { getEnrichedAlerts } from "./actions";
 
-// Se usa dynamic import para el mapa, ya que Leaflet interactúa directamente con el DOM de la ventana,
-// lo cual solo es posible en el lado del cliente. `ssr: false` previene que se intente renderizar en el servidor.
+
 const AlertsMap = dynamic(() => import('@/components/admin/AlertsMap'), { 
   ssr: false,
   loading: () => <div className="h-full w-full bg-background flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
 });
 
-/**
- * Interfaz que extiende una alerta con datos adicionales para mostrar en la UI.
- * @property {MedicalData} [userInfo] - Información médica del usuario que generó la alerta.
- * @property {string} [eta] - Tiempo estimado de llegada (funcionalidad futura).
- * @property {{ name: string }} [stationInfo] - Información de la estación asignada.
- * @property {string} [statusClass] - Clase CSS para estilizar según el estado.
- * @property {string} [severityClass] - Clase CSS para estilizar según la severidad.
- * @property {string} [severity] - Nivel de severidad de la alerta.
- */
+
 export interface EnrichedAlert extends AlertData {
     userInfo?: MedicalData;
-    eta?: string;
-    stationInfo?: { name: string };
-    statusClass?: string;
-    severityClass?: string;
-    severity?: string;
 }
 
-/**
- * Componente principal del Dashboard de Administración.
- * Muestra KPIs, una lista de alertas en tiempo real y un mapa interactivo.
- * Su comportamiento se adapta según el rol del usuario (admin vs. operator).
- */
 export default function AdminDashboardPage() {
     const router = useRouter();
     const { toast } = useToast();
-    // Obtiene el usuario, rol y stationId del contexto de autenticación.
     const { user, userRole, stationId } = useAuth();
     
-    // --- ESTADOS DEL COMPONENTE ---
-    const [theme, setTheme] = useState("dark"); // Estado para el tema (claro/oscuro)
-    const [alerts, setAlerts] = useState<EnrichedAlert[]>([]); // Lista de alertas enriquecidas
-    const [stations, setStations] = useState<StationData[]>([]); // Lista de estaciones (solo para admins)
-    const [loading, setLoading] = useState(true); // Estado de carga general
-    const [selectedAlert, setSelectedAlert] = useState<EnrichedAlert | null>(null); // Alerta seleccionada para ver en detalle
-    const [isModalOpen, setIsModalOpen] = useState(false); // Visibilidad del modal de detalle
+    const [theme, setTheme] = useState("dark");
+    const [alerts, setAlerts] = useState<EnrichedAlert[]>([]);
+    const [stations, setStations] = useState<StationData[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [selectedAlert, setSelectedAlert] = useState<EnrichedAlert | null>(null);
+    const [isModalOpen, setIsModalOpen] = useState(false);
     
-    const [searchTerm, setSearchTerm] = useState(""); // Término de búsqueda para filtrar alertas
-    const [statusFilter, setStatusFilter] = useState("all"); // Filtro por estado de alerta
+    const [searchTerm, setSearchTerm] = useState("");
+    const [statusFilter, setStatusFilter] = useState("all");
 
-    // --- REFS ---
-    // Ref para controlar si la carga inicial ya se completó (para evitar notificaciones de alertas viejas).
-    const initialLoadDone = useRef(false);
-    // Ref para almacenar la función de desuscripción de la escucha en tiempo real de Firestore.
-    const unsubscribeFromAlerts = useRef<() => void>();
-
+    
     /**
-     * Procesa los datos crudos de las alertas y los enriquece con información del usuario de forma eficiente.
-     * @param {AlertData[]} alertsData - Array de alertas obtenidas de Firestore.
+     * Fetches alerts from the server action, which securely enriches them with medical data.
      */
-    const processAlerts = useCallback(async (alertsData: AlertData[]) => {
-      try {
-        // 1. Recolectar todos los User IDs únicos de las alertas no anónimas.
-        const userIds = [...new Set(
-            alertsData
-                .filter(alert => alert.userId && !alert.isAnonymous)
-                .map(alert => alert.userId)
-        )];
-
-        let medicalInfoMap = new Map<string, MedicalData>();
-
-        // 2. Si hay User IDs, hacer UNA SOLA consulta a Firestore para obtener todos los datos médicos.
-        if (userIds.length > 0) {
-            // Nota: Firestore 'in' queries están limitadas a 30 elementos. Para una app real con más usuarios concurrentes,
-            // sería necesario dividir esto en múltiples consultas si userIds.length > 30. Para este caso, se asume que no se superará.
-            const medicalInfoQuery = query(collection(firestore, "medicalInfo"), where("uid", "in", userIds));
-            const medicalInfoSnapshot = await getDocs(medicalInfoQuery);
-            medicalInfoSnapshot.forEach(doc => {
-                medicalInfoMap.set(doc.id, doc.data() as MedicalData);
-            });
-        }
-        
-        // 3. Enriquecer las alertas usando el mapa de datos médicos (mucho más rápido).
-        const enrichedAlerts = alertsData.map(alert => {
-            const userInfo = alert.userId ? medicalInfoMap.get(alert.userId) : undefined;
-            const severity = 'Crítica'; // Placeholder
-            return {
-                ...alert,
-                userInfo,
-                stationInfo: alert.assignedStationName ? { name: alert.assignedStationName } : undefined,
-                statusClass: `status-${alert.status}`,
-                severityClass: `severity-critical`,
-                severity,
-            };
-        });
-
-        // Ordena las alertas por fecha, de la más reciente a la más antigua.
-        enrichedAlerts.sort((a, b) => (b.timestamp as Timestamp).toMillis() - (a.timestamp as Timestamp).toMillis());
-        
-        setAlerts(enrichedAlerts);
-
-      } catch (processingError) {
-          console.error("Error processing snapshot data:", processingError);
-          toast({ title: "Error de Datos", description: "No se pudieron procesar los datos de las alertas.", variant: "destructive" });
-      } finally {
-          setLoading(false);
-          if (!initialLoadDone.current) {
-            initialLoadDone.current = true;
-          }
-      }
-    }, [toast]);
-
-    /**
-     * Establece la escucha en tiempo real (listener) a la colección de alertas en Firestore.
-     * La consulta se adapta según el rol del usuario.
-     */
-    const fetchAlerts = useCallback(() => {
-         // Si el rol aún no se ha determinado, no hace nada.
-         if (!userRole) return;
+    const fetchAlerts = useCallback(async () => {
+         if (!user) return;
          setLoading(true);
 
-         // Si ya existe una suscripción, la cancela para evitar duplicados.
-         if (unsubscribeFromAlerts.current) {
-            unsubscribeFromAlerts.current();
+         try {
+            const idToken = await user.getIdToken(true); // Force refresh token
+            const result = await getEnrichedAlerts(idToken);
+            
+            if (result.success && result.alerts) {
+                // Convert the serialized timestamp back to a Date object for client-side use
+                const clientAlerts = result.alerts.map(alert => ({
+                    ...alert,
+                    timestamp: new Timestamp(alert.timestamp._seconds, alert.timestamp._nanoseconds)
+                })) as EnrichedAlert[];
+
+                clientAlerts.sort((a, b) => (b.timestamp as Timestamp).toMillis() - (a.timestamp as Timestamp).toMillis());
+                setAlerts(clientAlerts);
+
+            } else {
+                toast({ title: "Error al Cargar Alertas", description: result.error, variant: "destructive", duration: 10000 });
+            }
+         } catch (error: any) {
+             toast({ title: "Error de Conexión", description: `No se pudieron cargar las alertas: ${error.message}`, variant: "destructive" });
+         } finally {
+            setLoading(false);
          }
 
-        const alertsRef = collection(firestore, "alerts");
-        let q: Query;
-        
-        // Si es admin, obtiene todas las alertas, ordenadas por fecha.
-        if (userRole === 'admin') {
-            q = query(alertsRef, orderBy("timestamp", "desc"));
-        } 
-        // Si es operador, filtra las alertas por la estación a la que está asignado.
-        else if (userRole === 'operator') {
-             if (!stationId) {
-                // Si el operador no tiene estación asignada, no muestra alertas.
-                setAlerts([]);
-                setLoading(false);
-                return;
-            }
-            q = query(alertsRef, where("assignedStationId", "==", stationId), orderBy("timestamp", "desc"));
-        } else {
-            // Si el rol no es admin ni operator, no muestra nada.
-            setAlerts([]);
-            setLoading(false);
-            return;
-        }
-
-        // Crea el listener de Firestore. `onSnapshot` se ejecuta cada vez que hay un cambio.
-        unsubscribeFromAlerts.current = onSnapshot(q, async (querySnapshot) => {
-            const currentAlerts = querySnapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data(),
-            })) as AlertData[];
-            
-            // Lógica para notificar solo de nuevas alertas después de la carga inicial.
-            if (initialLoadDone.current) {
-                const newAlerts = currentAlerts.filter(a => a.status === 'new' && !alerts.some(old => old.id === a.id));
-                if (newAlerts.length > 0) {
-                   toast({ title: "¡Nueva Alerta!", description: `${newAlerts.length} nueva(s) emergencia(s) recibida(s).` });
-                }
-            }
-            
-            await processAlerts(currentAlerts);
-        }, (error) => {
-            console.error("Error en onSnapshot de Firestore:", error);
-            if (error.code === 'permission-denied') {
-                toast({ title: "Error de Permisos", description: "No tienes permisos para ver las alertas.", variant: "destructive", duration: 10000 });
-            } else {
-                 toast({ title: "Error de Conexión", description: "No se pudieron cargar las alertas en tiempo real.", variant: "destructive" });
-            }
-            setLoading(false);
-        });
-
-    }, [userRole, stationId, processAlerts, toast, alerts]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [user, toast]);
 
     /**
-     * Efecto de inicialización del componente.
-     * Carga el tema, las estaciones (si es admin) y las alertas.
+     * Effect de inicialización del componente.
      */
     useEffect(() => {
-        // Recupera el tema guardado en localStorage.
         const savedTheme = localStorage.getItem("theme") || "dark";
         setTheme(savedTheme);
         document.documentElement.className = savedTheme;
 
+        if (user) {
+            fetchAlerts();
+        }
+
         let stationsUnsub: (() => void) | undefined;
-        // Si es admin, también se suscribe a los cambios en la colección de estaciones.
         if (userRole === 'admin') {
             stationsUnsub = onSnapshot(collection(firestore, "stations"), 
                 (snapshot) => {
@@ -221,23 +109,14 @@ export default function AdminDashboardPage() {
         } else {
             setStations([]);
         }
-        
-        // Inicia la carga de alertas una vez que el rol del usuario está definido.
-        if (userRole) {
-            fetchAlerts(); 
-        }
 
-        // Función de limpieza: se ejecuta cuando el componente se desmonta.
-        // Cancela las suscripciones a Firestore para evitar fugas de memoria.
         return () => {
              if (stationsUnsub) {
                 stationsUnsub();
              }
-             if(unsubscribeFromAlerts.current) {
-                unsubscribeFromAlerts.current();
-             }
         }
-    }, [userRole, fetchAlerts, toast]); 
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [user, userRole]); 
 
 
     /**
@@ -252,7 +131,6 @@ export default function AdminDashboardPage() {
     
     /**
      * Maneja el clic en una alerta de la lista, abriendo el modal de detalle.
-     * @param {EnrichedAlert} alert - La alerta seleccionada.
      */
     const handleAlertClick = (alert: EnrichedAlert) => {
         setSelectedAlert(alert);
@@ -261,7 +139,6 @@ export default function AdminDashboardPage() {
     
     /**
      * Centra el mapa en una alerta específica, sin abrir el modal.
-     * @param {EnrichedAlert} alert - La alerta a centrar.
      */
     const handleMapCentering = (alert: EnrichedAlert) => {
         setSelectedAlert(alert);
@@ -291,7 +168,6 @@ export default function AdminDashboardPage() {
 
     /**
      * Filtra la lista de alertas basándose en el término de búsqueda y el filtro de estado.
-     * Se memoriza con `useMemo` para evitar recalcular en cada renderizado.
      */
     const filteredAlerts = useMemo(() => {
         return alerts.filter(alert => {
@@ -306,7 +182,6 @@ export default function AdminDashboardPage() {
 
     /**
      * Calcula los Key Performance Indicators (KPIs) a partir de la lista de alertas.
-     * Memorizado con `useMemo` para eficiencia.
      */
     const kpis = useMemo(() => {
         const activeOrAssigned = alerts.filter(a => a.status === 'new' || a.status === 'assigned').length;
@@ -319,11 +194,6 @@ export default function AdminDashboardPage() {
         }
     }, [alerts]);
 
-    /**
-     * Devuelve la clase CSS correspondiente para la insignia de estado.
-     * @param {string} status - El estado de la alerta.
-     * @returns {string} - Clases de Tailwind para el estilo.
-     */
     const getStatusBadge = (status: string) => {
         switch (status) {
             case 'new': return 'bg-red-500/20 text-red-400';
@@ -339,11 +209,6 @@ export default function AdminDashboardPage() {
         }
     };
 
-    /**
-     * Traduce el identificador de estado a un texto legible en español.
-     * @param {string} status - El estado de la alerta.
-     * @returns {string} - El texto del estado en español.
-     */
     const getStatusText = (status: string) => {
         switch (status) {
             case 'new': return 'Nueva';
@@ -359,11 +224,6 @@ export default function AdminDashboardPage() {
         }
     };
 
-    /**
-     * Devuelve el ícono correspondiente para cada estado de alerta.
-     * @param {string} status - El estado de la alerta.
-     * @returns {JSX.Element | null} - El componente del ícono.
-     */
     const getStatusIcon = (status: string) => {
         switch (status) {
             case 'new': return <Bell className="h-3 w-3" />;
@@ -392,7 +252,6 @@ export default function AdminDashboardPage() {
                     <h1 className="text-2xl font-bold text-foreground">Consola de Emergencias</h1>
                 </div>
                 <div className="flex items-center space-x-4">
-                    {/* Renderiza los botones de navegación solo si el usuario es administrador */}
                     {userRole === 'admin' && (
                        <>
                         <Link href="/dashboard/analytics">
@@ -520,7 +379,7 @@ export default function AdminDashboardPage() {
                     ) : (
                         filteredAlerts.map((alert) => (
                             <div key={alert.id} 
-                                 className={`p-4 border-b border-border hover:bg-muted/50 transition-colors cursor-pointer ${alert.severityClass}`}
+                                 className={`p-4 border-b border-border hover:bg-muted/50 transition-colors cursor-pointer`}
                                  onClick={() => handleAlertClick(alert)}
                             >
                                  <div className="flex items-start justify-between mb-2">
@@ -584,10 +443,9 @@ export default function AdminDashboardPage() {
             stations={stations}
             onCenterMap={handleMapCentering}
             userRole={userRole}
+            onUpdate={fetchAlerts}
         />
     )}
     </>
   );
 }
-
-    
