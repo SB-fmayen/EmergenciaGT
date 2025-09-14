@@ -49,16 +49,17 @@ export default function AlertsPage() {
       let q;
 
       if (userRole === 'unit' && unitId) {
-        q = query(alertsRef, where("assignedUnitId", "==", unitId), orderBy("timestamp", "desc"));
+        // La consulta para unidades debe usar un índice compuesto (assignedUnitId, timestamp)
+        // Por simplicidad, ordenamos en el cliente.
+        q = query(alertsRef, where("assignedUnitId", "==", unitId));
       } else {
-        q = query(alertsRef, where("userId", "==", user.uid), orderBy("timestamp", "desc"));
+        // La consulta para usuarios se simplifica para no requerir un índice compuesto.
+        q = query(alertsRef, where("userId", "==", user.uid));
       }
       
       const querySnapshot = await getDocs(q);
       const userAlerts = querySnapshot.docs.map(doc => {
         const data = doc.data();
-        // Firestore timestamps can be null or undefined if the document is being created.
-        // We provide a fallback to the current date.
         const date = data.timestamp instanceof Timestamp ? data.timestamp.toDate() : new Date();
 
         return {
@@ -67,32 +68,31 @@ export default function AlertsPage() {
           timestamp: date,
         } as AlertData;
       });
+
+      // Ordenar las alertas en el cliente para mostrar las más recientes primero.
+      userAlerts.sort((a, b) => (b.timestamp as Date).getTime() - (a.timestamp as Date).getTime());
       
       setAlerts(userAlerts);
     } catch (e: any) {
       console.error("Error fetching alerts:", e);
       let errorMessage = "No se pudieron cargar las alertas. Por favor, inténtalo de nuevo.";
       
-      // THIS IS THE KEY: Handle the specific error for missing indexes.
       if (e.code === 'failed-precondition') {
-          errorMessage = "La base de datos requiere un índice para esta consulta. Por favor, crea el índice compuesto en tu consola de Firebase para la colección 'alerts' con los campos 'userId' (ascendente) y 'timestamp' (descendente).";
+          errorMessage = "La consulta a la base de datos requiere una configuración adicional (índice). Por favor, contacta al administrador.";
       } else if (e.code === 'permission-denied') {
-          errorMessage = "No tienes permisos para ver esta información. Verifica las reglas de seguridad de Firestore.";
+          errorMessage = "No tienes permisos para ver esta información. Verifica las reglas de seguridad.";
       }
       setError(errorMessage);
     } finally {
-      // This ensures loading is always set to false, preventing the infinite loading state.
       setLoading(false);
     }
   }, [user, userRole, unitId, firestore]);
 
   useEffect(() => {
-    // This effect ensures fetchAlerts is called only once when authentication is resolved.
     if (!authLoading) {
       if (user) {
         fetchAlerts();
       } else {
-        // If not authenticated, stop loading and redirect.
         setLoading(false);
         router.push('/auth');
       }
@@ -260,5 +260,3 @@ export default function AlertsPage() {
     </MobileAppContainer>
   );
 }
-
-    
