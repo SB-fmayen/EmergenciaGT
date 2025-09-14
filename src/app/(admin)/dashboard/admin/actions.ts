@@ -9,7 +9,7 @@
 
 import { firestore } from '@/lib/firebase-admin';
 import type { AlertData, MedicalData } from '@/lib/types';
-import { Timestamp, GeoPoint } from 'firebase-admin/firestore';
+import { Timestamp, GeoPoint, FieldPath } from 'firebase-admin/firestore';
 
 // Este es un tipo extendido para el objeto de alerta que incluye la información del usuario.
 // Se usa para combinar los datos de la colección 'alerts' y 'medicalInfo'.
@@ -52,7 +52,8 @@ export async function getEnrichedAlerts(): Promise<{ success: boolean; alerts?: 
 
             // Ejecuta una consulta por cada trozo.
             for (const chunk of chunks) {
-                const medicalInfoQuery = firestore.collection("medicalInfo").where("uid", "in", chunk);
+                // CORRECCIÓN: Buscar por el ID del documento en lugar de un campo 'uid'
+                const medicalInfoQuery = firestore.collection("medicalInfo").where(FieldPath.documentId(), "in", chunk);
                 const medicalInfoSnapshot = await medicalInfoQuery.get();
                 medicalInfoSnapshot.forEach(doc => {
                     medicalInfoMap.set(doc.id, doc.data() as MedicalData);
@@ -60,7 +61,6 @@ export async function getEnrichedAlerts(): Promise<{ success: boolean; alerts?: 
             }
         }
         
-        // **LA CORRECCIÓN CLAVE ESTÁ AQUÍ**
         // Combina los datos PRIMERO, y LUEGO serializa el objeto completo.
         const enrichedAlerts = alertsData.map(alert => {
              const userInfo = alert.userId ? medicalInfoMap.get(alert.userId) : undefined;
