@@ -59,7 +59,7 @@ export type UnitData = {
     disponible: boolean;
 }
 
-export type UserRole = 'admin' | 'operator' | 'unit';
+export type UserRole = 'admin' | 'operator' | 'unit' | 'citizen';
 
 export type UserProfile = {
     uid: string;

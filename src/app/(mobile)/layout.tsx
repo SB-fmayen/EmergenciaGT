@@ -41,11 +41,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             const idTokenResult = await currentUser.getIdTokenResult(true); 
             const claims = idTokenResult.claims;
             
-            let role: UserRole = 'operator';
+            let role: UserRole = 'citizen'; // CORRECCIÓN: El rol por defecto debe ser 'citizen'
             if (claims.admin === true) {
                 role = 'admin';
             } else if (claims.unit === true) {
                 role = 'unit';
+            } else if (claims.operator === true) { // Añadimos chequeo para operadores
+                role = 'operator';
             }
             
             setUserRole(role);
@@ -54,7 +56,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
         } catch (error) {
             console.error("Error fetching user claims:", error);
-            setUserRole('operator'); // Fallback
+            setUserRole('citizen'); // Fallback seguro a 'citizen'
         }
       } else {
         setUser(null);
@@ -143,5 +145,3 @@ export default function MobilePagesLayout({ children }: { children: ReactNode })
         </AuthProvider>
     )
 }
-
-    
