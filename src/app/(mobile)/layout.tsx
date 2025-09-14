@@ -41,12 +41,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             const idTokenResult = await currentUser.getIdTokenResult(true); 
             const claims = idTokenResult.claims;
             
-            let role: UserRole = 'citizen'; // CORRECCIÓN: El rol por defecto debe ser 'citizen'
+            let role: UserRole = 'citizen'; // El rol por defecto es 'citizen'
             if (claims.admin === true) {
                 role = 'admin';
             } else if (claims.unit === true) {
                 role = 'unit';
-            } else if (claims.operator === true) { // Añadimos chequeo para operadores
+            } else if (claims.role === 'operator') { // Un chequeo más explícito para operadores
                 role = 'operator';
             }
             
@@ -57,6 +57,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         } catch (error) {
             console.error("Error fetching user claims:", error);
             setUserRole('citizen'); // Fallback seguro a 'citizen'
+            setStationId(undefined);
+            setUnitId(undefined);
         }
       } else {
         setUser(null);
