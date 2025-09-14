@@ -1,4 +1,3 @@
-
 rules_version = '2';
 
 service cloud.firestore {
@@ -15,8 +14,7 @@ service cloud.firestore {
       return isAuth() && request.auth.token.admin == true;
     }
     function isOperator() {
-        // Un usuario es operador si no es admin o unidad, o si tiene el claim explícito (aunque no lo usamos).
-        return isAuth() && request.auth.token.admin != true && request.auth.token.unit != true;
+        return isAuth() && (isAdmin() || (request.auth.token.operator == true || !request.auth.token.admin));
     }
     function isUnit() {
         return isAuth() && request.auth.token.unit == true;
@@ -34,7 +32,8 @@ service cloud.firestore {
     match /medicalInfo/{userId} {
       // User can manage their own data.
       allow read, create, update: if isUser(userId);
-      // Admin/Operators/Units can read data for an alert.
+      // Admin/Operators can read data for an alert.
+      // This is a broad read, but it's protected by the fact that they only get the userId from an alert they have access to.
       allow get: if isAdmin() || isOperator() || isUnit();
     }
     
@@ -57,19 +56,19 @@ service cloud.firestore {
       // Any user (including anonymous) can create an alert.
       allow create: if isAuth();
 
-      // Regla para LIST (queries): Permite a un usuario buscar sus propias alertas.
-      allow list: if isAuth() && request.query.where.userId == request.auth.uid;
-      
-      // Regla para GET (lectura individual) y UPDATE.
+      // Read/Update rules for single documents.
       allow get, update: if 
           // Admins can do anything.
           isAdmin() ||
           // Operators can read/update alerts assigned to their station.
           (isOperator() && request.auth.token.stationId != null && resource.data.assignedStationId == request.auth.token.stationId) ||
           // Units can read/update alerts assigned to them that are in an active state.
-          (isUnit() && request.auth.token.unitId != null && resource.data.assignedUnitId == request.auth.token.unitId) ||
+          (isUnit() && request.auth.token.unitId != null && resource.data.assignedUnitId == request.auth.token.unitId && resource.data.status in ['assigned', 'en_route', 'on_scene', 'attending', 'transporting']) ||
           // The user who created the alert can read it or cancel it.
           (isUser(resource.data.userId));
+      
+      // List rule to allow users to query for their own alerts.
+      allow list: if isAuth() && request.query.where.path == 'userId' && request.query.where.op == '==' && request.query.where.value == request.auth.uid;
           
       // Delete is restricted. Alerts should be marked 'cancelled' or 'resolved'.
       allow delete: if false; 
