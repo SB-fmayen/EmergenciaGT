@@ -260,3 +260,5 @@ export default function AlertsPage() {
     </MobileAppContainer>
   );
 }
+
+    
