@@ -34,66 +34,63 @@ export default function AlertsPage() {
   const [alertToCancel, setAlertToCancel] = useState<AlertData | null>(null);
   const [isCancelling, setIsCancelling] = useState(false);
 
-  useEffect(() => {
-    const fetchAlerts = async () => {
-      if (!user) return;
-  
-      setLoading(true);
-      setError(null);
-      
-      try {
-        const alertsRef = collection(firestore, "alerts");
-        let q;
-  
-        if (userRole === 'unit' && unitId) {
-          // Para unidades, buscar por assignedUnitId, sin importar el estado.
-          q = query(alertsRef, where("assignedUnitId", "==", unitId), orderBy("timestamp", "desc"));
-        } else {
-          // Para usuarios normales, buscar por userId
-          q = query(alertsRef, where("userId", "==", user.uid), orderBy("timestamp", "desc"));
-        }
-        
-        const querySnapshot = await getDocs(q);
-        const userAlerts = querySnapshot.docs.map(doc => {
-          const data = doc.data();
-          // Aseguramos que el timestamp sea un objeto Date
-          const date = data.timestamp instanceof Timestamp ? data.timestamp.toDate() : new Date();
-  
-          return {
-            id: doc.id,
-            ...data,
-            timestamp: date,
-          } as AlertData;
-        });
-        
-        setAlerts(userAlerts);
-      } catch (e: any) {
-        console.error("Error fetching alerts:", e);
-        let errorMessage = "No se pudieron cargar las alertas. Por favor, inténtalo de nuevo.";
-        if (e.code === 'failed-precondition') {
-            errorMessage = "La base de datos requiere un índice para esta consulta. Por favor, créalo en la consola de Firebase. El error en la consola te dará un enlace para crearlo automáticamente.";
-        } else if (e.code === 'permission-denied') {
-            errorMessage = "No tienes permisos para ver esta información. Verifica las reglas de seguridad de Firestore.";
-        }
-        setError(errorMessage);
-      } finally {
+  const fetchAlerts = useCallback(async () => {
+    if (!user) {
         setLoading(false);
+        setError("No se pudo verificar la sesión de usuario.");
+        return;
+    }
+
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const alertsRef = collection(firestore, "alerts");
+      let q;
+
+      if (userRole === 'unit' && unitId) {
+        q = query(alertsRef, where("assignedUnitId", "==", unitId), orderBy("timestamp", "desc"));
+      } else {
+        q = query(alertsRef, where("userId", "==", user.uid), orderBy("timestamp", "desc"));
       }
-    };
-  
-    // Esperamos a que la autenticación termine y tengamos un usuario.
+      
+      const querySnapshot = await getDocs(q);
+      const userAlerts = querySnapshot.docs.map(doc => {
+        const data = doc.data();
+        const date = data.timestamp instanceof Timestamp ? data.timestamp.toDate() : new Date();
+
+        return {
+          id: doc.id,
+          ...data,
+          timestamp: date,
+        } as AlertData;
+      });
+      
+      setAlerts(userAlerts);
+    } catch (e: any) {
+      console.error("Error fetching alerts:", e);
+      let errorMessage = "No se pudieron cargar las alertas. Por favor, inténtalo de nuevo.";
+      if (e.code === 'failed-precondition') {
+          errorMessage = "La base de datos requiere un índice para esta consulta. Por favor, créalo en la consola de Firebase.";
+      } else if (e.code === 'permission-denied') {
+          errorMessage = "No tienes permisos para ver esta información. Verifica las reglas de seguridad de Firestore.";
+      }
+      setError(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  }, [user, userRole, unitId, firestore]);
+
+  useEffect(() => {
     if (!authLoading) {
       if (user) {
         fetchAlerts();
       } else {
-        // Si no hay usuario, podemos dejar de cargar o redirigir.
         setLoading(false);
         router.push('/auth');
       }
     }
-  
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, userRole, unitId, authLoading, firestore, router]);
+  }, [authLoading, user, fetchAlerts, router]);
   
 
   const handleOpenCancelModal = (alert: AlertData) => {
