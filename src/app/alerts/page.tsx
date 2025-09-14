@@ -5,7 +5,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { MobileAppContainer } from "@/components/MobileAppContainer";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Loader2, Clock, MapPin, CheckCircle, AlertTriangle, Send, ShieldX, UserCheck, Truck, Siren, Hospital, HardHat, FileClock } from "lucide-react";
+import { ArrowLeft, Loader2, Clock, MapPin, CheckCircle, AlertTriangle, Send, ShieldX, UserCheck, Truck, Siren, Hospital, HardHat, FileClock, WifiOff } from "lucide-react";
 import { getFirestore, collection, query, where, getDocs, orderBy, Timestamp, doc, updateDoc } from "firebase/firestore";
 import { firebaseApp } from "@/lib/firebase";
 import type { AlertData, AlertStatus } from "@/lib/types";
@@ -69,11 +69,13 @@ export default function AlertsPage() {
         setAlerts(userAlerts);
       } catch (e: any) {
         console.error("Error fetching alerts:", e);
+        let errorMessage = "No se pudieron cargar las alertas. Por favor, inténtalo de nuevo.";
         if (e.code === 'failed-precondition') {
-            setError("La base de datos requiere un índice para esta consulta. Por favor, créalo en la consola de Firebase. El error en la consola te dará un enlace para crearlo automáticamente.");
-        } else {
-            setError("No se pudieron cargar las alertas.");
+            errorMessage = "La base de datos requiere un índice para esta consulta. Por favor, créalo en la consola de Firebase. El error en la consola te dará un enlace para crearlo automáticamente.";
+        } else if (e.code === 'permission-denied') {
+            errorMessage = "No tienes permisos para ver esta información. Verifica las reglas de seguridad de Firestore.";
         }
+        setError(errorMessage);
       } finally {
         setLoading(false);
       }
@@ -229,7 +231,8 @@ export default function AlertsPage() {
             </div>
           ) : error ? (
              <div className="text-center py-10 text-red-400 bg-red-900/50 rounded-lg p-4">
-              <p className="font-bold">Error de Base de Datos</p>
+              <WifiOff className="w-12 h-12 mx-auto text-red-500 mb-4" />
+              <p className="font-bold">Error al Cargar</p>
               <p className="text-sm mt-2">{error}</p>
             </div>
           ) : alerts.length > 0 ? (
