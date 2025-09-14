@@ -46,9 +46,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                 role = 'admin';
             } else if (claims.unit === true) {
                 role = 'unit';
-            } else if (claims.role === 'operator') { // Un chequeo más explícito para operadores
-                role = 'operator';
             }
+            // NOTA: No hay chequeo para 'operator' aquí, porque ese rol solo debe existir en el contexto del admin layout.
+            // Si un operador intenta entrar a la app móvil, se le tratará como 'citizen' y se le redirigirá si es necesario.
             
             setUserRole(role);
             setStationId(claims.stationId as string | undefined);
@@ -100,16 +100,27 @@ function ProtectedMobileLayout({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (loading) return; 
 
-    const isPublicPage = publicRoutes.includes(pathname);
+    const isPublicPage = publicRoutes.some(route => pathname === route);
 
     if (user) {
       // Si el usuario está logueado...
       if (userRole === 'admin' || userRole === 'operator') {
-          // Si un admin/operador intenta acceder a una ruta móvil, redirigirlo a su panel
+          // Si un admin/operador intenta acceder a cualquier ruta móvil, redirigirlo a su panel.
+          // Esto soluciona el bucle al tratar de acceder a /alerts.
           router.replace('/dashboard/admin');
+          return;
       }
-      // Si es rol 'unit' o 'citizen', se queda.
-      // La página de autenticación se encarga de redirigir si ya está logueado
+      
+      // Si es un usuario logueado (citizen o unit) y está en una página pública (como /auth), redirigirlo.
+      if (isPublicPage) {
+          if (userRole === 'unit') {
+              router.replace('/mission');
+          } else {
+              router.replace('/dashboard');
+          }
+          return;
+      }
+
     } else {
       // Si el usuario no está logueado y la página no es pública, redirigir a /auth
       if (!isPublicPage) {
@@ -127,8 +138,8 @@ function ProtectedMobileLayout({ children }: { children: ReactNode }) {
     );
   }
 
-  // Prevents flicker for unauthorized roles or non-users
-  if (!user && !publicRoutes.includes(pathname)) {
+  // Previene el parpadeo de contenido protegido para usuarios no autorizados o no logueados.
+  if (!user && !publicRoutes.some(route => pathname === route)) {
      return (
        <div className="bg-slate-900 min-h-screen flex justify-center items-center">
             <Loader2 className="w-12 h-12 text-white animate-spin" />
