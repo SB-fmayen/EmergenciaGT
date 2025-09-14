@@ -56,6 +56,7 @@ export default function AlertsPage() {
         const querySnapshot = await getDocs(q);
         const userAlerts = querySnapshot.docs.map(doc => {
           const data = doc.data();
+          // Aseguramos que el timestamp sea un objeto Date
           const date = data.timestamp instanceof Timestamp ? data.timestamp.toDate() : new Date();
   
           return {
@@ -148,7 +149,7 @@ export default function AlertsPage() {
 
   const AlertCard = ({ alert }: { alert: AlertData }) => {
     const { text, icon: Icon, color } = getStatusInfo(alert.status);
-    const alertDate = alert.timestamp as Date;
+    const alertDate = alert.timestamp instanceof Timestamp ? alert.timestamp.toDate() : (alert.timestamp as Date);
 
     return (
       <div className="bg-slate-800/50 rounded-2xl p-4 shadow-lg flex flex-col space-y-3 animate-fade-in">
