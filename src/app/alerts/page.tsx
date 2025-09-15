@@ -5,7 +5,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { MobileAppContainer } from "@/components/MobileAppContainer";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Loader2, Clock, MapPin, CheckCircle, AlertTriangle, Send, ShieldX, UserCheck, Truck, Siren, Hospital, HardHat, FileClock, WifiOff } from "lucide-react";
+import { ArrowLeft, Loader2, Clock, MapPin, CheckCircle, AlertTriangle, ShieldX, UserCheck, Truck, Siren, Hospital, HardHat, FileClock, WifiOff } from "lucide-react";
 import { getFirestore, collection, query, where, getDocs, orderBy, Timestamp, doc, updateDoc } from "firebase/firestore";
 import { firebaseApp } from "@/lib/firebase";
 import type { AlertData, AlertStatus } from "@/lib/types";
@@ -37,7 +37,7 @@ export default function AlertsPage() {
   const fetchAlerts = useCallback(async () => {
     if (!user) {
         setLoading(false);
-        setError("No se pudo verificar la sesión de usuario.");
+        setError("No se pudo verificar la sesión de usuario para cargar el historial.");
         return;
     }
 
@@ -49,17 +49,17 @@ export default function AlertsPage() {
       let q;
 
       if (userRole === 'unit' && unitId) {
-        // La consulta para unidades debe usar un índice compuesto (assignedUnitId, timestamp)
-        // Por simplicidad, ordenamos en el cliente.
+        // Para 'unit', se filtra por 'assignedUnitId'
         q = query(alertsRef, where("assignedUnitId", "==", unitId));
       } else {
-        // La consulta para usuarios se simplifica para no requerir un índice compuesto.
+        // Para 'citizen' (o cualquier otro rol en la app móvil), se filtra por 'userId'
         q = query(alertsRef, where("userId", "==", user.uid));
       }
       
       const querySnapshot = await getDocs(q);
       const userAlerts = querySnapshot.docs.map(doc => {
         const data = doc.data();
+        // Fallback para el timestamp
         const date = data.timestamp instanceof Timestamp ? data.timestamp.toDate() : new Date();
 
         return {
@@ -78,9 +78,10 @@ export default function AlertsPage() {
       let errorMessage = "No se pudieron cargar las alertas. Por favor, inténtalo de nuevo.";
       
       if (e.code === 'failed-precondition') {
-          errorMessage = "La consulta a la base de datos requiere una configuración adicional (índice). Por favor, contacta al administrador.";
+          errorMessage = "La consulta a la base de datos requiere una configuración de índice en Firebase. Contacta al administrador y proporciónale este mensaje de la consola.";
+          console.error("Firestore Index Error:", e.message);
       } else if (e.code === 'permission-denied') {
-          errorMessage = "No tienes permisos para ver esta información. Verifica las reglas de seguridad.";
+          errorMessage = "No tienes permisos para ver esta información. Revisa las reglas de seguridad de Firestore.";
       }
       setError(errorMessage);
     } finally {
@@ -89,15 +90,17 @@ export default function AlertsPage() {
   }, [user, userRole, unitId, firestore]);
 
   useEffect(() => {
+    // Solo ejecuta fetchAlerts cuando la autenticación haya terminado y tengamos un usuario.
     if (!authLoading) {
       if (user) {
         fetchAlerts();
       } else {
+        // Si no hay usuario, no hay nada que cargar.
         setLoading(false);
-        router.push('/auth');
+        // El layout se encargará de la redirección.
       }
     }
-  }, [authLoading, user, fetchAlerts, router]);
+  }, [authLoading, user, fetchAlerts]);
   
 
   const handleOpenCancelModal = (alert: AlertData) => {

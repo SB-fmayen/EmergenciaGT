@@ -38,25 +38,37 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (currentUser) {
         setUser(currentUser);
         try {
-            const idTokenResult = await currentUser.getIdTokenResult(true); 
+            // No forzamos la recarga del token para evitar bloqueos.
+            const idTokenResult = await currentUser.getIdTokenResult(); 
             const claims = idTokenResult.claims;
             
-            let role: UserRole = 'citizen'; // El rol por defecto es 'citizen'
+            let role: UserRole = 'citizen'; // Rol por defecto para la app móvil
             if (claims.admin === true) {
                 role = 'admin';
             } else if (claims.unit === true) {
                 role = 'unit';
             }
-            // NOTA: No hay chequeo para 'operator' aquí, porque ese rol solo debe existir en el contexto del admin layout.
-            // Si un operador intenta entrar a la app móvil, se le tratará como 'citizen' y se le redirigirá si es necesario.
             
+            const detectedStationId = claims.stationId as string | undefined;
+            const detectedUnitId = claims.unitId as string | undefined;
+
             setUserRole(role);
-            setStationId(claims.stationId as string | undefined);
-            setUnitId(claims.unitId as string | undefined);
+            setStationId(detectedStationId);
+            setUnitId(detectedUnitId);
+
+            // Logs para depuración
+            console.log("Auth State Resolved:", {
+              userEmail: currentUser.email,
+              isAnonymous: currentUser.isAnonymous,
+              role,
+              stationId: detectedStationId,
+              unitId: detectedUnitId,
+            });
+
 
         } catch (error) {
             console.error("Error fetching user claims:", error);
-            setUserRole('citizen'); // Fallback seguro a 'citizen'
+            setUserRole('citizen'); // Fallback seguro
             setStationId(undefined);
             setUnitId(undefined);
         }
@@ -103,26 +115,25 @@ function ProtectedMobileLayout({ children }: { children: ReactNode }) {
     const isPublicPage = publicRoutes.some(route => pathname === route);
 
     if (user) {
-      // Si el usuario está logueado...
+      // Usuario está logueado
       if (userRole === 'admin' || userRole === 'operator') {
-          // Si un admin/operador intenta acceder a cualquier ruta móvil, redirigirlo a su panel.
-          // Esto soluciona el bucle al tratar de acceder a /alerts.
+          // Si un admin/operador entra a una ruta móvil, redirigir a su panel.
           router.replace('/dashboard/admin');
           return;
       }
       
-      // Si es un usuario logueado (citizen o unit) y está en una página pública (como /auth), redirigirlo.
+      // Si es un 'citizen' o 'unit' en una página pública, redirigirlo a su dashboard.
       if (isPublicPage) {
           if (userRole === 'unit') {
               router.replace('/mission');
-          } else {
+          } else { // citizen
               router.replace('/dashboard');
           }
           return;
       }
 
     } else {
-      // Si el usuario no está logueado y la página no es pública, redirigir a /auth
+      // Usuario no está logueado
       if (!isPublicPage) {
         router.replace('/auth');
       }
@@ -138,7 +149,7 @@ function ProtectedMobileLayout({ children }: { children: ReactNode }) {
     );
   }
 
-  // Previene el parpadeo de contenido protegido para usuarios no autorizados o no logueados.
+  // Previene el parpadeo de contenido protegido
   if (!user && !publicRoutes.some(route => pathname === route)) {
      return (
        <div className="bg-slate-900 min-h-screen flex justify-center items-center">
