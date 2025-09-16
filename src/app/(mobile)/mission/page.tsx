@@ -114,7 +114,7 @@ export default function MissionPage() {
         try {
             await signOut(auth);
             toast({ title: "Sesión cerrada" });
-            router.push('/');
+            router.push('/auth');
         } catch (error) {
             toast({ title: "Error al cerrar sesión", variant: "destructive" });
         }
@@ -229,3 +229,5 @@ export default function MissionPage() {
         </MobileAppContainer>
     );
 }
+
+    
