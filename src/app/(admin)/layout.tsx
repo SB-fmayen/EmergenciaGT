@@ -26,8 +26,6 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     }
 
     if (user) {
-        const isAdminRole = userRole === 'admin' || userRole === 'operator';
-        
         // If it's a mobile user, kick them out
         if (userRole === 'citizen') {
             router.replace('/auth');
@@ -40,7 +38,9 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
             return;
         }
 
-        if(isAdminRole && isLoginPage) {
+        const isAdminAreaUser = userRole === 'admin' || userRole === 'operator';
+
+        if(isAdminAreaUser && isLoginPage) {
             router.replace('/dashboard/admin');
             return;
         }

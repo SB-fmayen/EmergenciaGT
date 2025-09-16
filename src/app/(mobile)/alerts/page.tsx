@@ -62,7 +62,7 @@ export default function AlertsPage() {
           id: doc.id,
           ...data,
         } as AlertData;
-      }).sort((a, b) => (b.timestamp as Timestamp).toMillis() - (b.timestamp as Timestamp).toMillis());
+      }).sort((a, b) => (b.timestamp as Timestamp).toMillis() - (a.timestamp as Timestamp).toMillis());
       
       setAlerts(userAlerts);
     } catch (e: any) {
