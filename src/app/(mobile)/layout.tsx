@@ -85,39 +85,47 @@ function ProtectedMobileLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const { user, userRole, loading } = useAuth();
   
-  const publicPaths = ['/welcome', '/']; // Root is now the login page
+  const publicPaths = ['/auth', '/welcome'];
 
   useEffect(() => {
     if (loading) return;
 
-    const isPublicPage = publicPaths.includes(pathname);
+    const isAuthPage = pathname === '/auth';
 
     if (user) {
         // User is logged in
         if (userRole === 'unit') {
             if (pathname !== '/mission') router.replace('/mission');
         } else if (userRole === 'citizen') {
-            if (isPublicPage || pathname === '/mission') router.replace('/dashboard');
+             if (isAuthPage || pathname === '/mission') router.replace('/dashboard');
+        } else {
+            // Failsafe for other roles like admin/operator
+             if (pathname !== '/auth') router.replace('/auth');
         }
-        
-        if (isPublicPage) {
-             router.replace('/dashboard');
-        }
-
     } else {
         // User is not logged in
-        if (!isPublicPage) {
-            router.replace('/');
+        if (!isAuthPage) {
+            router.replace('/auth');
         }
     }
     
-  }, [user, userRole, loading, pathname, router, publicPaths]);
+  }, [user, userRole, loading, pathname, router]);
 
   if (loading) {
     return (
       <div className="bg-slate-900 min-h-screen flex flex-col justify-center items-center text-white">
         <Loader2 className="w-12 h-12 animate-spin" />
         <p className="mt-4 text-lg">Verificando sesión...</p>
+      </div>
+    );
+  }
+  
+  // Prevents flicker for unauthenticated users
+  if (!user && pathname !== '/auth') {
+    return (
+      <div className="bg-slate-900 min-h-screen flex flex-col justify-center items-center text-white">
+        <Loader2 className="w-12 h-12 animate-spin" />
+        <p className="mt-4 text-lg">Redirigiendo...</p>
       </div>
     );
   }

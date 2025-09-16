@@ -381,7 +381,7 @@ export default function MedicalInfoPage() {
           <Button
             type="submit"
             onClick={handleSubmit}
-            className="w-full bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white py-4 h-auto rounded-xl font-bold text-lg transition-all duration-300 transform hover:scale-105 shadow-lg"
+            className="w-full bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-700 text-white py-4 h-auto rounded-xl font-bold text-lg transition-all duration-300 transform hover:scale-105 shadow-lg"
             disabled={saving}
           >
             {saving ? <Loader2 className="animate-spin" /> : "Guardar Información"}
