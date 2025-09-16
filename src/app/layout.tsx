@@ -3,13 +3,10 @@
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 import { useEffect, type ReactNode, createContext, useContext, useState } from 'react';
-import { useRouter, usePathname } from 'next/navigation';
-import { Loader2 } from 'lucide-react';
-import 'leaflet/dist/leaflet.css';
-import { useToast } from '@/hooks/use-toast';
-import { onAuthStateChanged, type User, signOut } from 'firebase/auth';
+import { onAuthStateChanged, type User } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import type { UserRole } from '@/lib/types';
+import 'leaflet/dist/leaflet.css';
 
 
 // Auth Context for the entire application

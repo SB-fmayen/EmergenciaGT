@@ -25,7 +25,7 @@ export default function RootPage() {
              } else if (userRole === 'unit') {
                  router.replace('/mission');
              } else {
-                 // Assumes 'citizen' or anonymous
+                 // Assumes 'citizen' or anonymous, redirect to their dashboard
                  router.replace('/dashboard');
              }
         } else {
