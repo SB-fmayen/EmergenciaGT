@@ -13,8 +13,6 @@ import {
   setPersistence,
   browserSessionPersistence,
   browserLocalPersistence,
-  onAuthStateChanged,
-  User,
 } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
@@ -147,23 +145,9 @@ export default function AuthPage() {
   const { toast } = useToast();
   
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-        if (user) {
-            // Usuario logueado. Redirigir al dashboard.
-            // Para evitar conflictos, solo redirigimos si no es admin/operator.
-            try {
-                const token = await user.getIdTokenResult();
-                if (token.claims.admin || token.claims.operator) {
-                    // Si es admin/op, el layout de admin se encargará.
-                    // Pero si llegó aquí, es mejor no hacer nada.
-                } else {
-                     router.replace('/dashboard');
-                }
-            } catch(e) {
-                router.replace('/dashboard');
-            }
-        }
-        setAuthLoading(false);
+    const unsubscribe = auth.onAuthStateChanged(user => {
+      setAuthLoading(false);
+      // Let the protected layout handle redirection for logged-in users.
     });
     return () => unsubscribe();
   }, [router]);
@@ -172,10 +156,12 @@ export default function AuthPage() {
     if (loading) return;
     setLoading(true);
     try {
-        await action();
+        const result = await action();
+        // Redirect on success
         if (successPath) {
             router.push(successPath);
         }
+        return result;
     } catch (error: any) {
         handleFirebaseAuthError(error);
     } finally {
@@ -198,7 +184,7 @@ export default function AuthPage() {
         : browserSessionPersistence;
       await setPersistence(auth, persistenceType);
       await signInWithEmailAndPassword(auth, email, password);
-    });
+    }, "/dashboard"); // Redirect to dashboard on successful login
   };
 
   const handlePasswordReset = (email: string) => {
@@ -220,7 +206,7 @@ export default function AuthPage() {
   };
 
   const handleAnonymousSignIn = () => {
-    handleAuthAction(() => signInAnonymously(auth));
+    handleAuthAction(() => signInAnonymously(auth), "/dashboard");
   }
 
   const handleFirebaseAuthError = (error: any) => {

@@ -40,19 +40,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             const idTokenResult = await currentUser.getIdTokenResult();
             const claims = idTokenResult.claims;
             
-            let role: UserRole = 'citizen'; // Default to citizen
-            if (claims.admin) {
+            let role: UserRole = 'citizen'; 
+            if (claims.admin === true) {
                 role = 'admin';
-            } else if (claims.unit) {
+            } else if (claims.unit === true) {
                 role = 'unit';
+            } else if (claims.operator === true) {
+                role = 'operator';
             }
+            
             setUserRole(role);
             setStationId(claims.stationId as string | undefined);
             setUnitId(claims.unitId as string | undefined);
+            console.log("AuthProvider resolved role:", role, "stationId:", claims.stationId, "unitId:", claims.unitId);
 
         } catch (error) {
             console.error("Error fetching user claims:", error);
-            setUserRole('citizen'); // Fallback to citizen
+            setUserRole('citizen');
         }
       } else {
         setUser(null);
@@ -92,7 +96,8 @@ function ProtectedMobileLayout({ children }: { children: ReactNode }) {
     if (user) {
         // User is logged in
         if (userRole === 'admin' || userRole === 'operator') {
-            router.replace('/login'); // Redirect admin/ops to the correct login
+            // These users should not be in the mobile app. Redirect to the mobile auth page where they can be informed.
+            router.replace('/auth');
         } else if (userRole === 'unit') {
             if (pathname !== '/mission') router.replace('/mission');
         } else { // 'citizen'
@@ -117,7 +122,7 @@ function ProtectedMobileLayout({ children }: { children: ReactNode }) {
     );
   }
 
-  // Prevents flicker for unauthenticated users
+  // Prevents flicker for unauthenticated users on protected routes
   if (!user && !publicPaths.includes(pathname)) {
      return (
        <div className="bg-slate-900 min-h-screen flex justify-center items-center">
