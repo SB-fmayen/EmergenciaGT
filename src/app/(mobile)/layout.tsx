@@ -38,15 +38,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (currentUser) {
         setUser(currentUser);
         try {
-            // Revertido: No forzar la recarga del token, no es necesario para ciudadanos y puede bloquear la app.
             const idTokenResult = await currentUser.getIdTokenResult(); 
             const claims = idTokenResult.claims;
             
-            let role: UserRole = 'citizen'; // Rol por defecto para la app móvil
+            let role: UserRole = 'citizen';
             if (claims.admin === true) {
                 role = 'admin';
             } else if (claims.unit === true) {
                 role = 'unit';
+            } else if (claims.operator === true) {
+                // Reconocer explícitamente a los operadores si el claim existe
+                role = 'operator';
             }
             
             const detectedStationId = claims.stationId as string | undefined;
@@ -58,7 +60,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
         } catch (error) {
             console.error("Error fetching user claims:", error);
-            setUserRole('citizen'); // Fallback seguro
+            setUserRole('citizen');
             setStationId(undefined);
             setUnitId(undefined);
         }
@@ -95,12 +97,13 @@ function ProtectedMobileLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const { user, userRole, loading } = useAuth();
   
-  const publicRoutes = ['/auth', '/welcome', '/'];
+  const publicRoutes = ['/auth', '/welcome'];
 
   useEffect(() => {
     if (loading) return; 
 
-    const isPublicPage = publicRoutes.some(route => pathname === route);
+    const isPublicPage = publicRoutes.some(route => pathname.startsWith(route));
+    const isRootPage = pathname === '/';
 
     if (user) {
       // Usuario logueado
@@ -109,7 +112,7 @@ function ProtectedMobileLayout({ children }: { children: ReactNode }) {
           return;
       }
       
-      if (isPublicPage) {
+      if (isPublicPage || isRootPage) {
           if (userRole === 'unit') {
               router.replace('/mission');
           } else { // citizen
@@ -120,7 +123,11 @@ function ProtectedMobileLayout({ children }: { children: ReactNode }) {
 
     } else {
       // Usuario no logueado
-      if (!isPublicPage) {
+      if (!isPublicPage && !isRootPage) {
+        router.replace('/auth');
+      }
+      // Si estamos en la página raíz sin sesión, también redirigimos a auth
+      if(isRootPage) {
         router.replace('/auth');
       }
     }
@@ -137,7 +144,7 @@ function ProtectedMobileLayout({ children }: { children: ReactNode }) {
   }
 
   // Previene el parpadeo de contenido protegido antes de la redirección.
-  if (!user && !publicRoutes.some(route => pathname === route)) {
+  if (!user && !publicRoutes.some(route => pathname.startsWith(route))) {
      return (
        <div className="bg-slate-900 min-h-screen flex justify-center items-center">
             <Loader2 className="w-12 h-12 text-white animate-spin" />
