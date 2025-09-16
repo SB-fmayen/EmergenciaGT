@@ -1,6 +1,5 @@
 
 
-
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
@@ -115,7 +114,7 @@ export default function MissionPage() {
         try {
             await signOut(auth);
             toast({ title: "Sesión cerrada" });
-            router.push('/auth');
+            router.push('/');
         } catch (error) {
             toast({ title: "Error al cerrar sesión", variant: "destructive" });
         }
