@@ -1,12 +1,12 @@
 
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { MobileAppContainer } from "@/components/MobileAppContainer";
 import { Button } from "@/components/ui/button";
-import { LogOut, Loader2, Info } from "lucide-react";
-import { getFirestore, collection, addDoc, serverTimestamp, GeoPoint } from "firebase/firestore";
+import { LogOut, Loader2 } from "lucide-react";
+import { getFirestore, collection, addDoc, serverTimestamp, GeoPoint, doc, getDoc, updateDoc } from "firebase/firestore";
 import { firebaseApp, auth } from "@/lib/firebase";
 import { useAuth } from "@/app/layout";
 import { useToast } from "@/hooks/use-toast";
@@ -16,12 +16,11 @@ import { CancelAlertModal } from "@/components/dashboard/CancelAlertModal";
 import { MedicalInfoModal } from "@/components/dashboard/MedicalInfoModal";
 import { QuickActions } from "@/components/dashboard/QuickActions";
 import { EmergencyButton } from "@/components/dashboard/EmergencyButton";
-import { doc, getDoc, updateDoc } from "firebase/firestore";
 import type { AlertData, MedicalData } from "@/lib/types";
 
 export default function DashboardPage() {
   const router = useRouter();
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, userRole } = useAuth();
   const firestore = getFirestore(firebaseApp);
   const { toast } = useToast();
 
@@ -29,15 +28,30 @@ export default function DashboardPage() {
   const [activeAlert, setActiveAlert] = useState<AlertData | null>(null);
   const [medicalData, setMedicalData] = useState<MedicalData | null>(null);
   
-  // Estados para los modales
   const [isEmergencyModalOpen, setEmergencyModalOpen] = useState(false);
   const [isCancelModalOpen, setCancelModalOpen] = useState(false);
   const [isMedicalInfoModalOpen, setMedicalInfoModalOpen] = useState(false);
   
   const [isCancelling, setIsCancelling] = useState(false);
 
-  // Cargar datos médicos al iniciar
   useEffect(() => {
+    if (authLoading) return;
+
+    if (!user) {
+      router.replace('/auth');
+      return;
+    }
+
+    if (userRole === 'admin' || userRole === 'operator') {
+      router.replace('/dashboard/admin');
+      return;
+    }
+
+    if (userRole === 'unit') {
+      router.replace('/mission');
+      return;
+    }
+
     if (user && !user.isAnonymous) {
       const fetchMedicalData = async () => {
         const medicalInfoRef = doc(firestore, "medicalInfo", user.uid);
@@ -48,7 +62,7 @@ export default function DashboardPage() {
       };
       fetchMedicalData();
     }
-  }, [user, firestore]);
+  }, [user, firestore, authLoading, router, userRole]);
 
   const handleActivatePanic = async (type: string) => {
     if (!user) {
@@ -106,7 +120,7 @@ export default function DashboardPage() {
   };
   
   const handleOpenCancelModal = () => {
-    setEmergencyModalOpen(false); // Cierra el modal de éxito
+    setEmergencyModalOpen(false);
     setCancelModalOpen(true);
   }
 
@@ -134,11 +148,11 @@ export default function DashboardPage() {
     }
   }
 
-
-  if (authLoading) {
+  if (authLoading || !user || userRole !== 'citizen') {
     return (
       <MobileAppContainer className="bg-slate-900 justify-center items-center">
         <Loader2 className="w-12 h-12 text-white animate-spin" />
+        <p className="mt-4 text-slate-400">Cargando dashboard...</p>
       </MobileAppContainer>
     );
   }
@@ -182,7 +196,6 @@ export default function DashboardPage() {
         isAnonymous={!!user?.isAnonymous}
       />
       
-      {/* Modales */}
       <EmergencyModal 
         isOpen={isEmergencyModalOpen} 
         onClose={() => setEmergencyModalOpen(false)}
@@ -200,7 +213,6 @@ export default function DashboardPage() {
         medicalData={medicalData}
         isAnonymous={user?.isAnonymous}
       />
-
     </MobileAppContainer>
   );
 }

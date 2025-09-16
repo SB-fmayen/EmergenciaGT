@@ -5,10 +5,10 @@ import { useEffect, type ReactNode } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 import 'leaflet/dist/leaflet.css';
-import { useAuth } from "@/app/layout"; // Import from root layout now
+import { useAuth } from "@/app/layout";
 import { useToast } from '@/hooks/use-toast';
 
-function ProtectedAdminLayout({ children }: { children: ReactNode }) {
+export default function AdminLayout({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const { user, userRole, loading } = useAuth();
@@ -25,7 +25,6 @@ function ProtectedAdminLayout({ children }: { children: ReactNode }) {
                 router.replace('/dashboard/admin');
                 return;
             }
-            // Admin-only page protection
             if (userRole === 'operator') {
                 const adminOnlyPages = ['/dashboard/stations', '/dashboard/users', '/dashboard/analytics'];
                 if (adminOnlyPages.some(page => pathname.startsWith(page))) {
@@ -34,7 +33,7 @@ function ProtectedAdminLayout({ children }: { children: ReactNode }) {
                 }
             }
         } else {
-            // Citizen or Unit trying to access admin area
+            // citizen or unit trying to access admin area
             router.replace('/auth');
         }
     } else {
@@ -65,11 +64,4 @@ function ProtectedAdminLayout({ children }: { children: ReactNode }) {
   }
 
   return <>{children}</>;
-}
-
-
-export default function AdminLayout({ children }: { children: ReactNode }) {
-    return (
-        <ProtectedAdminLayout>{children}</ProtectedAdminLayout>
-    )
 }

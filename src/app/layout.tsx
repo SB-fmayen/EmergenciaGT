@@ -4,20 +4,10 @@
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 import { useEffect, useState, type ReactNode, createContext, useContext } from 'react';
-import { useRouter, usePathname } from 'next/navigation';
-import { Loader2 } from 'lucide-react';
 import 'leaflet/dist/leaflet.css';
 import { onAuthStateChanged, type User } from "firebase/auth";
 import { auth } from "@/lib/firebase";
-import { useToast } from '@/hooks/use-toast';
 import type { UserRole } from '@/lib/types';
-
-// Metadata can't be exported from a client component, so we define it here as a comment
-// export const metadata: Metadata = {
-//   title: 'EmergenciaGT',
-//   description: 'Sistema de Emergencias - Respuesta Rápida • Guatemala',
-//   manifest: '/manifest.json',
-// };
 
 interface AuthContextType {
   user: User | null;
@@ -48,22 +38,34 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (currentUser) {
         setUser(currentUser);
         try {
-            const idTokenResult = await currentUser.getIdTokenResult(true);
-            const claims = idTokenResult.claims;
-            
-            let role: UserRole = 'citizen'; // Default role
-            if (claims.admin === true) {
-                role = 'admin';
-            } else if (claims.unit === true) {
-                role = 'unit';
-            }
-            
-            setUserRole(role);
-            setStationId(claims.stationId as string | undefined);
-            setUnitId(claims.unitId as string | undefined);
+          const idTokenResult = await currentUser.getIdTokenResult(true);
+          const claims = idTokenResult.claims;
+          
+          let role: UserRole = 'citizen'; // Default role
+          if (claims.admin === true) {
+              role = 'admin';
+          } else if (claims.unit === true) {
+              role = 'unit';
+          } else if (claims.role === 'operator') {
+              // Fallback for initial registration before claims are set
+              role = 'operator';
+          }
+          
+          // A user is a 'citizen' if they don't have a specific role claim.
+          // This check ensures operators/admins are not misidentified.
+          if (currentUser.email && (role === 'operator' || role === 'admin' || role === 'unit')) {
+            // This is an admin/operator/unit user.
+          } else {
+            role = 'citizen';
+          }
+
+          setUserRole(role);
+          setStationId(claims.stationId as string | undefined);
+          setUnitId(claims.unitId as string | undefined);
 
         } catch (error) {
             console.error("Error fetching user claims:", error);
+            // Default to citizen if claims fail
             setUserRole('citizen');
             setStationId(undefined);
             setUnitId(undefined);

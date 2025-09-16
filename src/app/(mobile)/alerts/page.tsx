@@ -13,7 +13,7 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { CancelAlertModal } from "@/components/dashboard/CancelAlertModal";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/app/(mobile)/layout";
+import { useAuth } from "@/app/layout";
 
 /**
  * Página que muestra el historial de alertas.
@@ -47,8 +47,7 @@ export default function AlertsPage() {
     try {
       const alertsRef = collection(firestore, "alerts");
       let q;
-
-      // La consulta correcta que requiere un índice compuesto.
+      
       if (userRole === 'unit' && unitId) {
         q = query(alertsRef, where("assignedUnitId", "==", unitId), orderBy("timestamp", "desc"));
       } else {
@@ -70,7 +69,6 @@ export default function AlertsPage() {
       console.error("Error fetching alerts:", e);
       let errorMessage = "No se pudieron cargar las alertas. Por favor, inténtalo de nuevo.";
       
-      // Captura y muestra el error específico de índice de Firestore.
       if (e.code === 'failed-precondition') {
           errorMessage = "La base de datos requiere un índice compuesto que no existe. Por favor, crea un índice en Firestore para la colección 'alerts' con los campos: 'userId' (Ascendente) y 'timestamp' (Descendente).";
           console.error("Firestore Index Error:", e.message);
@@ -84,7 +82,6 @@ export default function AlertsPage() {
   }, [user, userRole, unitId, firestore]);
 
   useEffect(() => {
-    // Sincroniza la carga de datos para que ocurra solo después de que la autenticación esté lista.
     if (!authLoading && user) {
         fetchAlerts();
     } else if (!authLoading && !user) {
