@@ -1,96 +1,14 @@
 
 "use client";
 
-import { useEffect, useState, type ReactNode, createContext, useContext } from 'react';
+import { useEffect, type ReactNode } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 import 'leaflet/dist/leaflet.css';
-import { onAuthStateChanged, type User } from "firebase/auth";
-import { auth } from "@/lib/firebase";
+import { useAuth } from "@/app/layout"; // Import from root layout now
 import { useToast } from '@/hooks/use-toast';
-import type { UserRole } from '@/lib/types';
 
-interface AuthContextType {
-  user: User | null;
-  userRole: UserRole | null;
-  loading: boolean;
-  stationId?: string; // This now comes from the token
-  unitId?: string;
-}
-
-const AuthContext = createContext<AuthContextType>({
-  user: null,
-  userRole: null,
-  loading: true,
-  stationId: undefined,
-  unitId: undefined,
-});
-
-export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [userRole, setUserRole] = useState<UserRole | null>(null);
-  const [stationId, setStationId] = useState<string | undefined>(undefined);
-  const [unitId, setUnitId] = useState<string | undefined>(undefined);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-      setLoading(true);
-      if (currentUser) {
-        setUser(currentUser);
-        try {
-            // Force refresh the token to get the latest custom claims
-            const idTokenResult = await currentUser.getIdTokenResult(true); 
-            const claims = idTokenResult.claims;
-            
-            let role: UserRole = 'operator'; // Default role
-            if (claims.admin === true) {
-                role = 'admin';
-            } else if (claims.unit === true) {
-                role = 'unit';
-            }
-            
-            setUserRole(role);
-
-            // Get stationId and unitId directly from the token if it exists
-            setStationId(claims.stationId as string | undefined);
-            setUnitId(claims.unitId as string | undefined);
-
-        } catch (error) {
-            console.error("Error fetching user claims:", error);
-            // Default to a safe state on error
-            setUserRole('operator');
-            setStationId(undefined);
-            setUnitId(undefined);
-        }
-      } else {
-        setUser(null);
-        setUserRole(null);
-        setStationId(undefined);
-        setUnitId(undefined);
-      }
-      setLoading(false);
-    });
-
-    return () => unsubscribe();
-  }, []);
-
-  return (
-    <AuthContext.Provider value={{ user, userRole, loading, stationId, unitId }}>
-      {children}
-    </AuthContext.Provider>
-  );
-};
-
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
-};
-
-function ProtectedLayout({ children }: { children: ReactNode }) {
+function ProtectedAdminLayout({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const { user, userRole, loading } = useAuth();
@@ -102,15 +20,6 @@ function ProtectedLayout({ children }: { children: ReactNode }) {
     const isAuthPage = pathname.startsWith('/login');
 
     if (user) {
-        // User is logged in
-        if (userRole === 'unit') {
-            // A unit should never be in the admin layout.
-            // The login page itself will handle the initial redirect.
-            // This is a safety net.
-            router.replace('/mission');
-            return;
-        }
-
         if (userRole === 'admin' || userRole === 'operator') {
             if (isAuthPage) {
                 router.replace('/dashboard/admin');
@@ -124,6 +33,9 @@ function ProtectedLayout({ children }: { children: ReactNode }) {
                     router.replace('/dashboard/admin');
                 }
             }
+        } else {
+            // Citizen or Unit trying to access admin area
+            router.replace('/auth');
         }
     } else {
         // User is not logged in
@@ -158,8 +70,6 @@ function ProtectedLayout({ children }: { children: ReactNode }) {
 
 export default function AdminLayout({ children }: { children: ReactNode }) {
     return (
-        <AuthProvider>
-            <ProtectedLayout>{children}</ProtectedLayout>
-        </AuthProvider>
+        <ProtectedAdminLayout>{children}</ProtectedAdminLayout>
     )
 }
