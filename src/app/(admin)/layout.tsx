@@ -68,15 +68,16 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   }
 
   // Prevents flashing protected content for non-logged-in users.
-  const isProtectedPage = !pathname.startsWith('/login');
-  if (!user && isProtectedPage) {
+  // This is a special check for admin pages, as login is its own page.
+  const isProtectedAdminPage = !pathname.startsWith('/login');
+  if (!user && isProtectedAdminPage) {
      return (
        <div className="bg-slate-900 min-h-screen flex justify-center items-center">
             <Loader2 className="w-12 h-12 text-white animate-spin" />
        </div>
     );
   }
-
+  
   // Renders the children (the actual page) if all checks pass.
   return <>{children}</>;
 }

@@ -1,3 +1,4 @@
+
 "use client";
 
 import './globals.css';
@@ -44,8 +45,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           } else if (claims.stationId) {
             // If they have a stationId but are not admin/unit, they must be an operator
             setUserRole('operator');
-          } else {
-            // For this provider, if not admin or unit, they are a citizen or anon.
+          } else if (user.isAnonymous) {
+            setUserRole('citizen'); // Anonymous users are treated as citizens
+          }
+          else {
+            // A regular signed-in user
             setUserRole('citizen');
           }
         } catch (error) {
