@@ -13,7 +13,7 @@ import { collection, onSnapshot, query, orderBy } from "firebase/firestore";
 import type { StationData, UnitData } from "@/lib/types";
 import { createStation, deleteStation } from "./actions";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/app/layout";
+import { useAuth as useAdminAuth } from "@/app/(admin)/layout";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -35,7 +35,7 @@ export default function StationsPage() {
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
-  const { userRole } = useAuth();
+  const { userRole } = useAdminAuth();
   const formRef = useRef<HTMLFormElement>(null);
 
   const [stationToDelete, setStationToDelete] = useState<StationData | null>(null);

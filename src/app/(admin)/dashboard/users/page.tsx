@@ -13,7 +13,7 @@ import { auth, firestore } from "@/lib/firebase";
 import { collection, onSnapshot, query } from "firebase/firestore";
 import type { StationData, UserRole, UnitData } from "@/lib/types";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useAuth } from "@/app/layout";
+import { useAuth as useAdminAuth } from "@/app/(admin)/layout";
 
 
 function StationUnitSelector({ user, stations, disabled }: { user: UserRecordWithRole, stations: StationData[], disabled: boolean }) {
@@ -147,7 +147,7 @@ export default function UsersPage() {
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const { toast } = useToast();
-  const { user: currentUser } = useAuth();
+  const { user: currentUser } = useAdminAuth();
 
 
   const fetchUsers = useCallback(async () => {
