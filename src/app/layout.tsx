@@ -8,6 +8,8 @@ import { onAuthStateChanged, type User } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import type { UserRole } from '@/lib/types';
 import 'leaflet/dist/leaflet.css';
+import { useRouter, usePathname } from 'next/navigation';
+import { Loader2 } from 'lucide-react';
 
 
 // Auth Context for the entire application
@@ -30,6 +32,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      setLoading(true); // Start loading when auth state might be changing
       setUser(user);
       if (user) {
         try {
@@ -42,15 +45,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setUserRole('admin');
           } else if (claims.unit) {
             setUserRole('unit');
-          } else if (claims.stationId) {
-            // If they have a stationId but are not admin/unit, they must be an operator
-            setUserRole('operator');
           } else if (user.isAnonymous) {
             setUserRole('citizen'); // Anonymous users are treated as citizens
           }
           else {
-            // A regular signed-in user
-            setUserRole('citizen');
+            // A regular signed-in user or an operator without specific claims yet
+            // The specific operator role is often determined by presence of stationId
+            // but we can default to a base role.
+            const userDoc = await auth.currentUser?.getIdTokenResult();
+            if (userDoc?.claims.stationId) {
+                setUserRole('operator');
+            } else {
+                setUserRole('citizen');
+            }
           }
         } catch (error) {
           console.error("Error getting token claims:", error);
