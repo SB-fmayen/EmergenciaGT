@@ -8,7 +8,6 @@ import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   sendPasswordResetEmail,
-  onAuthStateChanged,
   signInAnonymously,
   fetchSignInMethodsForEmail,
   setPersistence,
@@ -23,6 +22,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2, Eye, EyeOff, ShieldQuestion } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import { useAuth } from "@/app/(mobile)/layout";
 
 type AuthView = "login" | "register" | "forgotPassword";
 
@@ -145,36 +145,19 @@ const ForgotPasswordForm = ({ setView, onFormSubmit, loading }: { setView: (view
 export default function AuthPage() {
   const [view, setView] = useState<AuthView>("login");
   const [loading, setLoading] = useState(false);
-  const [sessionChecked, setSessionChecked] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
+  const { loading: authLoading } = useAuth();
   
-  // Redirige si el usuario ya está logueado
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-        if (user) {
-            const idTokenResult = await user.getIdTokenResult(true);
-            const claims = idTokenResult.claims;
-            if (claims.unit === true) {
-                router.replace('/mission');
-            } else {
-                router.replace('/dashboard');
-            }
-        } else {
-            setSessionChecked(true);
-        }
-    });
-    return () => unsubscribe();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
   const handleAuthAction = async (action: () => Promise<any>, successPath?: string) => {
     if (loading) return;
     setLoading(true);
     try {
         await action();
-        // The redirection is now handled by the onAuthStateChanged effect
-        // or specifically in handleLogin for role-based redirects.
+        // La redirección ahora es manejada por el layout principal (ProtectedMobileLayout)
+        if (successPath) {
+            router.push(successPath);
+        }
     } catch (error: any) {
         handleFirebaseAuthError(error);
     } finally {
@@ -203,22 +186,17 @@ export default function AuthPage() {
         : browserSessionPersistence;
       
       await setPersistence(auth, persistenceType);
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
-
-      // Check for 'unit' role and redirect accordingly
-      const idTokenResult = await userCredential.user.getIdTokenResult(true);
-      const claims = idTokenResult.claims;
-
-      if (claims.unit === true) {
-          router.replace('/mission');
-      } else {
-          router.replace('/dashboard');
-      }
+      await signInWithEmailAndPassword(auth, email, password);
+      // El layout se encargará de la redirección basada en roles.
     });
   };
 
   const handlePasswordReset = (email: string) => {
     handleAuthAction(async () => {
+        if (!email) {
+            toast({ title: "Error", description: "Por favor, ingresa un correo electrónico.", variant: "destructive" });
+            return;
+        }
         const signInMethods = await fetchSignInMethodsForEmail(auth, email);
         if (signInMethods.length === 0) {
             toast({ title: "Error", description: "El correo proporcionado no se encuentra registrado.", variant: "destructive" });
@@ -272,8 +250,9 @@ export default function AuthPage() {
         return <LoginForm setView={setView} onFormSubmit={handleLogin} loading={loading} />;
     }
   };
-
-  if (!sessionChecked) {
+  
+  // Muestra un loader principal mientras el layout padre verifica la sesión.
+  if (authLoading) {
       return (
           <MobileAppContainer className="bg-gradient-to-br from-red-800 via-red-900 to-black justify-center items-center">
               <Loader2 className="w-12 h-12 text-white animate-spin" />
@@ -317,3 +296,5 @@ export default function AuthPage() {
     </MobileAppContainer>
   );
 }
+
+    

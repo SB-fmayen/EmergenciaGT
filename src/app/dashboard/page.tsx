@@ -8,16 +8,17 @@ import { MedicalInfoModal } from "@/components/dashboard/MedicalInfoModal";
 import { CancelAlertModal } from "@/components/dashboard/CancelAlertModal";
 import { QuickActions } from "@/components/dashboard/QuickActions";
 import type { MedicalData, AlertData } from "@/lib/types";
-import { getAuth, onAuthStateChanged, signOut, type User } from "firebase/auth";
+import { getAuth, signOut } from "firebase/auth";
 import { getFirestore, doc, getDoc, setDoc, serverTimestamp, collection, GeoPoint, updateDoc } from "firebase/firestore";
 import { firebaseApp } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, LogOut, User as UserIcon, WifiOff, CarCrash, Flame, HeartCrack, HelpingHand } from "lucide-react";
+import { Loader2, LogOut, User as UserIcon, WifiOff } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { PanicButton } from "@/components/dashboard/PanicButton";
 import { EmergencyButton } from "@/components/dashboard/EmergencyButton";
+import { useAuth } from "@/app/(mobile)/layout";
 
 
 /**
@@ -31,49 +32,28 @@ export default function DashboardPage() {
   const [isMedicalInfoModalOpen, setMedicalInfoModalOpen] = useState(false);
   const [medicalData, setMedicalData] = useState<MedicalData | null>(null);
   const [alertData, setAlertData] = useState<AlertData | null>(null);
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
   const [isCancelling, setIsCancelling] = useState(false);
   const [isActivating, setIsActivating] = useState(false);
-
-
-  const auth = getAuth(firebaseApp);
+  
+  const { user: authUser, loading: authLoading } = useAuth();
   const firestore = getFirestore(firebaseApp);
   const { toast } = useToast();
   const router = useRouter();
   const isOnline = useOnlineStatus();
 
   /**
-   * Efecto para observar cambios en el estado de autenticación
-   * y cargar los datos médicos del usuario si está logueado.
+   * Efecto para cargar los datos médicos del usuario una vez que la autenticación ha terminado.
    */
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      if (user) {
-        setCurrentUser(user);
-        // Para usuarios anónimos, no intentamos cargar datos médicos guardados
-        if (!user.isAnonymous) {
-            const medicalDocRef = doc(firestore, "medicalInfo", user.uid);
-            getDoc(medicalDocRef).then((docSnap) => {
-              if (docSnap.exists()) {
-                setMedicalData(docSnap.data() as MedicalData);
-              }
-              setLoading(false);
-            });
-        } else {
-            setLoading(false);
+    if (!authLoading && authUser && !authUser.isAnonymous) {
+      const medicalDocRef = doc(firestore, "medicalInfo", authUser.uid);
+      getDoc(medicalDocRef).then((docSnap) => {
+        if (docSnap.exists()) {
+          setMedicalData(docSnap.data() as MedicalData);
         }
-      } else {
-        // Si no hay usuario, redirigir al login
-        setCurrentUser(null);
-        setLoading(false);
-        router.push('/auth');
-      }
-    });
-
-    return () => unsubscribe();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [auth, firestore]);
+      });
+    }
+  }, [authUser, authLoading, firestore]);
 
   /**
    * Obtiene la geolocalización del usuario y maneja errores específicos.
@@ -127,8 +107,7 @@ export default function DashboardPage() {
     if (isActivating) return false;
     setIsActivating(true);
 
-    const user = auth.currentUser;
-    if (!user) {
+    if (!authUser) {
       toast({ title: "Error de Autenticación", description: "No se pudo verificar tu sesión.", variant: "destructive"});
       setIsActivating(false);
       return false;
@@ -166,12 +145,12 @@ export default function DashboardPage() {
       const alertDocRef = doc(collection(firestore, "alerts"));
       const newAlert: AlertData = {
         id: alertDocRef.id,
-        userId: user.uid,
+        userId: authUser.uid,
         timestamp: serverTimestamp(),
         location: new GeoPoint(location.latitude, location.longitude),
         status: 'new',
         type: alertType, // Guardar el tipo de alerta
-        isAnonymous: user.isAnonymous,
+        isAnonymous: authUser.isAnonymous,
       };
 
       await setDoc(alertDocRef, newAlert);
@@ -199,7 +178,7 @@ export default function DashboardPage() {
   };
   
   const handleShowAlerts = () => {
-    if (currentUser?.isAnonymous) {
+    if (authUser?.isAnonymous) {
         toast({ title: "Modo Invitado", description: "El historial de alertas solo está disponible para usuarios registrados." });
         return;
     }
@@ -247,6 +226,7 @@ export default function DashboardPage() {
 
   const handleLogout = async () => {
     try {
+      const auth = getAuth(firebaseApp);
       await signOut(auth);
       toast({ title: "Sesión cerrada", description: "Has cerrado sesión correctamente." });
       router.push('/auth');
@@ -255,7 +235,8 @@ export default function DashboardPage() {
     }
   };
 
-  if (loading) {
+  // Aquí estaba el error. Se debe usar el estado de carga del proveedor de autenticación.
+  if (authLoading) {
     return (
         <MobileAppContainer className="bg-slate-900 justify-center items-center">
             <Loader2 className="w-12 h-12 text-white animate-spin" />
@@ -263,7 +244,7 @@ export default function DashboardPage() {
     )
   }
   
-  const isAnonymousUser = currentUser?.isAnonymous ?? false;
+  const isAnonymousUser = authUser?.isAnonymous ?? false;
 
   return (
     <MobileAppContainer className="bg-gradient-to-br from-gray-900 via-gray-800 to-black">
@@ -361,5 +342,3 @@ export default function DashboardPage() {
     </MobileAppContainer>
   );
 }
-
-    

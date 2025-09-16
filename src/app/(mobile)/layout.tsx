@@ -38,7 +38,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (currentUser) {
         setUser(currentUser);
         try {
-            // No forzamos la recarga del token para evitar bloqueos.
+            // Revertido: No forzar la recarga del token, no es necesario para ciudadanos y puede bloquear la app.
             const idTokenResult = await currentUser.getIdTokenResult(); 
             const claims = idTokenResult.claims;
             
@@ -55,16 +55,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             setUserRole(role);
             setStationId(detectedStationId);
             setUnitId(detectedUnitId);
-
-            // Logs para depuración
-            console.log("Auth State Resolved:", {
-              userEmail: currentUser.email,
-              isAnonymous: currentUser.isAnonymous,
-              role,
-              stationId: detectedStationId,
-              unitId: detectedUnitId,
-            });
-
 
         } catch (error) {
             console.error("Error fetching user claims:", error);
@@ -99,14 +89,12 @@ export const useAuth = () => {
   return context;
 };
 
-// Este es el layout para las rutas bajo (mobile)
-// Protegerá las rutas que no son de autenticación como /mission y /alerts
+// Layout que protege las rutas de la app móvil.
 function ProtectedMobileLayout({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const { user, userRole, loading } = useAuth();
   
-  // Lista de rutas públicas dentro del grupo (mobile)
   const publicRoutes = ['/auth', '/welcome', '/'];
 
   useEffect(() => {
@@ -115,14 +103,12 @@ function ProtectedMobileLayout({ children }: { children: ReactNode }) {
     const isPublicPage = publicRoutes.some(route => pathname === route);
 
     if (user) {
-      // Usuario está logueado
+      // Usuario logueado
       if (userRole === 'admin' || userRole === 'operator') {
-          // Si un admin/operador entra a una ruta móvil, redirigir a su panel.
           router.replace('/dashboard/admin');
           return;
       }
       
-      // Si es un 'citizen' o 'unit' en una página pública, redirigirlo a su dashboard.
       if (isPublicPage) {
           if (userRole === 'unit') {
               router.replace('/mission');
@@ -133,13 +119,14 @@ function ProtectedMobileLayout({ children }: { children: ReactNode }) {
       }
 
     } else {
-      // Usuario no está logueado
+      // Usuario no logueado
       if (!isPublicPage) {
         router.replace('/auth');
       }
     }
   }, [user, userRole, loading, router, pathname]);
 
+  // Muestra el spinner global mientras se verifica la sesión.
   if (loading) {
     return (
       <div className="bg-slate-900 min-h-screen flex flex-col justify-center items-center text-white">
@@ -149,7 +136,7 @@ function ProtectedMobileLayout({ children }: { children: ReactNode }) {
     );
   }
 
-  // Previene el parpadeo de contenido protegido
+  // Previene el parpadeo de contenido protegido antes de la redirección.
   if (!user && !publicRoutes.some(route => pathname === route)) {
      return (
        <div className="bg-slate-900 min-h-screen flex justify-center items-center">
