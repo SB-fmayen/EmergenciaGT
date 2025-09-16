@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { LogOut, Loader2 } from "lucide-react";
 import { getFirestore, collection, addDoc, serverTimestamp, GeoPoint, doc, getDoc, updateDoc } from "firebase/firestore";
 import { firebaseApp, auth } from "@/lib/firebase";
-import { useAuth } from "@/app/layout";
+import { useAuth } from "@/app/(mobile)/layout";
 import { useToast } from "@/hooks/use-toast";
 import { signOut } from "firebase/auth";
 import { EmergencyModal } from "@/components/dashboard/EmergencyModal";
@@ -216,3 +216,5 @@ export default function DashboardPage() {
     </MobileAppContainer>
   );
 }
+
+    

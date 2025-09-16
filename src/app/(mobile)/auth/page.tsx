@@ -13,8 +13,6 @@ import {
   setPersistence,
   browserSessionPersistence,
   browserLocalPersistence,
-  onAuthStateChanged,
-  User,
 } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
