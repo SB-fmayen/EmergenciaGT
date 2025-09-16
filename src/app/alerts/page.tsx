@@ -50,27 +50,21 @@ export default function AlertsPage() {
 
       if (userRole === 'unit' && unitId) {
         // Para 'unit', se filtra por 'assignedUnitId'
-        q = query(alertsRef, where("assignedUnitId", "==", unitId));
+        q = query(alertsRef, where("assignedUnitId", "==", unitId), orderBy("timestamp", "desc"));
       } else {
         // Para 'citizen' (o cualquier otro rol en la app móvil), se filtra por 'userId'
-        q = query(alertsRef, where("userId", "==", user.uid));
+        q = query(alertsRef, where("userId", "==", user.uid), orderBy("timestamp", "desc"));
       }
       
       const querySnapshot = await getDocs(q);
       const userAlerts = querySnapshot.docs.map(doc => {
         const data = doc.data();
-        // Fallback para el timestamp
-        const date = data.timestamp instanceof Timestamp ? data.timestamp.toDate() : new Date();
-
+        
         return {
           id: doc.id,
           ...data,
-          timestamp: date,
         } as AlertData;
       });
-
-      // Ordenar las alertas en el cliente para mostrar las más recientes primero.
-      userAlerts.sort((a, b) => (b.timestamp as Date).getTime() - (a.timestamp as Date).getTime());
       
       setAlerts(userAlerts);
     } catch (e: any) {
@@ -158,7 +152,7 @@ export default function AlertsPage() {
 
   const AlertCard = ({ alert }: { alert: AlertData }) => {
     const { text, icon: Icon, color } = getStatusInfo(alert.status);
-    const alertDate = alert.timestamp instanceof Timestamp ? alert.timestamp.toDate() : (alert.timestamp as Date);
+    const alertDate = alert.timestamp instanceof Timestamp ? alert.timestamp.toDate() : new Date();
 
     return (
       <div className="bg-slate-800/50 rounded-2xl p-4 shadow-lg flex flex-col space-y-3 animate-fade-in">
