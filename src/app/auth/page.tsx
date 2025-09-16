@@ -140,26 +140,17 @@ const ForgotPasswordForm = ({ setView, onFormSubmit, loading }: { setView: (view
 export default function AuthPage() {
   const [view, setView] = useState<AuthView>("login");
   const [loading, setLoading] = useState(false);
-  const [authLoading, setAuthLoading] = useState(true);
   const router = useRouter();
   const { toast } = useToast();
   
-  useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged(user => {
-      setAuthLoading(false);
-      // Let the protected layout handle redirection for logged-in users.
-    });
-    return () => unsubscribe();
-  }, [router]);
-
   const handleAuthAction = async (action: () => Promise<any>, successPath?: string) => {
     if (loading) return;
     setLoading(true);
     try {
         const result = await action();
-        // Redirect on success
+        // The layout will handle redirection. Don't push here.
         if (successPath) {
-            router.push(successPath);
+             router.push(successPath);
         }
         return result;
     } catch (error: any) {
@@ -174,6 +165,7 @@ export default function AuthPage() {
       toast({ title: "Error", description: "Las contraseñas no coinciden.", variant: "destructive" });
       return;
     }
+    // On successful registration, go to welcome page to prompt for medical info
     handleAuthAction(() => createUserWithEmailAndPassword(auth, email, password), "/welcome");
   };
 
@@ -184,7 +176,7 @@ export default function AuthPage() {
         : browserSessionPersistence;
       await setPersistence(auth, persistenceType);
       await signInWithEmailAndPassword(auth, email, password);
-    }, "/dashboard"); // Redirect to dashboard on successful login
+    }); // NO REDIRECTION HERE. The layout will handle it.
   };
 
   const handlePasswordReset = (email: string) => {
@@ -206,7 +198,8 @@ export default function AuthPage() {
   };
 
   const handleAnonymousSignIn = () => {
-    handleAuthAction(() => signInAnonymously(auth), "/dashboard");
+    // Anonymous sign in still redirects to dashboard.
+    handleAuthAction(() => signInAnonymously(auth));
   }
 
   const handleFirebaseAuthError = (error: any) => {
@@ -246,14 +239,6 @@ export default function AuthPage() {
         return <LoginForm setView={setView} onFormSubmit={handleLogin} loading={loading} />;
     }
   };
-  
-  if (authLoading) {
-      return (
-          <MobileAppContainer className="bg-gradient-to-br from-red-800 via-red-900 to-black justify-center items-center">
-              <Loader2 className="w-12 h-12 text-white animate-spin" />
-          </MobileAppContainer>
-      )
-  }
 
   return (
     <MobileAppContainer className="bg-gradient-to-br from-red-800 via-red-900 to-black">
