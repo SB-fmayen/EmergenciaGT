@@ -31,7 +31,7 @@ export type AlertStatus =
 
 export type AlertData = {
     id: string;
-    userId: string;
+    userid: string;
     timestamp: Timestamp | Date | any; // Any para permitir serverTimestamp()
     location: GeoPoint;
     status: AlertStatus;

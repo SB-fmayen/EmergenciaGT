@@ -141,7 +141,7 @@ export default function DashboardPage() {
       const alertDocRef = doc(collection(firestore, "alerts"));
       const newAlert: AlertData = {
         id: alertDocRef.id,
-        userId: authUser.uid,
+        userid: authUser.uid,
         timestamp: serverTimestamp(),
         location: new GeoPoint(location.latitude, location.longitude),
         status: 'new',

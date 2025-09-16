@@ -53,9 +53,8 @@ export default function AlertsPage() {
         // Esta consulta puede requerir un índice compuesto en Firestore.
         q = query(alertsRef, where("assignedUnitId", "==", unitId), orderBy("timestamp", "desc"));
       } else {
-        // Para 'citizen', filtramos solo por 'userId'.
-        // Quitamos el 'orderBy' para evitar la necesidad de un índice compuesto y prevenir errores.
-        q = query(alertsRef, where("userId", "==", user.uid));
+        // Para 'citizen', filtramos por `userid` y ordenamos por `timestamp`
+        q = query(alertsRef, where("userid", "==", user.uid), orderBy("timestamp", "desc"));
       }
       
       const querySnapshot = await getDocs(q);
@@ -67,15 +66,6 @@ export default function AlertsPage() {
           ...data,
         } as AlertData;
       });
-
-      // Ordenamos los resultados en el cliente para los ciudadanos.
-      if (userRole !== 'unit') {
-        userAlerts.sort((a, b) => {
-            const timeA = a.timestamp instanceof Timestamp ? a.timestamp.toMillis() : 0;
-            const timeB = b.timestamp instanceof Timestamp ? b.timestamp.toMillis() : 0;
-            return timeB - timeA;
-        });
-      }
       
       setAlerts(userAlerts);
     } catch (e: any) {
@@ -266,5 +256,3 @@ export default function AlertsPage() {
     </MobileAppContainer>
   );
 }
-
-    

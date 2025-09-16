@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
@@ -37,8 +36,8 @@ export default function MissionPage() {
 
     const fetchMissionDetails = useCallback(async (alertData: AlertData) => {
         let userInfo: MedicalData | undefined = undefined;
-        if (alertData.userId && !alertData.isAnonymous) {
-            const userDocRef = doc(firestore, "medicalInfo", alertData.userId);
+        if (alertData.userid && !alertData.isAnonymous) {
+            const userDocRef = doc(firestore, "medicalInfo", alertData.userid);
             const userDocSnap = await getDoc(userDocRef);
             if (userDocSnap.exists()) {
                 userInfo = userDocSnap.data() as MedicalData;
@@ -229,5 +228,3 @@ export default function MissionPage() {
         </MobileAppContainer>
     );
 }
-
-    
