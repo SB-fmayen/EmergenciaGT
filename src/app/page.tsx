@@ -4,40 +4,36 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
-import { onAuthStateChanged } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import { useAuth } from './layout';
 
 /**
  * Root page of the application.
- * Its primary responsibility is to redirect the user to the correct starting route.
- * For this application, the default entry point is the mobile authentication page.
+ * Its primary responsibility is to redirect the user to the correct starting route
+ * based on their authentication state and role.
  */
 export default function RootPage() {
     const router = useRouter();
+    const { user, userRole, loading } = useAuth();
     
     useEffect(() => {
-        // We check auth state to see if a user might be an admin/operator and redirect them
-        // to the admin panel if so. Otherwise, we default to the mobile auth flow.
-        const unsubscribe = onAuthStateChanged(auth, async (user) => {
-            if (user) {
-                try {
-                    const tokenResult = await user.getIdTokenResult();
-                    // If the user has admin-related claims, send them to the admin dashboard.
-                    if (tokenResult.claims.admin || tokenResult.claims.unit || tokenResult.claims.stationId) {
-                         router.replace('/dashboard/admin');
-                         return;
-                    }
-                } catch (e) {
-                    // Ignore token errors, proceed to default mobile flow.
-                }
-            }
-            // For any non-admin user or new visitor, the starting point is the mobile auth page.
-            router.replace('/auth');
-        });
+        if (loading) return; // Wait until auth state is determined
 
-        // Clean up the listener when the component unmounts.
-        return () => unsubscribe();
-    }, [router]);
+        if (user) {
+             const isAdminRole = userRole === 'admin' || userRole === 'operator';
+             if (isAdminRole) {
+                 router.replace('/dashboard/admin');
+             } else if (userRole === 'unit') {
+                 router.replace('/mission');
+             } else {
+                 // Assumes 'citizen' or anonymous
+                 router.replace('/dashboard');
+             }
+        } else {
+            // No user, default to mobile auth flow
+            router.replace('/auth');
+        }
+
+    }, [user, userRole, loading, router]);
     
     // Display a loader while redirecting.
     return (

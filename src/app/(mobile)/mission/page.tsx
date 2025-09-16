@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
-import { useAuth } from '../layout';
+import { useAuth } from '@/app/layout';
 import { firestore } from '@/lib/firebase';
 import { collection, query, where, onSnapshot, doc, getDoc, updateDoc, Timestamp, getDocs } from 'firebase/firestore';
 import type { AlertData, MedicalData } from '@/lib/types';

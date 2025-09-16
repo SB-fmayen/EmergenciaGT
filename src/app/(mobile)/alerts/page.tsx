@@ -13,7 +13,7 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { CancelAlertModal } from "@/components/dashboard/CancelAlertModal";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "../layout";
+import { useAuth } from "@/app/layout";
 
 /**
  * Página que muestra el historial de alertas.
@@ -62,7 +62,7 @@ export default function AlertsPage() {
           id: doc.id,
           ...data,
         } as AlertData;
-      }).sort((a, b) => (b.timestamp as Timestamp).toMillis() - (a.timestamp as Timestamp).toMillis());
+      }).sort((a, b) => (b.timestamp as Timestamp).toMillis() - (b.timestamp as Timestamp).toMillis());
       
       setAlerts(userAlerts);
     } catch (e: any) {

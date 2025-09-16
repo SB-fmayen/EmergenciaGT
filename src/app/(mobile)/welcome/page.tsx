@@ -3,7 +3,7 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useAuth } from "../layout";
+import { useAuth } from "@/app/layout";
 import { MobileAppContainer } from "@/components/MobileAppContainer";
 import { Button } from "@/components/ui/button";
 import { CheckCircle, ArrowRight, Loader2 } from "lucide-react";

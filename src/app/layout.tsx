@@ -2,17 +2,85 @@
 
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
-import type { ReactNode } from 'react';
+import { useEffect, type ReactNode, createContext, useContext, useState } from 'react';
+import { useRouter, usePathname } from 'next/navigation';
+import { Loader2 } from 'lucide-react';
 import 'leaflet/dist/leaflet.css';
+import { useToast } from '@/hooks/use-toast';
+import { onAuthStateChanged, type User, signOut } from 'firebase/auth';
+import { auth } from '@/lib/firebase';
+import type { UserRole } from '@/lib/types';
 
-// The root layout is now clean and does not contain any AuthProvider.
-// Providers are handled within their specific route group layouts ((admin) and (mobile)).
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: ReactNode;
-}>) {
+// Auth Context for the entire application
+interface AuthContextType {
+  user: User | null;
+  userRole: UserRole | null;
+  stationId: string | null;
+  unitId: string | null;
+  loading: boolean;
+}
+
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const [user, setUser] = useState<User | null>(null);
+  const [userRole, setUserRole] = useState<UserRole | null>(null);
+  const [stationId, setStationId] = useState<string | null>(null);
+  const [unitId, setUnitId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      setUser(user);
+      if (user) {
+        try {
+          const tokenResult = await user.getIdTokenResult(true); // Force refresh of claims
+          const claims = tokenResult.claims;
+          setStationId(claims.stationId as string || null);
+          setUnitId(claims.unitId as string || null);
+          
+          if (claims.admin) {
+            setUserRole('admin');
+          } else if (claims.unit) {
+            setUserRole('unit');
+          } else if (claims.stationId) {
+            // If they have a stationId but are not admin/unit, they must be an operator
+            setUserRole('operator');
+          } else {
+            // For this provider, if not admin or unit, they are a citizen or anon.
+            setUserRole('citizen');
+          }
+        } catch (error) {
+          console.error("Error getting token claims:", error);
+          setUserRole('citizen'); // Fallback to default role
+        }
+      } else {
+        setUserRole(null);
+        setStationId(null);
+        setUnitId(null);
+      }
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  const value = { user, userRole, stationId, unitId, loading };
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+}
+
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+};
+
+
+export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="es" className="dark">
       <head>
@@ -26,8 +94,10 @@ export default function RootLayout({
         <link rel="apple-touch-icon" href="/cuerpo-bomberos-logo.png" />
       </head>
       <body className="font-body antialiased">
-        {children}
-        <Toaster />
+        <AuthProvider>
+            {children}
+            <Toaster />
+        </AuthProvider>
       </body>
     </html>
   );

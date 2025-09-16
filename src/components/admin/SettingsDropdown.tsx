@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Settings, User, Sun, Moon, ShieldCheck } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { useAuth } from "@/app/(admin)/layout"; 
+import { useAuth } from "@/app/layout"; 
 
 interface SettingsDropdownProps {
     theme: string;

@@ -19,7 +19,7 @@ import { es } from 'date-fns/locale';
 import { AlertDetailModal } from "@/components/admin/AlertDetailModal";
 import Link from 'next/link';
 import { SettingsDropdown } from '@/components/admin/SettingsDropdown';
-import { useAuth } from "@/app/(admin)/layout";
+import { useAuth } from "@/app/layout";
 import { getEnrichedAlerts } from "./actions";
 
 

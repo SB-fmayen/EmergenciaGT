@@ -17,7 +17,7 @@ import { Button } from "@/components/ui/button";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { PanicButton } from "@/components/dashboard/PanicButton";
 import { EmergencyButton } from "@/components/dashboard/EmergencyButton";
-import { useAuth } from "../layout";
+import { useAuth } from "@/app/layout";
 import { signOut } from "firebase/auth";
 
 
