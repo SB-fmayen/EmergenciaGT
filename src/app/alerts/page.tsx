@@ -49,11 +49,13 @@ export default function AlertsPage() {
       let q;
 
       if (userRole === 'unit' && unitId) {
-        // Para 'unit', se filtra por 'assignedUnitId'
+        // Para 'unit', se filtra por 'assignedUnitId' y se ordena por fecha descendente.
+        // Esta consulta puede requerir un índice compuesto en Firestore.
         q = query(alertsRef, where("assignedUnitId", "==", unitId), orderBy("timestamp", "desc"));
       } else {
-        // Para 'citizen' (o cualquier otro rol en la app móvil), se filtra por 'userId'
-        q = query(alertsRef, where("userId", "==", user.uid), orderBy("timestamp", "desc"));
+        // Para 'citizen', filtramos solo por 'userId'.
+        // Quitamos el 'orderBy' para evitar la necesidad de un índice compuesto y prevenir errores.
+        q = query(alertsRef, where("userId", "==", user.uid));
       }
       
       const querySnapshot = await getDocs(q);
@@ -65,6 +67,15 @@ export default function AlertsPage() {
           ...data,
         } as AlertData;
       });
+
+      // Ordenamos los resultados en el cliente para los ciudadanos.
+      if (userRole !== 'unit') {
+        userAlerts.sort((a, b) => {
+            const timeA = a.timestamp instanceof Timestamp ? a.timestamp.toMillis() : 0;
+            const timeB = b.timestamp instanceof Timestamp ? b.timestamp.toMillis() : 0;
+            return timeB - timeA;
+        });
+      }
       
       setAlerts(userAlerts);
     } catch (e: any) {
@@ -85,14 +96,12 @@ export default function AlertsPage() {
 
   useEffect(() => {
     // Solo ejecuta fetchAlerts cuando la autenticación haya terminado y tengamos un usuario.
-    if (!authLoading) {
-      if (user) {
+    if (!authLoading && user) {
         fetchAlerts();
-      } else {
+    } else if (!authLoading && !user) {
         // Si no hay usuario, no hay nada que cargar.
         setLoading(false);
         // El layout se encargará de la redirección.
-      }
     }
   }, [authLoading, user, fetchAlerts]);
   
@@ -257,3 +266,5 @@ export default function AlertsPage() {
     </MobileAppContainer>
   );
 }
+
+    
