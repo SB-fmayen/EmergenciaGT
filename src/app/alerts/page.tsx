@@ -49,6 +49,7 @@ export default function AlertsPage() {
       const alertsRef = collection(firestore, "alerts");
       let q;
 
+      // La consulta correcta que requiere un índice compuesto.
       if (userRole === 'unit' && unitId) {
         q = query(alertsRef, where("assignedUnitId", "==", unitId), orderBy("timestamp", "desc"));
       } else {
@@ -70,8 +71,9 @@ export default function AlertsPage() {
       console.error("Error fetching alerts:", e);
       let errorMessage = "No se pudieron cargar las alertas. Por favor, inténtalo de nuevo.";
       
+      // Captura y muestra el error específico de índice de Firestore.
       if (e.code === 'failed-precondition') {
-          errorMessage = "La consulta a la base de datos requiere una configuración de índice en Firebase. Contacta al administrador y proporciónale este mensaje de la consola.";
+          errorMessage = "La consulta a la base de datos requiere un índice compuesto en Firestore que no existe. Por favor, crea un índice en la colección 'alerts' con los campos: 'userId' (Ascendente) y 'timestamp' (Descendente).";
           console.error("Firestore Index Error:", e.message);
       } else if (e.code === 'permission-denied') {
           errorMessage = "No tienes permisos para ver esta información. Revisa las reglas de seguridad de Firestore.";
@@ -83,10 +85,12 @@ export default function AlertsPage() {
   }, [user, userRole, unitId, firestore]);
 
   useEffect(() => {
+    // Sincroniza la carga de datos para que ocurra solo después de que la autenticación esté lista.
     if (!authLoading && user) {
         fetchAlerts();
     } else if (!authLoading && !user) {
         setLoading(false);
+        // Si no hay usuario, no es un error, simplemente no hay nada que mostrar.
     }
   }, [authLoading, user, fetchAlerts]);
   

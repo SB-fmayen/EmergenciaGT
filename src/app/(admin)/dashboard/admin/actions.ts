@@ -117,4 +117,3 @@ export async function getEnrichedAlerts(): Promise<{ success: boolean; alerts?: 
         return { success: false, error: `Error del servidor: ${error.message}` };
     }
 }
-
