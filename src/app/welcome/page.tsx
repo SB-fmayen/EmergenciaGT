@@ -1,4 +1,2 @@
-
-// This file is intentionally blank to resolve a build conflict.
-// The content for this route has been moved to /src/app/(mobile)/welcome/page.tsx
-// to ensure it's part of the mobile-specific route group.
+// This file is intentionally blank to resolve the route conflict.
+// The content for this page now lives in /src/app/(mobile)/welcome/page.tsx

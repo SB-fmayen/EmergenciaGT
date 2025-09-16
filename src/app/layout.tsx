@@ -12,7 +12,7 @@ import 'leaflet/dist/leaflet.css';
 export default function RootLayout({
   children,
 }: Readonly<{
-  children: React.ReactNode;
+  children: ReactNode;
 }>) {
   return (
     <html lang="es" className="dark">

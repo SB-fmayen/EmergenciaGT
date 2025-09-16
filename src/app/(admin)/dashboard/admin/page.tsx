@@ -6,20 +6,20 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { auth, firestore } from "@/lib/firebase";
+import { firestore } from "@/lib/firebase";
 import { signOut } from "firebase/auth";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import { LogOut, RefreshCw, Bell, Zap, CheckCircle, Clock, MapPin, Building, Loader2, HardHat, Users, LayoutDashboard, Truck, Siren, Check, Stethoscope, Hospital, UserCheck, AlertTriangle } from "lucide-react";
 import dynamic from 'next/dynamic';
-import { collection, onSnapshot, query, where, getDocs, doc, orderBy, type Query, Timestamp } from "firebase/firestore";
+import { collection, onSnapshot, getDocs, doc, orderBy, type Query, Timestamp } from "firebase/firestore";
 import type { AlertData, MedicalData, StationData, UserRole } from "@/lib/types";
 import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { AlertDetailModal } from "@/components/admin/AlertDetailModal";
 import Link from 'next/link';
 import { SettingsDropdown } from '@/components/admin/SettingsDropdown';
-import { useAuth } from "@/app/layout";
+import { useAuth } from "@/app/(admin)/layout";
 import { getEnrichedAlerts } from "./actions";
 
 
@@ -36,7 +36,7 @@ export interface EnrichedAlert extends AlertData {
 export default function AdminDashboardPage() {
     const router = useRouter();
     const { toast } = useToast();
-    const { user, userRole } = useAuth();
+    const { user, userRole, loading: authLoading } = useAuth();
     
     const [theme, setTheme] = useState("dark");
     const [alerts, setAlerts] = useState<EnrichedAlert[]>([]);
@@ -87,6 +87,8 @@ export default function AdminDashboardPage() {
      * Effect de inicialización del componente.
      */
     useEffect(() => {
+        if (authLoading) return;
+
         const savedTheme = localStorage.getItem("theme") || "dark";
         setTheme(savedTheme);
         document.documentElement.className = savedTheme;
@@ -118,7 +120,7 @@ export default function AdminDashboardPage() {
              }
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [userRole]); // Depende del rol para saber si debe cargar las estaciones.
+    }, [userRole, authLoading]); // Depende del rol para saber si debe cargar las estaciones.
 
 
     /**

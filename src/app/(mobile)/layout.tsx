@@ -37,9 +37,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           } else if (claims.unit) {
             setUserRole('unit');
             setUnitId(claims.unitId as string || null);
-          } else if (claims.operator) {
-            setUserRole('operator');
           } else {
+            // For this provider, if not admin or unit, they are a citizen or anon.
             setUserRole('citizen');
           }
         } catch (error) {
