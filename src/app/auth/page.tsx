@@ -12,7 +12,9 @@ import {
   fetchSignInMethodsForEmail,
   setPersistence,
   browserSessionPersistence,
-  browserLocalPersistence
+  browserLocalPersistence,
+  onAuthStateChanged,
+  User,
 } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
@@ -22,7 +24,6 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2, Eye, EyeOff, ShieldQuestion } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { useAuth } from "@/app/(mobile)/layout";
 
 type AuthView = "login" | "register" | "forgotPassword";
 
@@ -138,23 +139,40 @@ const ForgotPasswordForm = ({ setView, onFormSubmit, loading }: { setView: (view
 };
 
 
-/**
- * Página de autenticación que maneja el registro, inicio de sesión y recuperación de contraseña
- * utilizando los servicios de Firebase Authentication. Es la página de entrada a la aplicación.
- */
 export default function AuthPage() {
   const [view, setView] = useState<AuthView>("login");
   const [loading, setLoading] = useState(false);
+  const [authLoading, setAuthLoading] = useState(true);
   const router = useRouter();
   const { toast } = useToast();
-  const { loading: authLoading } = useAuth();
   
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+        if (user) {
+            // Usuario logueado. Redirigir al dashboard.
+            // Para evitar conflictos, solo redirigimos si no es admin/operator.
+            try {
+                const token = await user.getIdTokenResult();
+                if (token.claims.admin || token.claims.operator) {
+                    // Si es admin/op, el layout de admin se encargará.
+                    // Pero si llegó aquí, es mejor no hacer nada.
+                } else {
+                     router.replace('/dashboard');
+                }
+            } catch(e) {
+                router.replace('/dashboard');
+            }
+        }
+        setAuthLoading(false);
+    });
+    return () => unsubscribe();
+  }, [router]);
+
   const handleAuthAction = async (action: () => Promise<any>, successPath?: string) => {
     if (loading) return;
     setLoading(true);
     try {
         await action();
-        // La redirección ahora es manejada por el layout principal (ProtectedMobileLayout)
         if (successPath) {
             router.push(successPath);
         }
@@ -173,21 +191,13 @@ export default function AuthPage() {
     handleAuthAction(() => createUserWithEmailAndPassword(auth, email, password), "/welcome");
   };
 
-  /**
-   * Maneja el inicio de sesión del usuario.
-   * @param email - El correo electrónico del usuario.
-   * @param password - La contraseña del usuario.
-   * @param keepLoggedIn - Un booleano que indica si se debe mantener la sesión iniciada.
-   */
   const handleLogin = (email: string, password: string, keepLoggedIn: boolean) => {
     handleAuthAction(async () => {
       const persistenceType = keepLoggedIn
         ? browserLocalPersistence
         : browserSessionPersistence;
-      
       await setPersistence(auth, persistenceType);
       await signInWithEmailAndPassword(auth, email, password);
-      // El layout se encargará de la redirección basada en roles.
     });
   };
 
@@ -251,7 +261,6 @@ export default function AuthPage() {
     }
   };
   
-  // Muestra un loader principal mientras el layout padre verifica la sesión.
   if (authLoading) {
       return (
           <MobileAppContainer className="bg-gradient-to-br from-red-800 via-red-900 to-black justify-center items-center">
@@ -296,5 +305,3 @@ export default function AuthPage() {
     </MobileAppContainer>
   );
 }
-
-    

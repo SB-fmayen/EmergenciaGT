@@ -8,7 +8,7 @@ import { MedicalInfoModal } from "@/components/dashboard/MedicalInfoModal";
 import { CancelAlertModal } from "@/components/dashboard/CancelAlertModal";
 import { QuickActions } from "@/components/dashboard/QuickActions";
 import type { MedicalData, AlertData } from "@/lib/types";
-import { getAuth, signOut } from "firebase/auth";
+import { getAuth, signOut, onAuthStateChanged, User } from "firebase/auth";
 import { getFirestore, doc, getDoc, setDoc, serverTimestamp, collection, GeoPoint, updateDoc } from "firebase/firestore";
 import { firebaseApp } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
@@ -18,14 +18,7 @@ import { Button } from "@/components/ui/button";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { PanicButton } from "@/components/dashboard/PanicButton";
 import { EmergencyButton } from "@/components/dashboard/EmergencyButton";
-import { useAuth } from "@/app/(mobile)/layout";
 
-
-/**
- * Página principal del dashboard.
- * Muestra el botón de pánico y las acciones rápidas.
- * Gestiona la visibilidad de los modales de emergencia e información médica.
- */
 export default function DashboardPage() {
   const [isEmergencyModalOpen, setEmergencyModalOpen] = useState(false);
   const [isCancelModalOpen, setCancelModalOpen] = useState(false);
@@ -35,15 +28,27 @@ export default function DashboardPage() {
   const [isCancelling, setIsCancelling] = useState(false);
   const [isActivating, setIsActivating] = useState(false);
   
-  const { user: authUser, loading: authLoading } = useAuth();
+  const [authUser, setAuthUser] = useState<User | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  
   const firestore = getFirestore(firebaseApp);
   const { toast } = useToast();
   const router = useRouter();
   const isOnline = useOnlineStatus();
 
-  /**
-   * Efecto para cargar los datos médicos del usuario una vez que la autenticación ha terminado.
-   */
+  useEffect(() => {
+    const auth = getAuth(firebaseApp);
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+        if (user) {
+            setAuthUser(user);
+        } else {
+            router.replace('/auth');
+        }
+        setAuthLoading(false);
+    });
+    return () => unsubscribe();
+  }, [router]);
+
   useEffect(() => {
     if (!authLoading && authUser && !authUser.isAnonymous) {
       const medicalDocRef = doc(firestore, "medicalInfo", authUser.uid);
@@ -55,10 +60,6 @@ export default function DashboardPage() {
     }
   }, [authUser, authLoading, firestore]);
 
-  /**
-   * Obtiene la geolocalización del usuario y maneja errores específicos.
-   * @returns Una promesa que resuelve con la posición o null si falla.
-   */
   const getUserLocation = (): Promise<{ latitude: number; longitude: number } | null> => {
     return new Promise((resolve) => {
       if (!navigator.geolocation) {
@@ -98,11 +99,6 @@ export default function DashboardPage() {
     });
   }
 
-  /**
-   * Se ejecuta cuando el botón de pánico es activado.
-   * Obtiene la ubicación, verifica la conexión y crea la alerta en Firestore.
-   * @param alertType - El tipo de alerta a registrar (ej. 'Pánico', 'Incendio').
-   */
   const handleActivateEmergency = async (alertType: string): Promise<boolean> => {
     if (isActivating) return false;
     setIsActivating(true);
@@ -124,7 +120,7 @@ export default function DashboardPage() {
     if (!location) {
         toast({ title: "Activación Cancelada", description: "No se pudo activar la alerta sin tu ubicación.", variant: "destructive" });
         setIsActivating(false);
-        return false; // Retorna false para que el botón sepa que no se activó
+        return false;
     }
 
     if (!isOnline) {
@@ -149,7 +145,7 @@ export default function DashboardPage() {
         timestamp: serverTimestamp(),
         location: new GeoPoint(location.latitude, location.longitude),
         status: 'new',
-        type: alertType, // Guardar el tipo de alerta
+        type: alertType,
         isAnonymous: authUser.isAnonymous,
       };
 
@@ -161,18 +157,15 @@ export default function DashboardPage() {
         setEmergencyModalOpen(true);
       }
       setIsActivating(false);
-      return true; // Éxito
+      return true;
     } catch (error) {
       console.error("Error creating alert:", error);
       toast({ title: "Error", description: "No se pudo crear la alerta. Inténtalo de nuevo.", variant: "destructive"});
       setIsActivating(false);
-      return false; // Fallo
+      return false;
     }
   };
 
-  /**
-   * Muestra el modal con la información médica del usuario.
-   */
   const handleShowMedicalInfo = () => {
     setMedicalInfoModalOpen(true);
   };
@@ -235,7 +228,6 @@ export default function DashboardPage() {
     }
   };
 
-  // Aquí estaba el error. Se debe usar el estado de carga del proveedor de autenticación.
   if (authLoading) {
     return (
         <MobileAppContainer className="bg-slate-900 justify-center items-center">
