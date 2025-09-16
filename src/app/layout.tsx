@@ -1,6 +1,8 @@
+
 import type {Metadata} from 'next';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
+import { AuthProvider } from '@/app/(mobile)/layout';
 
 export const metadata: Metadata = {
   title: 'EmergenciaGT',
@@ -23,7 +25,9 @@ export default function RootLayout({
         <link rel="apple-touch-icon" href="/cuerpo-bomberos-logo.png" />
       </head>
       <body className="font-body antialiased">
-        {children}
+        <AuthProvider>
+          {children}
+        </AuthProvider>
         <Toaster />
       </body>
     </html>
