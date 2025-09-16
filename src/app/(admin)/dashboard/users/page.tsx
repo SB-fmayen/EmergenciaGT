@@ -13,6 +13,7 @@ import { auth, firestore } from "@/lib/firebase";
 import { collection, onSnapshot, query } from "firebase/firestore";
 import type { StationData, UserRole, UnitData } from "@/lib/types";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useAuth } from "@/app/layout";
 
 
 function StationUnitSelector({ user, stations, disabled }: { user: UserRecordWithRole, stations: StationData[], disabled: boolean }) {
@@ -48,11 +49,25 @@ function StationUnitSelector({ user, stations, disabled }: { user: UserRecordWit
         }
     }, [selectedStationId, toast]);
 
-    const handleStationSelection = (newStationIdValue: string) => {
-        const newId = newStationIdValue === 'none' ? '' : newStationIdValue;
-        setSelectedStationId(newId);
+    const handleStationSelection = async (newStationIdValue: string) => {
+        const newStationId = newStationIdValue === 'none' ? null : newStationIdValue;
+        
+        setSelectedStationId(newStationId || '');
         // Reset unit selection when station changes
         setSelectedUnitId('none');
+        
+        const result = await updateUser(user.uid, await auth.currentUser?.getIdToken(), { 
+            stationId: newStationId, 
+            unitId: null // Always clear unit when station changes
+        });
+
+        if (!result.success) {
+            toast({ title: "Error", description: result.error, variant: "destructive" });
+            // Revert on failure
+            setSelectedStationId(user.stationId || '');
+        } else {
+            toast({title: "Asignación actualizada", description: "La estación ha sido asignada correctamente."})
+        }
     };
 
     const handleUnitChange = async (newUnitIdValue: string) => {
@@ -132,6 +147,8 @@ export default function UsersPage() {
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const { toast } = useToast();
+  const { user: currentUser } = useAuth();
+
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
@@ -250,7 +267,7 @@ export default function UsersPage() {
                           <Select
                             value={user.role}
                             onValueChange={(value) => handleRoleChange(user.uid, value as UserRole)}
-                            disabled={updatingId === user.uid || auth.currentUser?.uid === user.uid}
+                            disabled={updatingId === user.uid || currentUser?.uid === user.uid}
                           >
                             <SelectTrigger className="w-[150px]">
                                 <SelectValue />

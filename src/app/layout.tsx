@@ -40,8 +40,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setUserRole('unit');
             setUnitId(claims.unitId as string || null);
           } else if (claims.operator) {
-            // Este claim no existe por defecto, pero lo manejamos por si se añade.
-            // La distinción real se hace en los layouts.
             setUserRole('operator');
           } else {
             setUserRole('citizen');

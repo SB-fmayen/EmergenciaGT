@@ -7,10 +7,11 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuItem,
-  DropdownMenuGroup
+  DropdownMenuGroup,
+  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-import { Settings, User, Sun, Moon, Volume2, VolumeX, ShieldCheck } from "lucide-react";
+import { Settings, User, Sun, Moon, ShieldCheck } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/app/layout"; // Import useAuth from root layout

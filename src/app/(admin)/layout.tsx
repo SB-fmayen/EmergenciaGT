@@ -20,10 +20,19 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     const isAuthPage = pathname.startsWith('/login');
 
     if (user) {
-        // Un usuario de app móvil o unidad intenta acceder al panel de admin
-        if (userRole === 'citizen' || userRole === 'unit') {
+        // Un usuario de app móvil intenta acceder al panel de admin
+        if (userRole === 'citizen') {
             toast({ title: "Acceso no autorizado", description: "Esta área es solo para administradores y operadores.", variant: "destructive" });
             router.replace('/dashboard');
+            return;
+        }
+
+        // Si el usuario es una unidad, lo redirigimos a su página de misión.
+        if (userRole === 'unit') {
+            // Permitir acceso a la página de misión, pero bloquear el resto del admin.
+            if (!pathname.startsWith('/mission')) {
+                 router.replace('/mission');
+            }
             return;
         }
 

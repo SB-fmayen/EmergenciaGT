@@ -24,12 +24,11 @@ export default function RootPage() {
                 router.replace('/dashboard/admin');
             } else if (userRole === 'unit') {
                 router.replace('/mission');
-            } else { // 'citizen'
+            } else { // 'citizen' o anónimo
                 router.replace('/dashboard');
             }
         } else {
             // Si no hay usuario, redirige a la página de login de la app móvil por defecto.
-            // El layout de admin se encargará de redirigir a /login si se intenta acceder a una ruta de admin.
             router.replace('/auth');
         }
     }, [user, userRole, loading, router]);

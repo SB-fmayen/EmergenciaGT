@@ -9,7 +9,9 @@ import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 
 interface PanicButtonProps {
   /** Función a ejecutar cuando el botón se activa completamente. */
-  onActivate: () => void;
+  onActivate: () => Promise<boolean>; // Cambiado para devolver una promesa booleana
+  /** Indica si el botón debe estar deshabilitado. */
+  disabled?: boolean;
 }
 
 /**
@@ -18,9 +20,8 @@ interface PanicButtonProps {
  * Muestra una barra de progreso durante la pulsación.
  * @param {PanicButtonProps} props - Propiedades del componente.
  */
-export function PanicButton({ onActivate }: PanicButtonProps) {
+export function PanicButton({ onActivate, disabled }: PanicButtonProps) {
   const [isHolding, setIsHolding] = useState(false);
-  const [isActivated, setIsActivated] = useState(false);
   const [progress, setProgress] = useState(0);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -29,7 +30,7 @@ export function PanicButton({ onActivate }: PanicButtonProps) {
   /**
    * Limpia todos los temporizadores y estados.
    */
-  const clearTimers = () => {
+  const clearTimers = useCallback(() => {
     if (timerRef.current) {
       clearTimeout(timerRef.current);
       timerRef.current = null;
@@ -38,7 +39,7 @@ export function PanicButton({ onActivate }: PanicButtonProps) {
       clearInterval(progressIntervalRef.current);
       progressIntervalRef.current = null;
     }
-  };
+  }, []);
 
   /**
    * Reinicia el estado del botón a su estado inicial.
@@ -46,17 +47,24 @@ export function PanicButton({ onActivate }: PanicButtonProps) {
   const reset = useCallback(() => {
     clearTimers();
     setIsHolding(false);
-    setIsActivated(false);
     setProgress(0);
-  }, []);
+  }, [clearTimers]);
 
+  const handleActivation = useCallback(async () => {
+    const success = await onActivate();
+    // No se hace nada en caso de éxito, el componente padre maneja el estado
+    // de carga y el modal. En caso de fallo, se resetea.
+    if (!success) {
+      reset();
+    }
+  }, [onActivate, reset]);
 
   /**
    * Inicia el proceso de mantener presionado.
    * Activa un temporizador de 2 segundos y un intervalo para la barra de progreso.
    */
   const startHold = () => {
-    if (isActivated) return;
+    if (disabled) return;
     
     setIsHolding(true);
     setProgress(0); // Empezar siempre desde 0
@@ -72,12 +80,9 @@ export function PanicButton({ onActivate }: PanicButtonProps) {
     }, 30);
 
     timerRef.current = setTimeout(() => {
-      onActivate();
-      setIsActivated(true);
-      setIsHolding(false); // Dejar de mostrar la barra de progreso
-      clearTimers();
-      // Espera 2s antes de volver al estado inicial para que el usuario vea la confirmación
-      setTimeout(() => reset(), 2000); 
+      handleActivation();
+      // No reseteamos inmediatamente. El padre controla el estado `disabled`
+      // a través de `isActivating`. Si la activación falla, el reset se llama.
     }, 2000);
   };
 
@@ -85,9 +90,16 @@ export function PanicButton({ onActivate }: PanicButtonProps) {
    * Cancela el proceso si el usuario suelta el botón antes de tiempo.
    */
   const cancelHold = () => {
-    if (isActivated) return;
+    if (disabled || !isHolding) return;
     reset();
   };
+  
+  useEffect(() => {
+      if (disabled) {
+          reset();
+      }
+  }, [disabled, reset]);
+
 
   /**
    * Hook de efecto para limpiar los temporizadores cuando el componente se desmonta,
@@ -95,7 +107,7 @@ export function PanicButton({ onActivate }: PanicButtonProps) {
    */
   useEffect(() => {
     return () => clearTimers();
-  }, []);
+  }, [clearTimers]);
 
   return (
     <div className="flex flex-col items-center justify-center">
@@ -106,30 +118,28 @@ export function PanicButton({ onActivate }: PanicButtonProps) {
           onMouseLeave={cancelHold}
           onTouchStart={(e) => { e.preventDefault(); startHold(); }}
           onTouchEnd={cancelHold}
-          disabled={isActivated}
+          disabled={disabled}
           className="w-56 h-56 rounded-full bg-gradient-to-br from-red-500 via-red-600 to-red-800 text-white flex-col animate-pulse-emergency shadow-2xl shadow-red-500/20 active:scale-95 transition-all duration-300 disabled:opacity-80 disabled:cursor-not-allowed"
         >
           <div className="text-center relative z-10">
-            {isActivated ? (
+            {disabled && isHolding ? ( // Muestra un check mientras se procesa
                 <Check className="w-16 h-16 mx-auto mb-2 animate-fade-in" />
             ) : (
                 <ShieldAlert className="w-16 h-16 mx-auto mb-2" />
             )}
-            <div className="text-2xl font-black mb-1">{isActivated ? "ENVIADO" : "EMERGENCIA"}</div>
-            <div className="text-base font-medium opacity-90">{isActivated ? "" : "PRESIONAR"}</div>
+            <div className="text-2xl font-black mb-1">{disabled && isHolding ? "ENVIADO" : "EMERGENCIA"}</div>
+            <div className="text-base font-medium opacity-90">{disabled ? "" : "PRESIONAR"}</div>
           </div>
         </Button>
         <div className="absolute inset-0 rounded-full border-4 border-red-400/30 animate-ping -z-10"></div>
       </div>
       
       <p className="text-white text-base font-medium mb-4 h-5">
-        {isActivated
-          ? isOnline ? "La ayuda está en camino" : "Alerta guardada, se enviará al reconectar"
-          : "Mantén presionado por 2 segundos"}
+        {isHolding ? "Mantén presionado..." : "Mantén presionado por 2 segundos"}
       </p>
 
       <div className="w-56 mx-auto h-6">
-        {isHolding && !isActivated && (
+        {isHolding && (
           <div className="animate-fade-in">
             <Progress value={progress} className="h-2 bg-white/20 [&>div]:bg-white" />
           </div>
