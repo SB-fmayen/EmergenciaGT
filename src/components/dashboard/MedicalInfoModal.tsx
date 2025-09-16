@@ -12,6 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { ClipboardList, ShieldAlert } from "lucide-react";
 import type { MedicalData } from "@/lib/types";
+import { useRouter } from "next/navigation";
 
 interface MedicalInfoModalProps {
   /** Controla si el modal está abierto o cerrado. */
@@ -36,7 +37,13 @@ export function MedicalInfoModal({
   isAnonymous = false,
 }: MedicalInfoModalProps) {
   
+  const router = useRouter();
   const hasData = !!medicalData && medicalData.fullName;
+
+  const handleNavigateToMedicalInfo = () => {
+    onClose();
+    router.push('/medical-info');
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -101,7 +108,7 @@ export function MedicalInfoModal({
                     : "No hay información médica registrada."
                 }
               </p>
-               <Button onClick={() => {onClose(); window.location.href = '/medical-info'}} className="mt-4 bg-blue-500 hover:bg-blue-600">
+               <Button onClick={handleNavigateToMedicalInfo} className="mt-4 bg-blue-500 hover:bg-blue-600">
                   {isAnonymous ? "Añadir Info. Temporal" : "Registrar ahora"}
                </Button>
             </div>
@@ -109,7 +116,7 @@ export function MedicalInfoModal({
         </div>
         <DialogFooter className="p-6 pt-4 border-t border-slate-700 bg-slate-800/50">
            {(hasData || isAnonymous) && (
-              <Button onClick={() => {onClose(); window.location.href = '/medical-info'}} className="w-full bg-blue-500 hover:bg-blue-600 text-white">
+              <Button onClick={handleNavigateToMedicalInfo} className="w-full bg-blue-500 hover:bg-blue-600 text-white">
                 {isAnonymous ? "Editar Info. Temporal" : "Actualizar Información"}
               </Button>
            )}
