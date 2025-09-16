@@ -148,7 +148,7 @@ export default function DashboardPage() {
     }
   }
 
-  if (authLoading || !user || userRole !== 'citizen') {
+  if (authLoading || !user || !userRole) {
     return (
       <MobileAppContainer className="bg-slate-900 justify-center items-center">
         <Loader2 className="w-12 h-12 text-white animate-spin" />

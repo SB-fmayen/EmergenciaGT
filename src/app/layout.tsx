@@ -8,6 +8,7 @@ import 'leaflet/dist/leaflet.css';
 import { onAuthStateChanged, type User } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import type { UserRole } from '@/lib/types';
+import { Loader2 } from 'lucide-react';
 
 interface AuthContextType {
   user: User | null;
@@ -41,22 +42,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           const idTokenResult = await currentUser.getIdTokenResult(true);
           const claims = idTokenResult.claims;
           
-          let role: UserRole = 'citizen'; // Default role
+          let role: UserRole;
           if (claims.admin === true) {
               role = 'admin';
           } else if (claims.unit === true) {
               role = 'unit';
+          } else if (currentUser.isAnonymous) {
+              role = 'citizen';
           } else if (claims.role === 'operator') {
-              // Fallback for initial registration before claims are set
               role = 'operator';
-          }
-          
-          // A user is a 'citizen' if they don't have a specific role claim.
-          // This check ensures operators/admins are not misidentified.
-          if (currentUser.email && (role === 'operator' || role === 'admin' || role === 'unit')) {
-            // This is an admin/operator/unit user.
           } else {
-            role = 'citizen';
+              // If no specific role claim, and not anonymous, assume citizen
+              role = 'citizen';
           }
 
           setUserRole(role);
@@ -92,7 +89,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error('useAuth debe ser usado dentro de un AuthProvider');
   }
   return context;
 };
