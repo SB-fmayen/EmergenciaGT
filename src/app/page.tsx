@@ -3,12 +3,13 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuth } from './layout';
 import { Loader2 } from 'lucide-react';
+import { useAuth } from './(mobile)/layout'; 
 
 /**
- * Página raíz de la aplicación.
- * Su única responsabilidad es redirigir al usuario a la ruta correcta según su estado de autenticación.
+ * Root page of the application.
+ * Its sole responsibility is to redirect the user to the correct route based on their authentication status.
+ * It uses the AuthProvider from the (mobile) layout.
  */
 export default function RootPage() {
     const router = useRouter();
@@ -16,24 +17,25 @@ export default function RootPage() {
     
     useEffect(() => {
         if (loading) {
-            return; // Espera a que termine la carga
+            return; // Wait until loading is finished
         }
 
         if (user) {
+            // User is logged in, redirect based on role
             if (userRole === 'admin' || userRole === 'operator') {
                 router.replace('/dashboard/admin');
             } else if (userRole === 'unit') {
                 router.replace('/mission');
-            } else { // 'citizen' o anónimo
+            } else { // 'citizen' or anonymous
                 router.replace('/dashboard');
             }
         } else {
-            // Si no hay usuario, redirige a la página de login de la app móvil por defecto.
+            // No user, redirect to the mobile app's login page.
             router.replace('/auth');
         }
     }, [user, userRole, loading, router]);
     
-    // Muestra un loader mientras se determina la redirección
+    // Display a loader while determining the redirect path.
     return (
         <div className="bg-slate-900 min-h-screen flex flex-col justify-center items-center text-white">
             <Loader2 className="w-12 h-12 animate-spin" />

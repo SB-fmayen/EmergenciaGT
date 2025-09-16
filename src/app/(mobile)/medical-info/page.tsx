@@ -16,7 +16,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Loader2, ArrowLeft, Plus, Trash2, HeartPulse, User } from "lucide-react";
 
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/app/layout";
+import { useAuth } from "../layout";
 import { getFirestore, doc, setDoc, getDoc, serverTimestamp } from "firebase/firestore";
 import { firebaseApp } from "@/lib/firebase";
 import type { MedicalData } from "@/lib/types";
