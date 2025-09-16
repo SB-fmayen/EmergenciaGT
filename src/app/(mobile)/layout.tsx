@@ -16,13 +16,7 @@ interface AuthContextType {
   unitId?: string;
 }
 
-const AuthContext = createContext<AuthContextType>({
-  user: null,
-  userRole: null,
-  loading: true,
-  stationId: undefined,
-  unitId: undefined,
-});
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
@@ -37,10 +31,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (currentUser) {
         setUser(currentUser);
         try {
-            const idTokenResult = await currentUser.getIdTokenResult();
+            // Forzar la actualización del token para obtener los últimos claims
+            const idTokenResult = await currentUser.getIdTokenResult(true);
             const claims = idTokenResult.claims;
             
-            let role: UserRole = 'citizen'; // Default role for mobile app users
+            let role: UserRole = 'citizen'; // Rol por defecto para usuarios de la app móvil
             if (claims.unit === true) {
                 role = 'unit';
             }
@@ -50,8 +45,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             setUnitId(claims.unitId as string | undefined);
 
         } catch (error) {
-            console.error("Error fetching user claims:", error);
-            setUserRole('citizen'); // Fallback to safe default
+            console.error("Error al obtener claims del usuario:", error);
+            setUserRole('citizen'); // Fallback a un rol seguro por defecto
+            setStationId(undefined);
+            setUnitId(undefined);
         }
       } else {
         setUser(null);
@@ -62,6 +59,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setLoading(false);
     });
 
+    // Limpieza al desmontar
     return () => unsubscribe();
   }, []);
 
@@ -75,7 +73,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error('useAuth debe ser usado dentro de un AuthProvider');
   }
   return context;
 };
@@ -93,23 +91,29 @@ function ProtectedMobileLayout({ children }: { children: ReactNode }) {
     const isAuthPage = pathname === '/auth';
 
     if (user) {
-        // User is logged in
+        // Usuario ha iniciado sesión
         if (userRole === 'unit') {
-            if (pathname !== '/mission') router.replace('/mission');
+            if (pathname !== '/mission') {
+                router.replace('/mission');
+            }
         } else if (userRole === 'citizen') {
-             if (isAuthPage || pathname === '/mission') router.replace('/dashboard');
+             if (isAuthPage) {
+                 router.replace('/dashboard');
+             }
         } else {
-            // Failsafe for other roles like admin/operator
-             if (pathname !== '/auth') router.replace('/auth');
+            // Caso improbable (admin/operator en app móvil), redirigir a auth.
+             if (!isAuthPage) {
+                 router.replace('/auth');
+             }
         }
     } else {
-        // User is not logged in
-        if (!isAuthPage) {
+        // Usuario no ha iniciado sesión
+        if (!isAuthPage && !publicPaths.includes(pathname)) {
             router.replace('/auth');
         }
     }
     
-  }, [user, userRole, loading, pathname, router]);
+  }, [user, userRole, loading, pathname, router, publicPaths]);
 
   if (loading) {
     return (
@@ -120,8 +124,8 @@ function ProtectedMobileLayout({ children }: { children: ReactNode }) {
     );
   }
   
-  // Prevents flicker for unauthenticated users
-  if (!user && pathname !== '/auth') {
+  // Evita el parpadeo de contenido protegido mientras redirige
+  if (!user && !publicPaths.includes(pathname)) {
     return (
       <div className="bg-slate-900 min-h-screen flex flex-col justify-center items-center text-white">
         <Loader2 className="w-12 h-12 animate-spin" />
