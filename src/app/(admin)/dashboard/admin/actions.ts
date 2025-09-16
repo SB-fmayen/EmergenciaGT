@@ -1,4 +1,5 @@
 
+
 'use server';
 /**
  * @fileoverview Este archivo contiene las Server Actions para el dashboard de administración.
@@ -36,8 +37,8 @@ export async function getEnrichedAlerts(): Promise<{ success: boolean; alerts?: 
         // Recopila todos los IDs de usuario de las alertas (que no sean anónimas).
         const userIds = [...new Set(
             alertsData
-                .filter(alert => alert.userid && !alert.isAnonymous)
-                .map(alert => alert.userid)
+                .filter(alert => alert.userId && !alert.isAnonymous)
+                .map(alert => alert.userId)
         )];
 
         let medicalInfoMap = new Map<string, MedicalData>();
@@ -63,7 +64,7 @@ export async function getEnrichedAlerts(): Promise<{ success: boolean; alerts?: 
         
         // Combina los datos PRIMERO, y LUEGO serializa el objeto completo.
         const enrichedAlerts = alertsData.map(alert => {
-             const userInfo = alert.userid ? medicalInfoMap.get(alert.userid) : undefined;
+             const userInfo = alert.userId ? medicalInfoMap.get(alert.userId) : undefined;
              const enrichedAlert: EnrichedAlert = { ...alert };
              if (userInfo) {
                  enrichedAlert.userInfo = userInfo;
@@ -116,3 +117,4 @@ export async function getEnrichedAlerts(): Promise<{ success: boolean; alerts?: 
         return { success: false, error: `Error del servidor: ${error.message}` };
     }
 }
+

@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
@@ -49,12 +50,9 @@ export default function AlertsPage() {
       let q;
 
       if (userRole === 'unit' && unitId) {
-        // Para 'unit', se filtra por 'assignedUnitId' y se ordena por fecha descendente.
-        // Esta consulta puede requerir un índice compuesto en Firestore.
         q = query(alertsRef, where("assignedUnitId", "==", unitId), orderBy("timestamp", "desc"));
       } else {
-        // Para 'citizen', filtramos por `userid` y ordenamos por `timestamp`
-        q = query(alertsRef, where("userid", "==", user.uid), orderBy("timestamp", "desc"));
+        q = query(alertsRef, where("userId", "==", user.uid), orderBy("timestamp", "desc"));
       }
       
       const querySnapshot = await getDocs(q);
@@ -85,13 +83,10 @@ export default function AlertsPage() {
   }, [user, userRole, unitId, firestore]);
 
   useEffect(() => {
-    // Solo ejecuta fetchAlerts cuando la autenticación haya terminado y tengamos un usuario.
     if (!authLoading && user) {
         fetchAlerts();
     } else if (!authLoading && !user) {
-        // Si no hay usuario, no hay nada que cargar.
         setLoading(false);
-        // El layout se encargará de la redirección.
     }
   }, [authLoading, user, fetchAlerts]);
   
@@ -205,6 +200,38 @@ export default function AlertsPage() {
       return { title: "Historial de Alertas", subtitle: "Tus emergencias registradas" };
   }
 
+  const renderContent = () => {
+    if (loading) {
+      return (
+        <div className="text-center py-10">
+          <Loader2 className="w-8 h-8 mx-auto text-white animate-spin" />
+          <p className="text-white mt-4">Cargando historial...</p>
+        </div>
+      );
+    }
+
+    if (error) {
+      return (
+        <div className="text-center py-10 text-red-400 bg-red-900/50 rounded-lg p-4">
+          <WifiOff className="w-12 h-12 mx-auto text-red-500 mb-4" />
+          <p className="font-bold">Error al Cargar</p>
+          <p className="text-sm mt-2">{error}</p>
+        </div>
+      );
+    }
+
+    if (alerts.length > 0) {
+      return alerts.map(alert => <AlertCard key={alert.id} alert={alert} />);
+    }
+
+    return (
+      <div className="text-center py-10 text-slate-400">
+        <FileClock className="w-12 h-12 mx-auto text-slate-500 mb-4" />
+        <p>No tienes alertas en tu historial.</p>
+      </div>
+    );
+  };
+
   return (
     <MobileAppContainer className="bg-slate-900">
       <div className="flex flex-col h-full">
@@ -224,25 +251,7 @@ export default function AlertsPage() {
         </header>
 
         <div className="flex-1 overflow-y-auto px-6 py-6 space-y-4">
-          {loading ? (
-            <div className="text-center py-10">
-              <Loader2 className="w-8 h-8 mx-auto text-white animate-spin" />
-              <p className="text-white mt-4">Cargando historial...</p>
-            </div>
-          ) : error ? (
-             <div className="text-center py-10 text-red-400 bg-red-900/50 rounded-lg p-4">
-              <WifiOff className="w-12 h-12 mx-auto text-red-500 mb-4" />
-              <p className="font-bold">Error al Cargar</p>
-              <p className="text-sm mt-2">{error}</p>
-            </div>
-          ) : alerts.length > 0 ? (
-            alerts.map(alert => <AlertCard key={alert.id} alert={alert} />)
-          ) : (
-            <div className="text-center py-10 text-slate-400">
-                <FileClock className="w-12 h-12 mx-auto text-slate-500 mb-4" />
-                <p>No tienes alertas en tu historial.</p>
-            </div>
-          )}
+          {renderContent()}
         </div>
       </div>
       {userRole !== 'unit' && (
@@ -256,3 +265,4 @@ export default function AlertsPage() {
     </MobileAppContainer>
   );
 }
+

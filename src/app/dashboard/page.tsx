@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -141,7 +142,7 @@ export default function DashboardPage() {
       const alertDocRef = doc(collection(firestore, "alerts"));
       const newAlert: AlertData = {
         id: alertDocRef.id,
-        userid: authUser.uid,
+        userId: authUser.uid,
         timestamp: serverTimestamp(),
         location: new GeoPoint(location.latitude, location.longitude),
         status: 'new',
@@ -334,3 +335,4 @@ export default function DashboardPage() {
     </MobileAppContainer>
   );
 }
+

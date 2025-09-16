@@ -1,4 +1,5 @@
 
+
 import type { Timestamp, GeoPoint } from "firebase/firestore";
 
 export type EmergencyContact = {
@@ -31,7 +32,7 @@ export type AlertStatus =
 
 export type AlertData = {
     id: string;
-    userid: string;
+    userId: string;
     timestamp: Timestamp | Date | any; // Any para permitir serverTimestamp()
     location: GeoPoint;
     status: AlertStatus;
@@ -69,3 +70,4 @@ export type UserProfile = {
     lastLogin?: Timestamp | Date | any;
     stationId?: string;
 };
+
