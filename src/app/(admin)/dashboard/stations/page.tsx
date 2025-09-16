@@ -13,7 +13,7 @@ import { collection, onSnapshot, query, orderBy } from "firebase/firestore";
 import type { StationData, UnitData } from "@/lib/types";
 import { createStation, deleteStation } from "./actions";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/app/(admin)/layout";
+import { useAuth } from "@/app/layout";
 import {
   AlertDialog,
   AlertDialogAction,

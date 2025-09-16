@@ -1,2 +1,4 @@
+
 // This file is intentionally blank.
-// The logic has been moved to the root /src/app/page.tsx file.
+// The (mobile) route group has been removed to resolve build errors.
+// The root page logic is now in /src/app/page.tsx.
