@@ -45,8 +45,10 @@ export default function MobileLayout({ children }: { children: ReactNode }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, userRole, loading, router, pathname]);
 
-  // Shows a loading screen while auth state is being determined.
-  if (loading) {
+  // If we are still loading the initial auth state, we show a spinner.
+  // However, we DON'T show this for subsequent page navigations within the mobile app
+  // to prevent the "Verificando sesión..." flicker. Each page will handle its own loading state.
+  if (loading && !user) {
     return (
       <div className="bg-slate-900 min-h-screen flex flex-col justify-center items-center text-white">
         <Loader2 className="w-12 h-12 animate-spin" />
