@@ -112,10 +112,9 @@ export default function RootLayout({
         <link rel="apple-touch-icon" href="/cuerpo-bomberos-logo.png" />
       </head>
       <body className="font-body antialiased">
-        <AuthProvider>
-          {children}
-          <Toaster />
-        </AuthProvider>
+        {/* AuthProvider se mueve a los layouts específicos que lo necesitan */}
+        {children}
+        <Toaster />
       </body>
     </html>
   );
