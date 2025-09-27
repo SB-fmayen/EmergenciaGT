@@ -63,19 +63,65 @@ body {
   }
 }
 
-/* Custom styles for admin dashboard */
-.severity-critical { border-left: 4px solid #dc2626; }
-.severity-high { border-left: 4px solid #ea580c; }
-.severity-medium { border-left: 4px solid #d97706; }
-.severity-low { border-left: 4px solid #65a30d; }
+/* Custom styles for driver.js to match the dark theme */
+.driverjs-theme .driver-popover {
+    background-color: hsl(var(--card));
+    color: hsl(var(--card-foreground));
+    border: 1px solid hsl(var(--border));
+}
 
-.status-active { background-color: #fef2f2; }
-.dark .status-active { background-color: rgba(239, 68, 68, 0.05); }
+.driverjs-theme .driver-popover-title {
+    font-size: 1.25rem;
+    font-weight: bold;
+    color: hsl(var(--foreground));
+}
 
-.status-in-progress { background-color: #fffbeb; }
-.dark .status-in-progress { background-color: rgba(245, 158, 11, 0.05); }
+.driverjs-theme .driver-popover-description {
+    color: hsl(var(--muted-foreground));
+}
 
-.status-completed { background-color: #f0fdf4; }
-.dark .status-completed { background-color: rgba(34, 197, 94, 0.05); }
+.driverjs-theme .driver-popover-arrow-side-left.driver-popover-arrow {
+    border-left-color: hsl(var(--border));
+}
 
-    
+.driverjs-theme .driver-popover-arrow-side-right.driver-popover-arrow {
+    border-right-color: hsl(var(--border));
+}
+
+.driverjs-theme .driver-popover-arrow-side-top.driver-popover-arrow {
+    border-top-color: hsl(var(--border));
+}
+
+.driverjs-theme .driver-popover-arrow-side-bottom.driver-popover-arrow {
+    border-bottom-color: hsl(var(--border));
+}
+
+.driverjs-theme .driver-popover-navigation-btns {
+    justify-content: flex-end;
+    gap: 0.5rem;
+}
+
+.driverjs-theme .driver-popover-btn {
+    background-color: hsl(var(--primary));
+    color: hsl(var(--primary-foreground));
+    text-shadow: none;
+    border-radius: var(--radius);
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+}
+
+.driverjs-theme button.driver-popover-close-btn {
+    color: hsl(var(--muted-foreground));
+}
+
+.driverjs-theme button.driver-popover-close-btn:hover {
+    color: hsl(var(--foreground));
+}
+
+.driverjs-theme .driver-popover-progress-text {
+    color: hsl(var(--muted-foreground));
+}
+
+.driverjs-theme .driver-popover-stage-background {
+    background: transparent;
+}

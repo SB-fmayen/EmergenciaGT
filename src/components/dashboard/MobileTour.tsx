@@ -18,6 +18,11 @@ export function MobileTour() {
         if (isNewUser) {
             const driverObj = driver({
                 showProgress: true,
+                popoverClass: 'driverjs-theme', // Clase personalizada para estilos
+                nextBtnText: 'Siguiente',
+                prevBtnText: 'Anterior',
+                doneBtnText: 'Entendido',
+                showButtons: ['next', 'previous', 'close'],
                 steps: [
                     { 
                         element: '#panic-button-section', 
@@ -43,18 +48,16 @@ export function MobileTour() {
                     {
                         popover: {
                             title: '¡Estás listo!',
-                            description: 'Esperamos que nunca lo necesites, pero ahora sabes cómo usar la app. Mantente a salvo.'
+                            description: 'Esperamos que nunca lo necesites, pero ahora sabes cómo usar la app. Mantente a salvo.',
+                            showButtons: ['close', 'previous'],
                         }
                     }
-                ],
-                nextBtnText: 'Siguiente',
-                prevBtnText: 'Anterior',
-                doneBtnText: 'Entendido',
+                ]
             });
 
             setTimeout(() => {
                 driverObj.drive();
-            }, 1000);
+            }, 1500);
         }
     }, [isNewUser, authLoading, user]);
 

@@ -18,6 +18,11 @@ export function AdminTour() {
         if (isNewUser) {
             const driverObj = driver({
                 showProgress: true,
+                popoverClass: 'driverjs-theme', // Clase personalizada para estilos
+                nextBtnText: 'Siguiente',
+                prevBtnText: 'Anterior',
+                doneBtnText: 'Finalizar',
+                showButtons: ['next', 'previous', 'close'],
                 steps: [
                     { 
                         element: '#admin-header', 
@@ -30,7 +35,7 @@ export function AdminTour() {
                         element: '#admin-nav-links', 
                         popover: { 
                             title: 'Navegación Principal', 
-                            description: 'Si eres administrador, aquí puedes acceder a las analíticas, gestión de estaciones y usuarios. Si no, solo verás el botón de salir.' 
+                            description: 'Si eres administrador, aquí puedes acceder a las analíticas, gestión de estaciones y usuarios.' 
                         } 
                     },
                     { 
@@ -44,7 +49,7 @@ export function AdminTour() {
                         element: '#alerts-list-panel', 
                         popover: { 
                             title: 'Lista de Alertas', 
-                            description: 'Aquí aparecen todas las alertas en tiempo real. Puedes filtrarlas por estado o buscarlas. Haz clic en una para ver los detalles y asignarla.' 
+                            description: 'Aquí aparecen todas las alertas en tiempo real. Puedes filtrarlas y buscarlas. Haz clic en una para ver los detalles y asignarla.' 
                         } 
                     },
                     { 
@@ -57,19 +62,17 @@ export function AdminTour() {
                     {
                         popover: {
                             title: '¡Listo para Empezar!',
-                            description: 'Ya conoces lo básico. Puedes volver a ver este tour borrando las cookies de tu navegador si lo necesitas.'
+                            description: 'Ya conoces lo básico. Puedes volver a ver este tour borrando los datos de tu navegador si lo necesitas.',
+                            showButtons: ['close', 'previous'],
                         }
                     }
-                ],
-                nextBtnText: 'Siguiente',
-                prevBtnText: 'Anterior',
-                doneBtnText: 'Finalizar',
+                ]
             });
 
             // Pequeño delay para asegurar que todos los elementos del DOM estén listos.
             setTimeout(() => {
                 driverObj.drive();
-            }, 1000);
+            }, 1500);
         }
     }, [isNewUser, authLoading]);
 
