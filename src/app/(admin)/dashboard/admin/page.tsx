@@ -21,6 +21,7 @@ import Link from 'next/link';
 import { SettingsDropdown } from '@/components/admin/SettingsDropdown';
 import { useAuth } from "@/app/layout";
 import { getEnrichedAlerts } from "./actions";
+import { AdminTour } from "@/components/admin/AdminTour";
 
 
 const AlertsMap = dynamic(() => import('@/components/admin/AlertsMap'), { 
@@ -245,8 +246,9 @@ export default function AdminDashboardPage() {
 
   return (
     <>
+    <AdminTour />
     <div className="flex flex-col min-h-screen bg-background text-foreground">
-      <header className="bg-card border-b border-border shadow-md">
+      <header className="bg-card border-b border-border shadow-md" id="admin-header">
         <div className="container mx-auto px-6 py-4">
             <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
@@ -255,7 +257,7 @@ export default function AdminDashboardPage() {
                     </div>
                     <h1 className="text-2xl font-bold text-foreground">Consola de Emergencias</h1>
                 </div>
-                <div className="flex items-center space-x-4">
+                <div className="flex items-center space-x-4" id="admin-nav-links">
                     {userRole === 'admin' && (
                        <>
                         <Link href="/dashboard/analytics">
@@ -293,7 +295,7 @@ export default function AdminDashboardPage() {
       
       <main className="flex-1 p-6 container mx-auto">
         {/* Sección de KPIs */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8" id="kpi-cards">
             <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium text-muted-foreground">Nuevas y Asignadas</CardTitle>
@@ -334,7 +336,7 @@ export default function AdminDashboardPage() {
         
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             {/* Columna de la Lista de Alertas */}
-            <div className="bg-card rounded-lg shadow-lg border border-border flex flex-col">
+            <div className="bg-card rounded-lg shadow-lg border border-border flex flex-col" id="alerts-list-panel">
                 <div className="p-6 border-b border-border">
                     <div className="flex items-center justify-between mb-4">
                         <h2 className="text-xl font-bold text-foreground">Alertas de Emergencia</h2>
@@ -423,7 +425,7 @@ export default function AdminDashboardPage() {
             </div>
 
              {/* Columna del Mapa */}
-             <div className="bg-card rounded-lg shadow-lg border border-border flex flex-col">
+             <div className="bg-card rounded-lg shadow-lg border border-border flex flex-col" id="map-panel">
                  <div className="p-6 border-b border-border">
                     <h2 className="text-xl font-bold text-foreground">Mapa de Incidentes</h2>
                     <p className="text-muted-foreground text-sm">Guatemala - Tiempo Real</p>
