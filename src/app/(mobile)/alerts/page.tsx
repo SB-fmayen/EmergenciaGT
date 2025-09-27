@@ -1,11 +1,11 @@
 
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { MobileAppContainer } from "@/components/MobileAppContainer";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Loader2, Clock, MapPin, CheckCircle, AlertTriangle, ShieldX, UserCheck, Truck, Siren, Hospital, HardHat, FileClock, WifiOff } from "lucide-react";
+import { ArrowLeft, Loader2, Clock, MapPin, CheckCircle, AlertTriangle, ShieldX, UserCheck, Truck, Siren, Hospital, HardHat, FileClock, WifiOff, HelpCircle } from "lucide-react";
 import { getFirestore, collection, query, where, getDocs, orderBy, Timestamp, doc, updateDoc } from "firebase/firestore";
 import { firebaseApp } from "@/lib/firebase";
 import type { AlertData, AlertStatus } from "@/lib/types";
@@ -14,6 +14,7 @@ import { es } from 'date-fns/locale';
 import { CancelAlertModal } from "@/components/dashboard/CancelAlertModal";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/app/layout";
+import { AlertsHistoryTour } from "@/components/dashboard/AlertsHistoryTour";
 
 /**
  * Página que muestra el historial de alertas.
@@ -25,6 +26,7 @@ export default function AlertsPage() {
   const { user, userRole, unitId, loading: authLoading } = useAuth();
   const firestore = getFirestore(firebaseApp);
   const { toast } = useToast();
+  const tourRef = useRef<{ startTour: () => void }>(null);
 
   const [alerts, setAlerts] = useState<AlertData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -150,7 +152,7 @@ export default function AlertsPage() {
     const { text, icon: Icon, color } = getStatusInfo(alert.status);
 
     return (
-      <div className="bg-slate-800/50 rounded-2xl p-4 shadow-lg flex flex-col space-y-3 animate-fade-in">
+      <div id="alert-card-example" className="bg-slate-800/50 rounded-2xl p-4 shadow-lg flex flex-col space-y-3 animate-fade-in">
         <div className="flex justify-between items-center">
           <span className={`flex items-center text-sm font-bold ${color}`}>
             <Icon className="w-4 h-4 mr-2" />
@@ -234,24 +236,37 @@ export default function AlertsPage() {
   };
 
   return (
+    <>
+    <AlertsHistoryTour ref={tourRef} />
     <MobileAppContainer className="bg-slate-900">
       <div className="flex flex-col h-full">
-        <header className="bg-gradient-to-r from-yellow-600 to-orange-600 text-white px-6 py-6 flex items-center shadow-lg flex-shrink-0">
+        <header className="bg-gradient-to-r from-yellow-600 to-orange-600 text-white px-6 py-6 flex items-center justify-between shadow-lg flex-shrink-0">
+          <div className="flex items-center">
+            <Button
+                variant="ghost"
+                size="icon"
+                className="mr-4 hover:bg-white/10"
+                onClick={() => router.back()}
+            >
+                <ArrowLeft className="w-6 h-6" />
+            </Button>
+            <div>
+                <h1 className="text-xl font-bold">{getHeaderText().title}</h1>
+                <p className="text-yellow-100 text-sm">{getHeaderText().subtitle}</p>
+            </div>
+          </div>
           <Button
             variant="ghost"
             size="icon"
-            className="mr-4 hover:bg-white/10"
-            onClick={() => router.back()}
+            className="hover:bg-white/10"
+            onClick={() => tourRef.current?.startTour()}
+            title="Ver recorrido"
           >
-            <ArrowLeft className="w-6 h-6" />
+            <HelpCircle className="w-5 h-5" />
           </Button>
-          <div>
-            <h1 className="text-xl font-bold">{getHeaderText().title}</h1>
-            <p className="text-yellow-100 text-sm">{getHeaderText().subtitle}</p>
-          </div>
         </header>
 
-        <div className="flex-1 overflow-y-auto px-6 py-6 space-y-4">
+        <div className="flex-1 overflow-y-auto px-6 py-6 space-y-4" id="alerts-history-list">
           {renderContent()}
         </div>
       </div>
@@ -264,5 +279,8 @@ export default function AlertsPage() {
         />
       )}
     </MobileAppContainer>
+    </>
   );
 }
+
+    

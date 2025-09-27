@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ArrowLeft, PlusCircle, Loader2, Edit, Trash2, MapPin, Ambulance } from "lucide-react";
+import { ArrowLeft, PlusCircle, Loader2, Edit, Trash2, MapPin, Ambulance, HelpCircle } from "lucide-react";
 import Link from "next/link";
 import { firestore } from "@/lib/firebase";
 import { collection, onSnapshot, query, orderBy } from "firebase/firestore";
@@ -28,6 +28,7 @@ import { EditStationModal } from "@/components/admin/EditStationModal";
 import { AddUnitModal } from "@/components/admin/AddUnitModal";
 import { EditUnitModal } from "@/components/admin/EditUnitModal";
 import { UnitList } from "@/components/admin/UnitList";
+import { StationsTour } from "@/components/admin/StationsTour";
 
 
 export default function StationsPage() {
@@ -37,6 +38,7 @@ export default function StationsPage() {
   const { toast } = useToast();
   const { userRole } = useAuth();
   const formRef = useRef<HTMLFormElement>(null);
+  const tourRef = useRef<{ startTour: () => void }>(null);
 
   const [stationToDelete, setStationToDelete] = useState<StationData | null>(null);
   const [stationToEdit, setStationToEdit] = useState<StationData | null>(null);
@@ -113,6 +115,7 @@ export default function StationsPage() {
 
   return (
     <>
+    <StationsTour ref={tourRef} />
     <div className="flex flex-col min-h-screen bg-background text-foreground">
       <header className="bg-card border-b border-border shadow-md">
         <div className="container mx-auto px-6 py-4">
@@ -125,6 +128,14 @@ export default function StationsPage() {
               </Link>
               <h1 className="text-2xl font-bold text-foreground">Gestión de Estaciones</h1>
             </div>
+             <Button
+                variant="outline"
+                size="icon"
+                onClick={() => tourRef.current?.startTour()}
+                title="Ver recorrido de la página"
+            >
+                <HelpCircle className="h-5 w-5" />
+            </Button>
           </div>
         </div>
       </header>
@@ -139,7 +150,7 @@ export default function StationsPage() {
           </Card>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <div className="lg:col-span-1">
+            <div className="lg:col-span-1" id="stations-add-panel">
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2"><PlusCircle /> Nueva Estación</CardTitle>
@@ -174,7 +185,7 @@ export default function StationsPage() {
               </Card>
             </div>
 
-            <div className="lg:col-span-2">
+            <div className="lg:col-span-2" id="stations-list-panel">
               <Card>
                 <CardHeader>
                   <CardTitle>Estaciones Registradas</CardTitle>
@@ -263,3 +274,5 @@ export default function StationsPage() {
     </>
   );
 }
+
+    

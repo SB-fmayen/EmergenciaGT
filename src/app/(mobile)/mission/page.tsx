@@ -1,12 +1,12 @@
 
 "use client";
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '@/app/layout';
 import { firestore } from '@/lib/firebase';
 import { collection, query, where, onSnapshot, doc, getDoc, updateDoc, Timestamp, getDocs } from 'firebase/firestore';
 import type { AlertData, MedicalData } from '@/lib/types';
-import { Loader2, LogOut, Check, Hospital, Siren, Stethoscope, Truck, UserCheck, Wind, MapPin, User, FileText, HeartPulse, RefreshCw } from 'lucide-react';
+import { Loader2, LogOut, Check, Hospital, Siren, Stethoscope, Truck, UserCheck, Wind, MapPin, User, FileText, HeartPulse, RefreshCw, HelpCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { signOut } from 'firebase/auth';
@@ -15,6 +15,7 @@ import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { MobileAppContainer } from '@/components/MobileAppContainer';
 import { Separator } from '@/components/ui/separator';
+import { MissionTour } from '@/components/dashboard/MissionTour';
 
 const MissionMap = dynamic(() => import('@/components/admin/AlertsMap'), { 
   ssr: false,
@@ -29,6 +30,7 @@ export default function MissionPage() {
     const { user, userRole, unitId, loading: authLoading } = useAuth();
     const { toast } = useToast();
     const router = useRouter();
+    const tourRef = useRef<{ startTour: () => void }>(null);
 
     const [mission, setMission] = useState<EnrichedMissionAlert | null>(null);
     const [loading, setLoading] = useState(true);
@@ -160,6 +162,8 @@ export default function MissionPage() {
     }
     
     return (
+        <>
+        <MissionTour ref={tourRef} />
         <MobileAppContainer className="bg-slate-900 text-white">
              <header className="bg-slate-800 p-4 flex justify-between items-center border-b border-slate-700 flex-shrink-0">
                 <div>
@@ -170,6 +174,9 @@ export default function MissionPage() {
                     <Button onClick={handleRefresh} variant="ghost" size="icon" className="text-slate-300 hover:bg-slate-700/50 hover:text-white" disabled={loading}>
                         <RefreshCw className={`h-5 w-5 ${loading ? 'animate-spin' : ''}`} />
                     </Button>
+                     <Button onClick={() => tourRef.current?.startTour()} variant="ghost" size="icon" className="text-slate-300 hover:bg-slate-700/50 hover:text-white" title="Ver recorrido">
+                        <HelpCircle className="h-5 w-5" />
+                    </Button>
                     <Button onClick={handleLogout} variant="ghost" size="icon" className="text-red-400 hover:bg-red-500/10 hover:text-red-400">
                         <LogOut className="h-5 w-5"/>
                     </Button>
@@ -178,7 +185,7 @@ export default function MissionPage() {
 
             {mission ? (
                 <div className="flex-1 flex flex-col">
-                    <div className="h-1/3 flex-shrink-0 border-b-4 border-red-500">
+                    <div id="mission-map" className="h-1/3 flex-shrink-0 border-b-4 border-red-500">
                         <MissionMap alerts={[mission]} selectedAlert={mission} theme="dark" />
                     </div>
                     <div className="flex-1 overflow-y-auto p-4 space-y-4">
@@ -192,7 +199,7 @@ export default function MissionPage() {
                             </Button>
                         </div>
                         
-                        <div className="bg-slate-800/50 p-4 rounded-xl space-y-2">
+                        <div id="mission-patient-info" className="bg-slate-800/50 p-4 rounded-xl space-y-2">
                              <h3 className="font-bold text-lg flex items-center gap-2 text-slate-300"><HeartPulse/> Info. Paciente</h3>
                              <Separator className="bg-slate-700"/>
                              <p><strong>Nombre:</strong> {mission.userInfo?.fullName || 'No disponible'}</p>
@@ -201,7 +208,7 @@ export default function MissionPage() {
                              <p><strong>Notas:</strong> {mission.userInfo?.additionalNotes || 'Ninguna'}</p>
                         </div>
 
-                         <div className="bg-slate-800/50 p-4 rounded-xl space-y-3">
+                         <div id="mission-status-buttons" className="bg-slate-800/50 p-4 rounded-xl space-y-3">
                              <h3 className="font-bold text-lg flex items-center gap-2 text-slate-300"><FileText/> Actualizar Estado</h3>
                              <Separator className="bg-slate-700"/>
                              <div className="grid grid-cols-2 gap-2">
@@ -232,12 +239,15 @@ export default function MissionPage() {
                     </div>
                 </div>
             ) : (
-                <div className="flex-1 flex flex-col items-center justify-center text-center p-4">
+                <div id="mission-waiting" className="flex-1 flex flex-col items-center justify-center text-center p-4">
                     <Wind className="mx-auto h-16 w-16 text-slate-500 mb-4" />
                     <h2 className="text-2xl font-bold">En Espera de Asignación</h2>
                     <p className="text-slate-400 mt-2">La pantalla se actualizará automáticamente al recibir una nueva misión.</p>
                 </div>
             )}
         </MobileAppContainer>
+        </>
     );
 }
+
+    

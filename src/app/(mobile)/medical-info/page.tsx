@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useForm, useFieldArray, FormProvider } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -13,13 +13,14 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Loader2, ArrowLeft, Plus, Trash2, HeartPulse, User } from "lucide-react";
+import { Loader2, ArrowLeft, Plus, Trash2, HeartPulse, User, HelpCircle } from "lucide-react";
 
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/app/layout";
 import { getFirestore, doc, setDoc, getDoc, serverTimestamp } from "firebase/firestore";
 import { firebaseApp } from "@/lib/firebase";
 import type { MedicalData } from "@/lib/types";
+import { MedicalInfoTour } from "@/components/dashboard/MedicalInfoTour";
 
 const medicalFormSchema = z.object({
   fullName: z.string().min(3, { message: "El nombre debe tener al menos 3 caracteres." }),
@@ -51,6 +52,7 @@ export default function MedicalInfoPage() {
   const firestore = getFirestore(firebaseApp);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [initialDataLoading, setInitialDataLoading] = useState(true);
+  const tourRef = useRef<{ startTour: () => void }>(null);
 
   const form = useForm<z.infer<typeof medicalFormSchema>>({
     resolver: zodResolver(medicalFormSchema),
@@ -154,27 +156,41 @@ export default function MedicalInfoPage() {
   }
 
   return (
+    <>
+    <MedicalInfoTour ref={tourRef} />
     <MobileAppContainer className="bg-slate-900">
       <FormProvider {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col h-full">
-          <header className="bg-gradient-to-r from-blue-600 to-cyan-600 text-white px-6 py-6 flex items-center shadow-lg flex-shrink-0">
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="mr-4 hover:bg-white/10"
-              onClick={() => router.back()}
-            >
-              <ArrowLeft className="w-6 h-6" />
-            </Button>
-            <div>
-              <h1 className="text-xl font-bold">Información Médica</h1>
-              <p className="text-blue-100 text-sm">Vital para tu atención</p>
+          <header className="bg-gradient-to-r from-blue-600 to-cyan-600 text-white px-6 py-6 flex items-center justify-between shadow-lg flex-shrink-0">
+            <div className="flex items-center">
+                <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="mr-4 hover:bg-white/10"
+                onClick={() => router.back()}
+                >
+                <ArrowLeft className="w-6 h-6" />
+                </Button>
+                <div>
+                <h1 className="text-xl font-bold">Información Médica</h1>
+                <p className="text-blue-100 text-sm">Vital para tu atención</p>
+                </div>
             </div>
+            <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="hover:bg-white/10"
+                onClick={() => tourRef.current?.startTour()}
+                title="Ver recorrido"
+            >
+                <HelpCircle className="w-5 h-5" />
+            </Button>
           </header>
 
           <div className="flex-1 overflow-y-auto px-6 py-6 space-y-8">
-            <div className="space-y-4 p-4 bg-slate-800/50 rounded-lg">
+            <div id="medical-info-personal" className="space-y-4 p-4 bg-slate-800/50 rounded-lg">
               <h2 className="font-bold text-lg text-white flex items-center"><User className="mr-2"/>Datos Personales</h2>
                <FormField
                 control={form.control}
@@ -219,7 +235,7 @@ export default function MedicalInfoPage() {
                </div>
             </div>
             
-            <div className="space-y-4 p-4 bg-slate-800/50 rounded-lg">
+            <div id="medical-info-history" className="space-y-4 p-4 bg-slate-800/50 rounded-lg">
                 <h2 className="font-bold text-lg text-white flex items-center"><HeartPulse className="mr-2"/>Historial Médico</h2>
                 <FormField
                   control={form.control}
@@ -277,7 +293,7 @@ export default function MedicalInfoPage() {
                 />
             </div>
 
-            <div className="space-y-4 p-4 bg-slate-800/50 rounded-lg">
+            <div id="medical-info-meds" className="space-y-4 p-4 bg-slate-800/50 rounded-lg">
               <h3 className="font-bold text-lg text-white">Medicamentos Actuales</h3>
               {medFields.map((field, index) => (
                 <div key={field.id} className="flex items-center gap-2">
@@ -303,7 +319,7 @@ export default function MedicalInfoPage() {
               </Button>
             </div>
             
-             <div className="space-y-4 p-4 bg-slate-800/50 rounded-lg">
+             <div id="medical-info-contacts" className="space-y-4 p-4 bg-slate-800/50 rounded-lg">
               <h3 className="font-bold text-lg text-white">Contactos de Emergencia</h3>
               {contactFields.map((field, index) => (
                  <div key={field.id} className="p-3 bg-slate-700/50 rounded-lg space-y-2 relative">
@@ -325,7 +341,7 @@ export default function MedicalInfoPage() {
               <FormField control={form.control} name="emergencyContacts" render={() => <FormMessage />} />
             </div>
 
-            <div className="space-y-2 p-4 bg-slate-800/50 rounded-lg">
+            <div id="medical-info-notes" className="space-y-2 p-4 bg-slate-800/50 rounded-lg">
                 <h3 className="font-bold text-lg text-white">Notas Adicionales</h3>
                 <FormField
                   control={form.control}
@@ -351,5 +367,8 @@ export default function MedicalInfoPage() {
         </form>
       </FormProvider>
     </MobileAppContainer>
+    </>
   );
 }
+
+    

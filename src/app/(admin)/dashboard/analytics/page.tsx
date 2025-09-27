@@ -1,13 +1,15 @@
 
 "use client";
 
+import { useRef } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { AlertTriangle, Clock, TrendingUp, Users } from 'lucide-react';
+import { AlertTriangle, Clock, TrendingUp, Users, HelpCircle } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
+import { AnalyticsTour } from '@/components/admin/AnalyticsTour';
 
 
 const alertsByDayData = [
@@ -29,10 +31,13 @@ const alertsByTypeData = [
 
 
 export default function AnalyticsPage() {
+    const tourRef = useRef<{ startTour: () => void }>(null);
 
     return (
+        <>
+        <AnalyticsTour ref={tourRef} />
         <div className="flex flex-col min-h-screen bg-background text-foreground">
-             <header className="bg-card border-b border-border shadow-md">
+             <header className="bg-card border-b border-border shadow-md" id="analytics-header">
                 <div className="container mx-auto px-6 py-4">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-3">
@@ -43,24 +48,34 @@ export default function AnalyticsPage() {
                             </Link>
                             <h1 className="text-2xl font-bold text-foreground">Dashboard de Analíticas</h1>
                         </div>
-                        <Select defaultValue="last_7_days">
-                             <SelectTrigger className="w-[180px]">
-                                <SelectValue placeholder="Seleccionar rango" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="today">Hoy</SelectItem>
-                                <SelectItem value="last_7_days">Últimos 7 días</SelectItem>
-                                <SelectItem value="last_30_days">Últimos 30 días</SelectItem>
-                                <SelectItem value="this_month">Este mes</SelectItem>
-                            </SelectContent>
-                        </Select>
+                        <div className="flex items-center gap-2">
+                            <Select defaultValue="last_7_days">
+                                <SelectTrigger className="w-[180px]" id="analytics-date-filter">
+                                    <SelectValue placeholder="Seleccionar rango" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="today">Hoy</SelectItem>
+                                    <SelectItem value="last_7_days">Últimos 7 días</SelectItem>
+                                    <SelectItem value="last_30_days">Últimos 30 días</SelectItem>
+                                    <SelectItem value="this_month">Este mes</SelectItem>
+                                </SelectContent>
+                            </Select>
+                            <Button
+                                variant="outline"
+                                size="icon"
+                                onClick={() => tourRef.current?.startTour()}
+                                title="Ver recorrido de la página"
+                            >
+                                <HelpCircle className="h-5 w-5" />
+                            </Button>
+                        </div>
                     </div>
                 </div>
             </header>
 
             <main className="flex-1 p-6 container mx-auto">
                 {/* KPIs */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8" id="analytics-kpis">
                     <Card>
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                             <CardTitle className="text-sm font-medium text-muted-foreground">Total de Alertas</CardTitle>
@@ -105,7 +120,7 @@ export default function AnalyticsPage() {
 
                 {/* Charts */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                     <Card>
+                     <Card id="analytics-activity-chart">
                         <CardHeader>
                             <CardTitle>Actividad de Alertas (Últimos 7 días)</CardTitle>
                              <CardDescription>Volumen de emergencias reportadas por día.</CardDescription>
@@ -123,7 +138,7 @@ export default function AnalyticsPage() {
                             </ResponsiveContainer>
                         </CardContent>
                     </Card>
-                     <Card>
+                     <Card id="analytics-type-chart">
                         <CardHeader>
                             <CardTitle>Distribución por Tipo de Alerta</CardTitle>
                              <CardDescription>Clasificación de todas las emergencias reportadas.</CardDescription>
@@ -144,6 +159,8 @@ export default function AnalyticsPage() {
                 </div>
             </main>
         </div>
+        </>
     );
 }
 
+    

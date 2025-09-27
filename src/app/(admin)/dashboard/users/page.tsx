@@ -1,11 +1,11 @@
 
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ArrowLeft, Loader2, RefreshCw, ShieldCheck, HardHat, Ambulance } from "lucide-react";
+import { ArrowLeft, Loader2, RefreshCw, ShieldCheck, HardHat, Ambulance, HelpCircle } from "lucide-react";
 import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
 import { getUsers, updateUser, type UserRecordWithRole } from "./actions";
@@ -14,6 +14,7 @@ import { collection, onSnapshot, query } from "firebase/firestore";
 import type { StationData, UserRole, UnitData } from "@/lib/types";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from "@/app/layout";
+import { UsersTour } from "@/components/admin/UsersTour";
 
 
 function StationUnitSelector({ user, stations, disabled }: { user: UserRecordWithRole, stations: StationData[], disabled: boolean }) {
@@ -148,6 +149,7 @@ export default function UsersPage() {
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const { toast } = useToast();
   const { user: currentUser } = useAuth();
+  const tourRef = useRef<{ startTour: () => void }>(null);
 
 
   const fetchUsers = useCallback(async () => {
@@ -216,6 +218,8 @@ export default function UsersPage() {
   };
 
   return (
+    <>
+    <UsersTour ref={tourRef} />
     <div className="flex flex-col min-h-screen bg-background text-foreground">
       <header className="bg-card border-b border-border shadow-md">
         <div className="container mx-auto px-6 py-4">
@@ -228,16 +232,26 @@ export default function UsersPage() {
               </Link>
               <h1 className="text-2xl font-bold text-foreground">Gestión de Usuarios</h1>
             </div>
-            <Button onClick={fetchUsers} disabled={loading}>
-              <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-              Actualizar
-            </Button>
+            <div className="flex items-center gap-2">
+                <Button onClick={fetchUsers} disabled={loading}>
+                <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+                Actualizar
+                </Button>
+                <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => tourRef.current?.startTour()}
+                    title="Ver recorrido de la página"
+                >
+                    <HelpCircle className="h-5 w-5" />
+                </Button>
+            </div>
           </div>
         </div>
       </header>
 
       <main className="flex-1 p-6 container mx-auto">
-        <Card>
+        <Card id="users-table-card">
           <CardHeader>
             <CardTitle>Operadores y Administradores</CardTitle>
             <CardDescription>
@@ -314,5 +328,8 @@ export default function UsersPage() {
         </Card>
       </main>
     </div>
+    </>
   );
 }
+
+    
