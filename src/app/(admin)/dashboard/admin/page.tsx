@@ -10,7 +10,7 @@ import { firestore, auth } from "@/lib/firebase";
 import { signOut } from "firebase/auth";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
-import { LogOut, RefreshCw, Bell, Zap, CheckCircle, Clock, MapPin, Building, Loader2, HardHat, Users, LayoutDashboard, Truck, Siren, Check, Stethoscope, Hospital, UserCheck, AlertTriangle } from "lucide-react";
+import { LogOut, RefreshCw, Bell, Zap, CheckCircle, Clock, MapPin, Building, Loader2, HardHat, Users, LayoutDashboard, Truck, Siren, Check, Stethoscope, Hospital, UserCheck, AlertTriangle, HelpCircle } from "lucide-react";
 import dynamic from 'next/dynamic';
 import { collection, onSnapshot, getDocs, doc, orderBy, type Query, Timestamp } from "firebase/firestore";
 import type { AlertData, MedicalData, StationData, UserRole } from "@/lib/types";
@@ -48,6 +48,7 @@ export default function AdminDashboardPage() {
     
     const [searchTerm, setSearchTerm] = useState("");
     const [statusFilter, setStatusFilter] = useState("all");
+    const adminTourRef = useRef<{ startTour: () => void }>(null);
 
     
     /**
@@ -246,7 +247,7 @@ export default function AdminDashboardPage() {
 
   return (
     <>
-    <AdminTour />
+    <AdminTour ref={adminTourRef} />
     <div className="flex flex-col min-h-screen bg-background text-foreground">
       <header className="bg-card border-b border-border shadow-md" id="admin-header">
         <div className="container mx-auto px-6 py-4">
@@ -280,6 +281,14 @@ export default function AdminDashboardPage() {
                         </Link>
                        </>
                     )}
+                    <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => adminTourRef.current?.startTour()}
+                        title="Ver recorrido de la aplicación"
+                    >
+                        <HelpCircle className="h-5 w-5" />
+                    </Button>
                     <SettingsDropdown
                          theme={theme}
                          toggleTheme={toggleTheme}

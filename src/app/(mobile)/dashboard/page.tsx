@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { MobileAppContainer } from "@/components/MobileAppContainer";
 import { EmergencyModal } from "@/components/dashboard/EmergencyModal";
 import { MedicalInfoModal } from "@/components/dashboard/MedicalInfoModal";
@@ -11,7 +11,7 @@ import type { MedicalData, AlertData } from "@/lib/types";
 import { getFirestore, doc, getDoc, setDoc, serverTimestamp, collection, GeoPoint, updateDoc } from "firebase/firestore";
 import { firebaseApp, auth } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, LogOut, User as UserIcon, WifiOff } from "lucide-react";
+import { Loader2, LogOut, User as UserIcon, WifiOff, HelpCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
@@ -36,6 +36,7 @@ export default function DashboardPage() {
   const { toast } = useToast();
   const router = useRouter();
   const isOnline = useOnlineStatus();
+  const mobileTourRef = useRef<{ startTour: () => void }>(null);
 
   useEffect(() => {
     if (authLoading) return;
@@ -155,7 +156,7 @@ export default function DashboardPage() {
 
   return (
     <>
-      <MobileTour />
+      <MobileTour ref={mobileTourRef} />
       <MobileAppContainer className="bg-gradient-to-br from-gray-900 via-gray-800 to-black">
           {!isOnline && (
               <div className="absolute top-0 left-0 right-0 bg-yellow-500 text-black text-center py-1 text-sm font-bold flex justify-center items-center gap-2 z-50">
@@ -168,15 +169,26 @@ export default function DashboardPage() {
             <p className="text-red-100 text-sm">
                {user.isAnonymous ? "Modo de Emergencia (Invitado)" : "Mantén presionado para activar"}
             </p>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleLogout}
-              className="absolute top-4 right-4 hover:bg-white/10"
-              aria-label="Cerrar sesión"
-            >
-              <LogOut className="w-5 h-5" />
-            </Button>
+             <div className="absolute top-4 right-4 flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => mobileTourRef.current?.startTour()}
+                  className="hover:bg-white/10"
+                  aria-label="Ver recorrido"
+                >
+                  <HelpCircle className="w-5 h-5" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={handleLogout}
+                  className="hover:bg-white/10"
+                  aria-label="Cerrar sesión"
+                >
+                  <LogOut className="w-5 h-5" />
+                </Button>
+             </div>
               {user.isAnonymous && (
                    <div className="absolute top-4 left-4 flex items-center bg-yellow-500/20 text-yellow-300 text-xs font-bold px-2 py-1 rounded-full">
                       <UserIcon className="w-4 h-4 mr-1.5"/>
