@@ -60,28 +60,41 @@ export default function DashboardPage() {
         toast({ title: "Error", description: "La geolocalización no es soportada por tu navegador.", variant: "destructive"});
         resolve(null);
       } else {
+        // SOLICITUD DE GEOLOCALIZACIÓN DE ALTA PRECISIÓN MEJORADA
         navigator.geolocation.getCurrentPosition(
-          (position) => resolve({ latitude: position.coords.latitude, longitude: position.coords.longitude }),
+          (position) => {
+            // **NUEVO**: Notifica al usuario la precisión obtenida para su tranquilidad.
+            toast({
+              title: "Ubicación Asegurada",
+              description: `Precisión del GPS: ${position.coords.accuracy.toFixed(0)} metros.`,
+            });
+            resolve({ latitude: position.coords.latitude, longitude: position.coords.longitude });
+          },
           (error) => {
             let errorMessage = "No se pudo obtener tu ubicación. ";
             switch(error.code) {
                 case error.PERMISSION_DENIED:
-                    errorMessage += "Permiso denegado.";
+                    errorMessage += "Debes conceder el permiso de ubicación para enviar una alerta.";
                     break;
                 case error.POSITION_UNAVAILABLE:
-                    errorMessage += "La información de ubicación no está disponible.";
+                    errorMessage += "No se pudo determinar tu posición actual. Intenta moverte a un lugar con mejor señal.";
                     break;
                 case error.TIMEOUT:
-                    errorMessage += "Se agotó el tiempo de espera.";
+                    errorMessage += "Se agotó el tiempo de espera para obtener la ubicación. Revisa tu conexión o señal GPS.";
                     break;
                 default:
-                    errorMessage += "Ocurrió un error desconocido.";
+                    errorMessage += "Ocurrió un error desconocido al obtener la ubicación.";
                     break;
             }
             toast({ title: "Error de Ubicación", description: errorMessage, variant: "destructive" });
             resolve(null);
           },
-          { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+          // **MEJORADO**: Forzamos máxima precisión, prohibimos ubicaciones en caché y damos más tiempo.
+          { 
+            enableHighAccuracy: true, 
+            timeout: 15000, // Aumentado a 15 segundos
+            maximumAge: 0 // No usar ubicaciones viejas
+          }
         );
       }
     });
@@ -96,7 +109,7 @@ export default function DashboardPage() {
 
     const location = await getUserLocation();
     if (!location) {
-      toast({ title: "Activación Cancelada", description: "No se pudo activar la alerta sin tu ubicación.", variant: "destructive" });
+      toast({ title: "Activación Cancelada", description: "No se pudo activar la alerta sin tu ubicación precisa.", variant: "destructive" });
       setIsActivating(false);
       return false;
     }
@@ -105,7 +118,7 @@ export default function DashboardPage() {
       const alertDocRef = doc(collection(firestore, "alerts"));
       const newAlert: AlertData = {
         id: alertDocRef.id,
-        userId: user.uid, // Aseguramos usar el ID del usuario del contexto
+        userId: user.uid,
         timestamp: serverTimestamp(),
         location: new GeoPoint(location.latitude, location.longitude),
         status: 'new',
