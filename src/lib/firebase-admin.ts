@@ -10,17 +10,17 @@ let adminApp: App | undefined;
 // Function to log debug info
 const logDebugInfo = () => {
   console.log("--- Firebase Admin Debug ---");
-  if (process.env.FIREBASE_ADMIN_CREDENTIALS) {
-    console.log("✔️ Variable FIREBASE_ADMIN_CREDENTIALS encontrada.");
+  if (process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
+    console.log("✔️ Variable FIREBASE_SERVICE_ACCOUNT_KEY encontrada.");
     try {
       // Intentamos ver los primeros 50 caracteres para no exponer la clave privada
-      const partialCredentials = process.env.FIREBASE_ADMIN_CREDENTIALS.substring(0, 50);
+      const partialCredentials = process.env.FIREBASE_SERVICE_ACCOUNT_KEY.substring(0, 50);
       console.log("Contenido parcial:", partialCredentials + "...");
     } catch (e) {
       console.log("No se pudo mostrar el contenido parcial de la variable.");
     }
   } else {
-    console.log("❌ Variable FIREBASE_ADMIN_CREDENTIALS NO encontrada.");
+    console.log("❌ Variable FIREBASE_SERVICE_ACCOUNT_KEY NO encontrada.");
     console.log("Asegúrate de que el archivo .env.local existe y la variable está definida.");
   }
   console.log("--------------------------");
@@ -29,15 +29,14 @@ const logDebugInfo = () => {
 if (getApps().length === 0) {
     logDebugInfo(); // Imprimimos la información de depuración
     try {
-        // CORREGIDO: Usamos la variable de entorno correcta
-        if (process.env.FIREBASE_ADMIN_CREDENTIALS) {
-            const serviceAccount = JSON.parse(process.env.FIREBASE_ADMIN_CREDENTIALS) as ServiceAccount;
+        if (process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
+            const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY) as ServiceAccount;
             adminApp = initializeApp({ credential: cert(serviceAccount) });
             console.log("✔️✔️ Firebase Admin SDK inicializado correctamente. ✔️✔️");
         } 
         else {
             // Este error ahora es más claro
-            throw new Error("Credenciales de Firebase Admin no encontradas en la variable de entorno FIREBASE_ADMIN_CREDENTIALS.");
+            throw new Error("Credenciales de Firebase Admin no encontradas en la variable de entorno FIREBASE_SERVICE_ACCOUNT_KEY.");
         }
     } catch (e: any) {
         // Este mensaje te dirá si el JSON es inválido
