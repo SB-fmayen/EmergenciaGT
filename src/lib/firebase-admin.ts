@@ -4,35 +4,42 @@ import { getAuth } from 'firebase-admin/auth';
 import { getFirestore } from 'firebase-admin/firestore';
 import { ServiceAccount } from 'firebase-admin';
 
-// --- Firebase Admin SDK Initialization ---
 let adminApp: App;
-if (!getApps().length) {
+
+// This function ensures the Admin App is initialized, but only once.
+function initializeAdminApp(): App {
+    // If the app is already initialized, return it.
+    const existingApps = getApps();
+    if (existingApps.length > 0) {
+        return existingApps[0];
+    }
+
+    // Try to get credentials from environment variables.
+    const serviceAccountKey = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
+    const googleAppCreds = process.env.GOOGLE_APPLICATION_CREDENTIALS;
+
     try {
-        if (process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
-            const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY) as ServiceAccount;
-            adminApp = initializeApp({ credential: cert(serviceAccount) });
-        } 
-        else if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
-            adminApp = initializeApp();
-        }
-        else {
-            throw new Error("Firebase Admin SDK credentials not found. Please set FIREBASE_SERVICE_ACCOUNT_KEY or GOOGLE_APPLICATION_CREDENTIALS.");
+        if (serviceAccountKey) {
+            const serviceAccount = JSON.parse(serviceAccountKey) as ServiceAccount;
+            return initializeApp({ credential: cert(serviceAccount) });
+        } else if (googleAppCreds) {
+            // This is for deployments (e.g., Cloud Run) where credentials are automatically provided.
+            return initializeApp();
+        } else {
+            // If neither is found, we throw a clear error. This is the most likely cause of the problem.
+            throw new Error("CRITICAL: Firebase Admin credentials not found. Please set FIREBASE_SERVICE_ACCOUNT_KEY in your .env.local file.");
         }
     } catch (e: any) {
-        console.error("Firebase Admin Init Error:", e.message);
+        // Catch parsing errors or other initialization issues.
+        throw new Error(`Failed to initialize Firebase Admin SDK: ${e.message}`);
     }
-} else {
-    adminApp = getApps()[0];
 }
 
-const checkAdminApp = () => {
-    if (!adminApp) {
-        throw new Error("Firebase Admin SDK no está inicializado. Verifica las credenciales del servidor.");
-    }
-    return adminApp;
-}
+// Initialize the app. This will be a singleton.
+adminApp = initializeAdminApp();
 
-const auth = getAuth(checkAdminApp());
-const firestore = getFirestore(checkAdminApp());
+// Export the initialized services.
+const auth = getAuth(adminApp);
+const firestore = getFirestore(adminApp);
 
 export { auth, firestore };
