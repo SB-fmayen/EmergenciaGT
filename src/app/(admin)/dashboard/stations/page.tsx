@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ArrowLeft, PlusCircle, Loader2, Edit, Trash2, MapPin, Ambulance, HelpCircle } from "lucide-react";
+import { ArrowLeft, PlusCircle, Loader2, Edit, Trash2, MapPin, Ambulance, HelpCircle, Link as LinkIcon } from "lucide-react";
 import Link from "next/link";
 import { firestore } from "@/lib/firebase";
 import { collection, onSnapshot, query, orderBy } from "firebase/firestore";
@@ -39,6 +39,10 @@ export default function StationsPage() {
   const { userRole } = useAuth();
   const formRef = useRef<HTMLFormElement>(null);
   const tourRef = useRef<{ startTour: () => void }>(null);
+
+  // Estados para los campos de latitud y longitud
+  const [latitude, setLatitude] = useState('');
+  const [longitude, setLongitude] = useState('');
 
   const [stationToDelete, setStationToDelete] = useState<StationData | null>(null);
   const [stationToEdit, setStationToEdit] = useState<StationData | null>(null);
@@ -88,6 +92,8 @@ export default function StationsPage() {
     if (result.success) {
       toast({ title: "Éxito", description: "Estación creada correctamente." });
       formRef.current?.reset();
+      setLatitude('');
+      setLongitude('');
     } else {
       toast({ title: "Error al crear la estación", description: result.error, variant: "destructive" });
     }
@@ -111,6 +117,19 @@ export default function StationsPage() {
     }
     
     setStationToDelete(null); // Cierra el modal
+  }
+
+  const handleMapLinkPaste = (event: React.ClipboardEvent<HTMLInputElement>) => {
+    const pastedText = event.clipboardData.getData('text');
+    const latLongMatch = pastedText.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
+    if (latLongMatch) {
+      event.preventDefault();
+      const lat = latLongMatch[1];
+      const lng = latLongMatch[2];
+      setLatitude(lat);
+      setLongitude(lng);
+      toast({ title: "Coordenadas extraídas", description: "Se han rellenado los campos de latitud y longitud." });
+    }
   }
 
   return (
@@ -166,14 +185,27 @@ export default function StationsPage() {
                       <label htmlFor="address" className="block text-sm font-medium text-muted-foreground mb-1">Dirección</label>
                       <Input id="address" name="address" type="text" placeholder="Ej: 1ra Avenida 1-23, Zona 1" required />
                     </div>
+                    <div>
+                        <label htmlFor="mapLink" className="block text-sm font-medium text-muted-foreground mb-1">
+                          Enlace de Google Maps (<LinkIcon className="inline h-3 w-3"/>)
+                        </label>
+                        <Input
+                          id="mapLink"
+                          name="mapLink"
+                          type="text"
+                          placeholder="Pega el enlace de Google Maps aquí"
+                          onPaste={handleMapLinkPaste}
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">Pega un enlace para extraer las coordenadas automáticamente.</p>
+                    </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <label htmlFor="latitude" className="block text-sm font-medium text-muted-foreground mb-1">Latitud</label>
-                        <Input id="latitude" name="latitude" type="number" step="any" placeholder="14.6349" required />
+                        <Input id="latitude" name="latitude" type="number" step="any" placeholder="14.6349" required value={latitude} onChange={(e) => setLatitude(e.target.value)} />
                       </div>
                       <div>
                         <label htmlFor="longitude" className="block text-sm font-medium text-muted-foreground mb-1">Longitud</label>
-                        <Input id="longitude" name="longitude" type="number" step="any" placeholder="-90.5069" required />
+                        <Input id="longitude" name="longitude" type="number" step="any" placeholder="-90.5069" required value={longitude} onChange={(e) => setLongitude(e.target.value)} />
                       </div>
                     </div>
                     <Button type="submit" className="w-full" disabled={isSubmitting}>
@@ -274,5 +306,3 @@ export default function StationsPage() {
     </>
   );
 }
-
-    

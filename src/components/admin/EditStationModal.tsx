@@ -13,7 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2 } from "lucide-react";
+import { Loader2, Link as LinkIcon } from "lucide-react";
 import { updateStation } from "@/app/(admin)/dashboard/stations/actions";
 import type { StationData } from "@/lib/types";
 
@@ -27,8 +27,7 @@ interface EditStationModalProps {
 export function EditStationModal({ isOpen, onClose, station }: EditStationModalProps) {
     const { toast } = useToast();
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const formRef = useRef<HTMLFormElement>(null);
-
+    
     // Sincronizar el estado del formulario si la estación cambia
     const [formData, setFormData] = useState({
         name: station.name,
@@ -57,7 +56,12 @@ export function EditStationModal({ isOpen, onClose, station }: EditStationModalP
         event.preventDefault();
         setIsSubmitting(true);
         
-        const formPayload = new FormData(event.currentTarget);
+        const formPayload = new FormData();
+        formPayload.append('name', formData.name);
+        formPayload.append('address', formData.address);
+        formPayload.append('latitude', formData.latitude);
+        formPayload.append('longitude', formData.longitude);
+
         const result = await updateStation(station.id, formPayload);
 
         if (result.success) {
@@ -69,11 +73,23 @@ export function EditStationModal({ isOpen, onClose, station }: EditStationModalP
 
         setIsSubmitting(false);
     }
+    
+    const handleMapLinkPaste = (event: React.ClipboardEvent<HTMLInputElement>) => {
+        const pastedText = event.clipboardData.getData('text');
+        const latLongMatch = pastedText.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
+        if (latLongMatch) {
+          event.preventDefault();
+          const lat = latLongMatch[1];
+          const lng = latLongMatch[2];
+          setFormData(prev => ({ ...prev, latitude: lat, longitude: lng }));
+          toast({ title: "Coordenadas extraídas", description: "Se han rellenado los campos de latitud y longitud." });
+        }
+      }
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
             <DialogContent className="sm:max-w-[425px]">
-                 <form ref={formRef} onSubmit={handleFormSubmit}>
+                 <form onSubmit={handleFormSubmit}>
                     <DialogHeader>
                         <DialogTitle>Editar Estación</DialogTitle>
                         <DialogDescription>
@@ -88,6 +104,17 @@ export function EditStationModal({ isOpen, onClose, station }: EditStationModalP
                         <div className="grid grid-cols-4 items-center gap-4">
                             <label htmlFor="address" className="text-right">Dirección</label>
                             <Input id="address" name="address" value={formData.address} onChange={handleInputChange} className="col-span-3" required/>
+                        </div>
+                         <div className="grid grid-cols-4 items-center gap-4">
+                            <label htmlFor="mapLink" className="text-right">Enlace</label>
+                             <Input
+                                id="mapLink"
+                                name="mapLink"
+                                type="text"
+                                placeholder="Pega enlace de Maps"
+                                onPaste={handleMapLinkPaste}
+                                className="col-span-3"
+                            />
                         </div>
                         <div className="grid grid-cols-4 items-center gap-4">
                             <label htmlFor="latitude" className="text-right">Latitud</label>
