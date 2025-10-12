@@ -1,15 +1,15 @@
+
 "use client";
 
 import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ArrowLeft, PlusCircle, Loader2, Edit, Trash2, MapPin, Ambulance, HelpCircle, Link as LinkIcon } from "lucide-react";
+import { ArrowLeft, PlusCircle, Loader2, Edit, Trash2, Ambulance, HelpCircle, MapPin } from "lucide-react";
 import Link from "next/link";
 import { firestore } from "@/lib/firebase";
 import { collection, onSnapshot, query, orderBy } from "firebase/firestore";
-import type { StationData, UnitData } from "@/lib/types";
+import type { StationData } from "@/lib/types";
 import { createStation, deleteStation } from "./actions";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/app/layout";
@@ -25,9 +25,9 @@ import {
 } from "@/components/ui/alert-dialog"
 import { EditStationModal } from "@/components/admin/EditStationModal";
 import { AddUnitModal } from "@/components/admin/AddUnitModal";
-import { EditUnitModal } from "@/components/admin/EditUnitModal";
 import { UnitList } from "@/components/admin/UnitList";
 import { StationsTour } from "@/components/admin/StationsTour";
+import { LocationPickerModal } from "@/components/admin/LocationPickerModal";
 
 
 export default function StationsPage() {
@@ -42,7 +42,8 @@ export default function StationsPage() {
   // Estados para los campos de latitud y longitud
   const [latitude, setLatitude] = useState('');
   const [longitude, setLongitude] = useState('');
-  const [mapLink, setMapLink] = useState('');
+  
+  const [isPickerOpen, setIsPickerOpen] = useState(false);
 
   const [stationToDelete, setStationToDelete] = useState<StationData | null>(null);
   const [stationToEdit, setStationToEdit] = useState<StationData | null>(null);
@@ -84,9 +85,18 @@ export default function StationsPage() {
       toast({ title: "Acceso Denegado", description: "Solo los administradores pueden crear estaciones.", variant: "destructive"});
       return;
     }
+    
+    if (!latitude || !longitude) {
+        toast({ title: "Ubicación Requerida", description: "Por favor, selecciona una ubicación en el mapa.", variant: "destructive" });
+        return;
+    }
+
     setIsSubmitting(true);
     
     const formData = new FormData(event.currentTarget);
+    formData.append("latitude", latitude);
+    formData.append("longitude", longitude);
+
     const result = await createStation(formData);
 
     if (result.success) {
@@ -94,7 +104,6 @@ export default function StationsPage() {
       formRef.current?.reset();
       setLatitude('');
       setLongitude('');
-      setMapLink('');
     } else {
       toast({ title: "Error al crear la estación", description: result.error, variant: "destructive" });
     }
@@ -119,28 +128,22 @@ export default function StationsPage() {
     
     setStationToDelete(null); // Cierra el modal
   }
-
-  const handleMapLinkPaste = (event: React.ClipboardEvent<HTMLInputElement>) => {
-    const pastedText = event.clipboardData.getData('text');
-    setMapLink(pastedText); // Guardar el link para enviarlo al servidor
-
-    // Intento de extracción en el cliente para feedback visual
-    const latLongMatch = pastedText.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
-    if (latLongMatch) {
-      event.preventDefault();
-      const lat = latLongMatch[1];
-      const lng = latLongMatch[2];
-      setLatitude(lat);
-      setLongitude(lng);
-      toast({ title: "Coordenadas extraídas", description: "Se han rellenado los campos de latitud y longitud." });
-    } else {
-        toast({ title: "Enlace copiado", description: "El servidor intentará resolver las coordenadas al guardar." });
-    }
-  }
+  
+  const handleLocationSelect = (coords: { lat: number; lng: number }) => {
+    setLatitude(coords.lat.toString());
+    setLongitude(coords.lng.toString());
+    setIsPickerOpen(false);
+    toast({ title: "Ubicación Seleccionada", description: "Las coordenadas han sido actualizadas."});
+  };
 
   return (
     <>
     <StationsTour ref={tourRef} />
+    <LocationPickerModal 
+        isOpen={isPickerOpen}
+        onClose={() => setIsPickerOpen(false)}
+        onLocationSelect={handleLocationSelect}
+    />
     <div className="flex flex-col min-h-screen bg-background text-foreground">
       <header className="bg-card border-b border-border shadow-md">
         <div className="container mx-auto px-6 py-4">
@@ -191,31 +194,20 @@ export default function StationsPage() {
                       <label htmlFor="address" className="block text-sm font-medium text-muted-foreground mb-1">Dirección</label>
                       <Input id="address" name="address" type="text" placeholder="Ej: 1ra Avenida 1-23, Zona 1" required />
                     </div>
+                    
                     <div>
-                        <label htmlFor="mapLink" className="block text-sm font-medium text-muted-foreground mb-1">
-                          Enlace de Google Maps (<LinkIcon className="inline h-3 w-3"/>)
-                        </label>
-                        <Input
-                          id="mapLink"
-                          name="mapLink"
-                          type="text"
-                          placeholder="Pega el enlace de Google Maps aquí"
-                          value={mapLink}
-                          onPaste={handleMapLinkPaste}
-                          onChange={(e) => setMapLink(e.target.value)}
-                        />
-                        <p className="text-xs text-muted-foreground mt-1">Pega un enlace para extraer las coordenadas automáticamente.</p>
+                        <label className="block text-sm font-medium text-muted-foreground mb-1">Ubicación Geográfica</label>
+                        <Button type="button" variant="outline" className="w-full" onClick={() => setIsPickerOpen(true)}>
+                            <MapPin className="mr-2 h-4 w-4" />
+                            Seleccionar Ubicación en el Mapa
+                        </Button>
+                        {latitude && longitude && (
+                            <div className="mt-2 text-sm text-muted-foreground text-center bg-muted p-2 rounded-md">
+                                Lat: {parseFloat(latitude).toFixed(5)}, Lon: {parseFloat(longitude).toFixed(5)}
+                            </div>
+                        )}
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label htmlFor="latitude" className="block text-sm font-medium text-muted-foreground mb-1">Latitud</label>
-                        <Input id="latitude" name="latitude" type="number" step="any" placeholder="14.6349" value={latitude} onChange={(e) => setLatitude(e.target.value)} />
-                      </div>
-                      <div>
-                        <label htmlFor="longitude" className="block text-sm font-medium text-muted-foreground mb-1">Longitud</label>
-                        <Input id="longitude" name="longitude" type="number" step="any" placeholder="-90.5069" value={longitude} onChange={(e) => setLongitude(e.target.value)} />
-                      </div>
-                    </div>
+                    
                     <Button type="submit" className="w-full" disabled={isSubmitting}>
                       {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                       {isSubmitting ? "Guardando..." : "Agregar Estación"}
