@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useRef } from "react";
@@ -43,6 +42,7 @@ export default function StationsPage() {
   // Estados para los campos de latitud y longitud
   const [latitude, setLatitude] = useState('');
   const [longitude, setLongitude] = useState('');
+  const [mapLink, setMapLink] = useState('');
 
   const [stationToDelete, setStationToDelete] = useState<StationData | null>(null);
   const [stationToEdit, setStationToEdit] = useState<StationData | null>(null);
@@ -94,6 +94,7 @@ export default function StationsPage() {
       formRef.current?.reset();
       setLatitude('');
       setLongitude('');
+      setMapLink('');
     } else {
       toast({ title: "Error al crear la estación", description: result.error, variant: "destructive" });
     }
@@ -121,6 +122,9 @@ export default function StationsPage() {
 
   const handleMapLinkPaste = (event: React.ClipboardEvent<HTMLInputElement>) => {
     const pastedText = event.clipboardData.getData('text');
+    setMapLink(pastedText); // Guardar el link para enviarlo al servidor
+
+    // Intento de extracción en el cliente para feedback visual
     const latLongMatch = pastedText.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
     if (latLongMatch) {
       event.preventDefault();
@@ -129,6 +133,8 @@ export default function StationsPage() {
       setLatitude(lat);
       setLongitude(lng);
       toast({ title: "Coordenadas extraídas", description: "Se han rellenado los campos de latitud y longitud." });
+    } else {
+        toast({ title: "Enlace copiado", description: "El servidor intentará resolver las coordenadas al guardar." });
     }
   }
 
@@ -194,18 +200,20 @@ export default function StationsPage() {
                           name="mapLink"
                           type="text"
                           placeholder="Pega el enlace de Google Maps aquí"
+                          value={mapLink}
                           onPaste={handleMapLinkPaste}
+                          onChange={(e) => setMapLink(e.target.value)}
                         />
                         <p className="text-xs text-muted-foreground mt-1">Pega un enlace para extraer las coordenadas automáticamente.</p>
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <label htmlFor="latitude" className="block text-sm font-medium text-muted-foreground mb-1">Latitud</label>
-                        <Input id="latitude" name="latitude" type="number" step="any" placeholder="14.6349" required value={latitude} onChange={(e) => setLatitude(e.target.value)} />
+                        <Input id="latitude" name="latitude" type="number" step="any" placeholder="14.6349" value={latitude} onChange={(e) => setLatitude(e.target.value)} />
                       </div>
                       <div>
                         <label htmlFor="longitude" className="block text-sm font-medium text-muted-foreground mb-1">Longitud</label>
-                        <Input id="longitude" name="longitude" type="number" step="any" placeholder="-90.5069" required value={longitude} onChange={(e) => setLongitude(e.target.value)} />
+                        <Input id="longitude" name="longitude" type="number" step="any" placeholder="-90.5069" value={longitude} onChange={(e) => setLongitude(e.target.value)} />
                       </div>
                     </div>
                     <Button type="submit" className="w-full" disabled={isSubmitting}>

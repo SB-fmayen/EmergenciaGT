@@ -7,6 +7,40 @@ import type { StationData, UnitData } from "@/lib/types";
 import { GeoPoint, Timestamp } from "firebase-admin/firestore";
 
 /**
+ * Intenta resolver una URL de Google Maps (corta o larga) a sus coordenadas.
+ * @param {string} url - La URL de Google Maps.
+ * @returns {Promise<{latitude: number, longitude: number} | null>} - Un objeto con latitud y longitud, o null si no se puede resolver.
+ */
+async function resolveMapLink(url: string): Promise<{latitude: number, longitude: number} | null> {
+    if (!url) return null;
+
+    // Primero, intenta extraer de una URL larga directamente.
+    const longUrlMatch = url.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
+    if (longUrlMatch) {
+        return { latitude: parseFloat(longUrlMatch[1]), longitude: parseFloat(longUrlMatch[2]) };
+    }
+
+    // Si es una URL corta, intenta seguir la redirección.
+    try {
+        const response = await fetch(url, { method: 'HEAD', redirect: 'manual' });
+        const locationHeader = response.headers.get('location');
+
+        if (response.status >= 300 && response.status < 400 && locationHeader) {
+            const finalUrl = locationHeader;
+            const finalMatch = finalUrl.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
+            if (finalMatch) {
+                return { latitude: parseFloat(finalMatch[1]), longitude: parseFloat(finalMatch[2]) };
+            }
+        }
+        return null;
+    } catch (error) {
+        console.error("Error resolving Google Maps link:", error);
+        return null;
+    }
+}
+
+
+/**
  * Server Action para crear una nueva estación en Firestore.
  * @param {FormData} formData - Datos del formulario con la información de la estación.
  * @returns {Promise<{success: boolean, error?: string}>} - Objeto con el resultado de la operación.
@@ -16,17 +50,28 @@ export async function createStation(formData: FormData) {
   const address = formData.get("address") as string;
   const latitudeStr = formData.get("latitude") as string;
   const longitudeStr = formData.get("longitude") as string;
+  const mapLink = formData.get("mapLink") as string;
 
   // Validación básica de campos.
-  if (!name || !address || !latitudeStr || !longitudeStr) {
-    return { success: false, error: "Todos los campos son requeridos." };
+  if (!name || !address) {
+    return { success: false, error: "El nombre y la dirección son requeridos." };
   }
 
-  const latitude = parseFloat(latitudeStr);
-  const longitude = parseFloat(longitudeStr);
+  let latitude = parseFloat(latitudeStr);
+  let longitude = parseFloat(longitudeStr);
 
+  // Si no se proveyeron coordenadas, intenta resolverlas desde el link
+  if ((isNaN(latitude) || isNaN(longitude)) && mapLink) {
+      const coords = await resolveMapLink(mapLink);
+      if (coords) {
+          latitude = coords.latitude;
+          longitude = coords.longitude;
+      }
+  }
+
+  // Si después de todo, las coordenadas no son válidas, devuelve un error.
   if (isNaN(latitude) || isNaN(longitude)) {
-    return { success: false, error: "La latitud y longitud deben ser números válidos." };
+    return { success: false, error: "Las coordenadas no son válidas. Proporciona latitud/longitud o un enlace de Google Maps válido." };
   }
 
   try {
