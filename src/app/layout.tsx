@@ -5,7 +5,8 @@ import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 import { useEffect, type ReactNode, createContext, useContext, useState } from 'react';
 import { onAuthStateChanged, type User } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import { auth, firestore } from '@/lib/firebase';
+import { doc, getDoc } from 'firebase/firestore';
 import type { UserRole } from '@/lib/types';
 import 'leaflet/dist/leaflet.css';
 import { useRouter, usePathname } from 'next/navigation';
@@ -38,25 +39,45 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         try {
           const tokenResult = await user.getIdTokenResult(true); // Force refresh of claims
           const claims = tokenResult.claims;
-          setStationId(claims.stationId as string || null);
-          setUnitId(claims.unitId as string || null);
-          
+          setStationId((claims.stationId as string) || null);
+          setUnitId((claims.unitId as string) || null);
+
           if (claims.admin) {
             setUserRole('admin');
           } else if (claims.unit) {
             setUserRole('unit');
           } else if (user.isAnonymous) {
             setUserRole('citizen'); // Anonymous users are treated as citizens
-          }
-          else {
-            // A regular signed-in user or an operator without specific claims yet
-            // The specific operator role is often determined by presence of stationId
-            // but we can default to a base role.
-            const userDoc = await auth.currentUser?.getIdTokenResult();
-            if (userDoc?.claims.stationId) {
-                setUserRole('operator');
+          } else {
+            // No explicit admin/unit claim. Prefer the stationId claim if present.
+            if (claims.stationId) {
+              setUserRole('operator');
             } else {
+              // As a fallback, try to read the user profile in Firestore
+              // (created on registration) to determine the role.
+              try {
+                const userRef = doc(firestore, 'users', user.uid);
+                const userSnap = await getDoc(userRef);
+                if (userSnap.exists()) {
+                  const data = userSnap.data() as any;
+                  // Prefer explicit role in the user document
+                  if (data?.role === 'admin') setUserRole('admin');
+                  else if (data?.role === 'operator') setUserRole('operator');
+                  else if (data?.role === 'unit') setUserRole('unit');
+                  else setUserRole('operator');
+
+                  if (data?.stationId) setStationId(data.stationId as string);
+                  if (data?.unitId) setUnitId(data.unitId as string);
+                } else {
+                  // If no user doc exists, default to 'operator' for panel users
+                  // (keeps original README behaviour where new panel users are operators).
+                  setUserRole('operator');
+                }
+              } catch (e) {
+                console.error('Error reading user profile from Firestore:', e);
+                // conservative fallback
                 setUserRole('citizen');
+              }
             }
           }
         } catch (error) {

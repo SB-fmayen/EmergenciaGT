@@ -4,58 +4,41 @@ import { getAuth } from 'firebase-admin/auth';
 import { getFirestore } from 'firebase-admin/firestore';
 import { ServiceAccount } from 'firebase-admin';
 
-// --- Firebase Admin SDK Initialization ---
-let adminApp: App | undefined;
+let adminApp: App;
 
-// Function to log debug info
-const logDebugInfo = () => {
-  console.log("--- Firebase Admin Debug ---");
-  if (process.env.FIREBASE_ADMIN_CREDENTIALS) {
-    console.log("✔️ Variable FIREBASE_ADMIN_CREDENTIALS encontrada.");
-    try {
-      // Intentamos ver los primeros 50 caracteres para no exponer la clave privada
-      const partialCredentials = process.env.FIREBASE_ADMIN_CREDENTIALS.substring(0, 50);
-      console.log("Contenido parcial:", partialCredentials + "...");
-    } catch (e) {
-      console.log("No se pudo mostrar el contenido parcial de la variable.");
+function initializeAdminApp(): App {
+    const existingApps = getApps();
+    if (existingApps.length > 0) {
+        return existingApps[0];
     }
-  } else {
-    console.log("❌ Variable FIREBASE_ADMIN_CREDENTIALS NO encontrada.");
-    console.log("Asegúrate de que el archivo .env.local existe y la variable está definida.");
-  }
-  console.log("--------------------------");
-};
 
-if (getApps().length === 0) {
-    logDebugInfo(); // Imprimimos la información de depuración
+    const serviceAccountKey = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
+    const googleAppCreds = process.env.GOOGLE_APPLICATION_CREDENTIALS;
+
     try {
-        // CORREGIDO: Usamos la variable de entorno correcta
-        if (process.env.FIREBASE_ADMIN_CREDENTIALS) {
-            const serviceAccount = JSON.parse(process.env.FIREBASE_ADMIN_CREDENTIALS) as ServiceAccount;
-            adminApp = initializeApp({ credential: cert(serviceAccount) });
-            console.log("✔️✔️ Firebase Admin SDK inicializado correctamente. ✔️✔️");
-        } 
-        else {
-            // Este error ahora es más claro
-            throw new Error("Credenciales de Firebase Admin no encontradas en la variable de entorno FIREBASE_ADMIN_CREDENTIALS.");
+        if (serviceAccountKey) {
+            const serviceAccount = JSON.parse(serviceAccountKey);
+
+            // Ensure the private key has the correct newline characters.
+            if (serviceAccount.private_key) {
+                serviceAccount.private_key = serviceAccount.private_key.replace(/\n/g, '\n');
+            }
+
+            return initializeApp({ credential: cert(serviceAccount) });
+        } else if (googleAppCreds) {
+            return initializeApp();
+        } else {
+            throw new Error("CRITICAL: Firebase Admin credentials not found. Please set FIREBASE_SERVICE_ACCOUNT_KEY in your .env.local file or GOOGLE_APPLICATION_CREDENTIALS in your environment.");
         }
     } catch (e: any) {
-        // Este mensaje te dirá si el JSON es inválido
-        console.error("❌ ERROR al inicializar Firebase Admin:", e.message);
+        console.error("Firebase Admin Init Raw Error:", e);
+        throw new Error(`Failed to initialize Firebase Admin SDK. There is likely an issue with the format of your FIREBASE_SERVICE_ACCOUNT_KEY in the .env.local file. Ensure it is a valid, single-line JSON string. Original error: ${e.message}`);
     }
-} else {
-    adminApp = getApps()[0];
 }
 
-const checkAdminApp = (): App => {
-    if (!adminApp) {
-        // Este es el error que veías en el navegador
-        throw new Error("Firebase Admin SDK no está inicializado. Verifica las credenciales del servidor y los logs de la consola de la terminal.");
-    }
-    return adminApp;
-}
+adminApp = initializeAdminApp();
 
-const auth = getAuth(checkAdminApp());
-const firestore = getFirestore(checkAdminApp());
+const auth = getAuth(adminApp);
+const firestore = getFirestore(adminApp);
 
 export { auth, firestore };

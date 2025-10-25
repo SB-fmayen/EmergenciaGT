@@ -441,7 +441,7 @@ export default function AdminDashboardPage() {
                 </div>
                 <div className="flex-1 p-4 bg-card/50 rounded-b-lg">
                     <div className="w-full h-[70vh] rounded-lg overflow-hidden">
-                        <AlertsMap alerts={filteredAlerts} selectedAlert={selectedAlert} theme={theme} />
+                        <AlertsMap alerts={filteredAlerts} stations={stations} selectedAlert={selectedAlert} theme={theme} />
                     </div>
                 </div>
             </div>
@@ -463,5 +463,3 @@ export default function AdminDashboardPage() {
     </>
   );
 }
-
-    

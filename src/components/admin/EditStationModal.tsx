@@ -13,9 +13,10 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2 } from "lucide-react";
+import { Loader2, MapPin } from "lucide-react";
 import { updateStation } from "@/app/(admin)/dashboard/stations/actions";
 import type { StationData } from "@/lib/types";
+import { LocationPickerModal } from "./LocationPickerModal";
 
 
 interface EditStationModalProps {
@@ -27,8 +28,8 @@ interface EditStationModalProps {
 export function EditStationModal({ isOpen, onClose, station }: EditStationModalProps) {
     const { toast } = useToast();
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const formRef = useRef<HTMLFormElement>(null);
-
+    const [isPickerOpen, setIsPickerOpen] = useState(false);
+    
     // Sincronizar el estado del formulario si la estación cambia
     const [formData, setFormData] = useState({
         name: station.name,
@@ -52,12 +53,28 @@ export function EditStationModal({ isOpen, onClose, station }: EditStationModalP
         const { name, value } = e.target;
         setFormData(prev => ({ ...prev, [name]: value }));
     }
+    
+    const handleLocationSelect = (coords: { lat: number; lng: number }) => {
+        setFormData(prev => ({
+            ...prev,
+            latitude: coords.lat.toString(),
+            longitude: coords.lng.toString()
+        }));
+        setIsPickerOpen(false);
+        toast({ title: "Ubicación Actualizada", description: "Las nuevas coordenadas han sido seleccionadas."});
+    };
+
 
     const handleFormSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
         setIsSubmitting(true);
         
-        const formPayload = new FormData(event.currentTarget);
+        const formPayload = new FormData();
+        formPayload.append('name', formData.name);
+        formPayload.append('address', formData.address);
+        formPayload.append('latitude', formData.latitude);
+        formPayload.append('longitude', formData.longitude);
+
         const result = await updateStation(station.id, formPayload);
 
         if (result.success) {
@@ -69,11 +86,19 @@ export function EditStationModal({ isOpen, onClose, station }: EditStationModalP
 
         setIsSubmitting(false);
     }
+    
 
     return (
+        <>
+        <LocationPickerModal 
+            isOpen={isPickerOpen}
+            onClose={() => setIsPickerOpen(false)}
+            onLocationSelect={handleLocationSelect}
+            initialPosition={{ lat: parseFloat(formData.latitude), lng: parseFloat(formData.longitude) }}
+        />
         <Dialog open={isOpen} onOpenChange={onClose}>
             <DialogContent className="sm:max-w-[425px]">
-                 <form ref={formRef} onSubmit={handleFormSubmit}>
+                 <form onSubmit={handleFormSubmit}>
                     <DialogHeader>
                         <DialogTitle>Editar Estación</DialogTitle>
                         <DialogDescription>
@@ -89,13 +114,17 @@ export function EditStationModal({ isOpen, onClose, station }: EditStationModalP
                             <label htmlFor="address" className="text-right">Dirección</label>
                             <Input id="address" name="address" value={formData.address} onChange={handleInputChange} className="col-span-3" required/>
                         </div>
-                        <div className="grid grid-cols-4 items-center gap-4">
-                            <label htmlFor="latitude" className="text-right">Latitud</label>
-                            <Input id="latitude" name="latitude" type="number" step="any" value={formData.latitude} onChange={handleInputChange} className="col-span-3" required/>
-                        </div>
-                        <div className="grid grid-cols-4 items-center gap-4">
-                            <label htmlFor="longitude" className="text-right">Longitud</label>
-                            <Input id="longitude" name="longitude" type="number" step="any" value={formData.longitude} onChange={handleInputChange} className="col-span-3" required/>
+                        <div>
+                            <label className="text-sm font-medium text-right col-span-1 pr-4">Ubicación</label>
+                            <div className="col-span-3">
+                                 <Button type="button" variant="outline" className="w-full mt-2" onClick={() => setIsPickerOpen(true)}>
+                                    <MapPin className="mr-2 h-4 w-4" />
+                                    Cambiar Ubicación en Mapa
+                                </Button>
+                                <div className="mt-2 text-sm text-muted-foreground text-center bg-muted p-2 rounded-md">
+                                     Lat: {parseFloat(formData.latitude).toFixed(5)}, Lon: {parseFloat(formData.longitude).toFixed(5)}
+                                </div>
+                            </div>
                         </div>
                     </div>
                     <DialogFooter>
@@ -108,5 +137,6 @@ export function EditStationModal({ isOpen, onClose, station }: EditStationModalP
                 </form>
             </DialogContent>
         </Dialog>
+        </>
     )
 }

@@ -6,6 +6,7 @@ import { firestore } from "@/lib/firebase-admin"; // Usar el SDK de Admin para o
 import type { StationData, UnitData } from "@/lib/types";
 import { GeoPoint, Timestamp } from "firebase-admin/firestore";
 
+
 /**
  * Server Action para crear una nueva estación en Firestore.
  * @param {FormData} formData - Datos del formulario con la información de la estación.
@@ -16,17 +17,18 @@ export async function createStation(formData: FormData) {
   const address = formData.get("address") as string;
   const latitudeStr = formData.get("latitude") as string;
   const longitudeStr = formData.get("longitude") as string;
-
+  
   // Validación básica de campos.
-  if (!name || !address || !latitudeStr || !longitudeStr) {
-    return { success: false, error: "Todos los campos son requeridos." };
+  if (!name || !address) {
+    return { success: false, error: "El nombre y la dirección son requeridos." };
   }
 
   const latitude = parseFloat(latitudeStr);
   const longitude = parseFloat(longitudeStr);
 
+  // Si después de todo, las coordenadas no son válidas, devuelve un error.
   if (isNaN(latitude) || isNaN(longitude)) {
-    return { success: false, error: "La latitud y longitud deben ser números válidos." };
+    return { success: false, error: "La ubicación seleccionada no es válida. Por favor, selecciona un punto en el mapa." };
   }
 
   try {

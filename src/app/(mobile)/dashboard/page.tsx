@@ -7,8 +7,8 @@ import { EmergencyModal } from "@/components/dashboard/EmergencyModal";
 import { MedicalInfoModal } from "@/components/dashboard/MedicalInfoModal";
 import { CancelAlertModal } from "@/components/dashboard/CancelAlertModal";
 import { QuickActions } from "@/components/dashboard/QuickActions";
-import type { MedicalData, AlertData } from "@/lib/types";
-import { getFirestore, doc, getDoc, setDoc, serverTimestamp, collection, GeoPoint, updateDoc } from "firebase/firestore";
+import type { MedicalData, AlertData, StationData } from "@/lib/types";
+import { getFirestore, doc, getDoc, setDoc, serverTimestamp, collection, GeoPoint, updateDoc, getDocs } from "firebase/firestore";
 import { firebaseApp, auth } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, LogOut, User as UserIcon, WifiOff, HelpCircle } from "lucide-react";
@@ -21,6 +21,17 @@ import { useAuth } from "@/app/layout";
 import { signOut } from "firebase/auth";
 import { MobileTour } from "@/components/dashboard/MobileTour";
 
+// Haversine formula to calculate distance between two points
+function getDistance(from: { latitude: number; longitude: number }, to: { latitude: number; longitude: number }) {
+  const R = 6371; // Earth radius in km
+  const dLat = (to.latitude - from.latitude) * Math.PI / 180;
+  const dLon = (to.longitude - from.longitude) * Math.PI / 180;
+  const a =
+    0.5 -
+    Math.cos(dLat) / 2 +
+    (Math.cos(from.latitude * Math.PI / 180) * Math.cos(to.latitude * Math.PI / 180) * (1 - Math.cos(dLon))) / 2;
+  return R * 2 * Math.asin(Math.sqrt(a));
+}
 
 export default function DashboardPage() {
   const [isEmergencyModalOpen, setEmergencyModalOpen] = useState(false);
@@ -30,6 +41,7 @@ export default function DashboardPage() {
   const [alertData, setAlertData] = useState<AlertData | null>(null);
   const [isCancelling, setIsCancelling] = useState(false);
   const [isActivating, setIsActivating] = useState(false);
+  const [statusMessage, setStatusMessage] = useState("");
 
   const { user, loading: authLoading } = useAuth();
   const firestore = getFirestore(firebaseApp);
@@ -55,87 +67,145 @@ export default function DashboardPage() {
   }, [user, authLoading, router, firestore]);
 
   const getUserLocation = (): Promise<{ latitude: number; longitude: number } | null> => {
+    setStatusMessage("Activando GPS...");
+
     return new Promise((resolve) => {
-      if (!navigator.geolocation) {
-        toast({ title: "Error", description: "La geolocalización no es soportada por tu navegador.", variant: "destructive"});
-        resolve(null);
-      } else {
-        // SOLICITUD DE GEOLOCALIZACIÓN DE ALTA PRECISIÓN MEJORADA
-        navigator.geolocation.getCurrentPosition(
-          (position) => {
-            // **NUEVO**: Notifica al usuario la precisión obtenida para su tranquilidad.
+        if (!navigator.geolocation) {
+            toast({ title: "Error", description: "Tu navegador no soporta la geolocalización.", variant: "destructive" });
+            return resolve(null);
+        }
+
+        const searchTimeout = 20000; // 20-second total search time.
+        const requiredAccuracy = 50; // We need 50 meters or better.
+
+        let watchId: number;
+
+        const timeoutTimer = setTimeout(() => {
+            navigator.geolocation.clearWatch(watchId);
             toast({
-              title: "Ubicación Asegurada",
-              description: `Precisión del GPS: ${position.coords.accuracy.toFixed(0)} metros.`,
+                title: "No se pudo obtener una ubicación precisa",
+                description: "La señal del GPS es demasiado débil. Intente moverse a un lugar con cielo más despejado.",
+                variant: "destructive",
             });
-            resolve({ latitude: position.coords.latitude, longitude: position.coords.longitude });
-          },
-          (error) => {
-            let errorMessage = "No se pudo obtener tu ubicación. ";
-            switch(error.code) {
-                case error.PERMISSION_DENIED:
-                    errorMessage += "Debes conceder el permiso de ubicación para enviar una alerta.";
-                    break;
-                case error.POSITION_UNAVAILABLE:
-                    errorMessage += "No se pudo determinar tu posición actual. Intenta moverte a un lugar con mejor señal.";
-                    break;
-                case error.TIMEOUT:
-                    errorMessage += "Se agotó el tiempo de espera para obtener la ubicación. Revisa tu conexión o señal GPS.";
-                    break;
-                default:
-                    errorMessage += "Ocurrió un error desconocido al obtener la ubicación.";
-                    break;
-            }
-            toast({ title: "Error de Ubicación", description: errorMessage, variant: "destructive" });
             resolve(null);
-          },
-          // **MEJORADO**: Forzamos máxima precisión, prohibimos ubicaciones en caché y damos más tiempo.
-          { 
-            enableHighAccuracy: true, 
-            timeout: 15000, // Aumentado a 15 segundos
-            maximumAge: 0 // No usar ubicaciones viejas
-          }
+        }, searchTimeout);
+
+        watchId = navigator.geolocation.watchPosition(
+            (position) => {
+                const accuracy = position.coords.accuracy;
+                setStatusMessage(`Calibrando... Precisión actual: ${Math.round(accuracy)} metros.`);
+
+                if (accuracy <= requiredAccuracy) {
+                    clearTimeout(timeoutTimer);
+                    navigator.geolocation.clearWatch(watchId);
+                    setStatusMessage("Ubicación precisa encontrada.");
+                    resolve({
+                        latitude: position.coords.latitude,
+                        longitude: position.coords.longitude,
+                    });
+                }
+            },
+            (error) => {
+                clearTimeout(timeoutTimer);
+                navigator.geolocation.clearWatch(watchId);
+
+                let errorMessage = "Error al obtener la ubicación. ";
+                if (error.code === error.PERMISSION_DENIED) {
+                    errorMessage += "Asegúrate de haber concedido los permisos de ubicación precisa.";
+                }
+                
+                toast({ title: "Error de Ubicación", description: errorMessage, variant: "destructive" });
+                resolve(null);
+            },
+            {
+                enableHighAccuracy: true,
+                maximumAge: 0, // Always get a fresh position.
+            }
         );
-      }
     });
+  };
+
+  const findAndAssignNearestStation = async (alertLocation: { latitude: number; longitude: number; }): Promise<{ stationId: string; stationName: string; } | null> => {
+      setStatusMessage("Asignando estación...");
+      try {
+          const stationsRef = collection(firestore, "stations");
+          const stationsSnapshot = await getDocs(stationsRef);
+          
+          if (stationsSnapshot.empty) {
+              toast({ title: "Sin estaciones", description: "No hay estaciones registradas para asignar la alerta.", variant: "destructive" });
+              return null;
+          }
+
+          const stationsData = stationsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as StationData));
+
+          let nearestStation: StationData | null = null;
+          let minDistance = Infinity;
+
+          for (const station of stationsData) {
+              const distance = getDistance(alertLocation, station.location);
+              if (distance < minDistance) {
+                  minDistance = distance;
+                  nearestStation = station;
+              }
+          }
+          
+          if (nearestStation) {
+              setStatusMessage(`Estación más cercana: ${nearestStation.name}`);
+              return { stationId: nearestStation.id, stationName: nearestStation.name };
+          }
+
+          return null;
+      } catch (error) {
+          console.error("Error finding nearest station:", error);
+          toast({ title: "Error de asignación", description: "No se pudo encontrar la estación más cercana.", variant: "destructive" });
+          return null;
+      }
   };
 
   const handleActivateEmergency = async (alertType: string): Promise<boolean> => {
     if (isActivating || !user) {
-      toast({ title: "Error", description: "No se pudo verificar tu sesión para enviar la alerta."});
       return false;
     }
+    
     setIsActivating(true);
 
     const location = await getUserLocation();
     if (!location) {
-      toast({ title: "Activación Cancelada", description: "No se pudo activar la alerta sin tu ubicación precisa.", variant: "destructive" });
       setIsActivating(false);
+      setStatusMessage("");
       return false;
     }
+    
+    const nearestStation = await findAndAssignNearestStation(location);
+
+    setStatusMessage("Enviando alerta...");
 
     try {
       const alertDocRef = doc(collection(firestore, "alerts"));
+      
       const newAlert: AlertData = {
         id: alertDocRef.id,
         userId: user.uid,
         timestamp: serverTimestamp(),
         location: new GeoPoint(location.latitude, location.longitude),
-        status: 'new',
+        status: nearestStation ? 'assigned' : 'new',
         type: alertType,
         isAnonymous: user.isAnonymous,
+        assignedStationId: nearestStation?.stationId || undefined,
+        assignedStationName: nearestStation?.stationName || undefined,
       };
 
       await setDoc(alertDocRef, newAlert);
       setAlertData(newAlert);
       setEmergencyModalOpen(true);
-      setIsActivating(false);
       return true;
     } catch (error) {
       console.error("Error creating alert:", error);
       toast({ title: "Error", description: "No se pudo crear la alerta. Inténtalo de nuevo.", variant: "destructive"});
-      setIsActivating(false);
       return false;
+    } finally {
+      setIsActivating(false);
+      setStatusMessage("");
     }
   };
   
@@ -247,7 +317,7 @@ export default function DashboardPage() {
                    {isActivating && (
                       <div className="flex justify-center items-center gap-2 text-white animate-fade-in mt-4">
                           <Loader2 className="w-5 h-5 animate-spin" />
-                          <span>Procesando alerta...</span>
+                          <span>{statusMessage || 'Procesando...'}</span>
                       </div>
                    )}
               </div>
