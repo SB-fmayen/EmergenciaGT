@@ -27,6 +27,10 @@ export default function AlertDetailModal({
   userRole,
 }: AlertDetailModalProps) {
   const { stationId: operatorStationId } = useAuth(); // Renombrar para evitar conflicto
+
+  console.log("AlertDetailModal - Render: userRole=", userRole, "operatorStationId=", operatorStationId, "alert.assignedStationId=", alert.assignedStationId);
+  console.log("AlertDetailModal - Render: Current user auth status (from useAuth):", { isAuthenticated: !!operatorStationId, operatorStationId, userRole });
+
   const [units, setUnits] = useState<UnitData[]>([]);
   const [selectedStationId, setSelectedStationId] = useState<string | null>(alert.assignedStationId || null);
   const [selectedUnitId, setSelectedUnitId] = useState<string | null>(alert.assignedUnitId || null);
@@ -34,6 +38,7 @@ export default function AlertDetailModal({
 
   // Cargar unidades cuando la estación seleccionada cambie
   useEffect(() => {
+    console.log("AlertDetailModal - useEffect (fetchUnits): isOpen=", isOpen, "selectedStationId=", selectedStationId);
     if (!isOpen || !selectedStationId) {
       setUnits([]);
       setSelectedUnitId(null);
@@ -44,10 +49,11 @@ export default function AlertDetailModal({
       setLoading(true);
       try {
         const unitsRef = collection(firestore, "stations", selectedStationId, "unidades");
-        const q = query(unitsRef, where("stationId", "==", selectedStationId));
-        const snapshot = await getDocs(q);
+        console.log("AlertDetailModal - Querying units for stationId:", selectedStationId);
+        const snapshot = await getDocs(unitsRef);
         const data = snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as UnitData));
         setUnits(data);
+        console.log("AlertDetailModal - Fetched units:", data);
         // Si la unidad asignada a la alerta no está en la nueva lista de unidades, deseleccionarla
         if (alert.assignedUnitId && !data.some(u => u.id === alert.assignedUnitId)) {
           setSelectedUnitId(null);
@@ -70,10 +76,18 @@ export default function AlertDetailModal({
   }, [userRole, operatorStationId, alert.assignedStationId]);
 
   const handleAssign = async () => {
-    if (!selectedStationId || !selectedUnitId) return;
+    console.log("handleAssign - selectedStationId:", selectedStationId, "selectedUnitId:", selectedUnitId);
+    if (!selectedStationId || !selectedUnitId) {
+      console.log("handleAssign - Faltan IDs de estación o unidad.");
+      return;
+    }
     const station = stations.find((s) => s.id === selectedStationId);
     const unit = units.find((u) => u.id === selectedUnitId);
-    if (!station || !unit) return;
+    console.log("handleAssign - Found station:", station, "Found unit:", unit);
+    if (!station || !unit) {
+      console.log("handleAssign - Estación o unidad no encontradas.");
+      return;
+    }
 
     try {
       const alertRef = doc(firestore, "alerts", alert.id);

@@ -1,11 +1,10 @@
-
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { MobileAppContainer } from "@/components/MobileAppContainer";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Loader2, Clock, MapPin, CheckCircle, AlertTriangle, ShieldX, UserCheck, Truck, Siren, Hospital, HardHat, FileClock, WifiOff, HelpCircle } from "lucide-react";
+import { ArrowLeft, Loader2, Clock, MapPin, CheckCircle, AlertTriangle, ShieldX, UserCheck, Truck, Siren, Hospital, HardHat, FileClock, WifiOff, HelpCircle, Ambulance } from "lucide-react";
 import { getFirestore, collection, query, where, getDocs, orderBy, Timestamp, doc, updateDoc } from "firebase/firestore";
 import { firebaseApp } from "@/lib/firebase";
 import type { AlertData, AlertStatus } from "@/lib/types";
@@ -37,6 +36,7 @@ export default function AlertsPage() {
   const [isCancelling, setIsCancelling] = useState(false);
 
   const fetchAlerts = useCallback(async () => {
+    console.log("AlertsPage - fetchAlerts: userRole=", userRole, "user.uid=", user?.uid);
     if (!user) {
         setLoading(false);
         setError("No se pudo verificar la sesión de usuario para cargar el historial.");
@@ -110,9 +110,9 @@ export default function AlertsPage() {
 
     try {
       const alertRef = doc(firestore, "alerts", alertToCancel.id);
+      console.log("Attempting to cancel alert:", { alertId: alertToCancel.id, alertUserId: alertToCancel.userId, currentUserId: user?.uid });
       await updateDoc(alertRef, {
         status: 'cancelled',
-        cancellationReason: reason
       });
       toast({
         title: "Alerta Cancelada",
@@ -283,4 +283,3 @@ export default function AlertsPage() {
   );
 }
 
-    

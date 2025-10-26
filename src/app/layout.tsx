@@ -1,4 +1,3 @@
-
 "use client";
 
 import './globals.css';
@@ -39,6 +38,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         try {
           const tokenResult = await user.getIdTokenResult(true); // Force refresh of claims
           const claims = tokenResult.claims;
+          console.log("AuthProvider - User Claims:", claims);
           setStationId((claims.stationId as string) || null);
           setUnitId((claims.unitId as string) || null);
 
@@ -60,14 +60,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 const userSnap = await getDoc(userRef);
                 if (userSnap.exists()) {
                   const data = userSnap.data() as any;
+                  console.log("AuthProvider - User Document Data:", data);
+                  console.log("AuthProvider - User Document Data (after fetch):", data);
+
                   // Prefer explicit role in the user document
                   if (data?.role === 'admin') setUserRole('admin');
                   else if (data?.role === 'operator') setUserRole('operator');
                   else if (data?.role === 'unit') setUserRole('unit');
-                  else setUserRole('operator');
+                  else setUserRole('operator'); // Default to operator if no role is explicitly set but user doc exists
 
                   if (data?.stationId) setStationId(data.stationId as string);
                   if (data?.unitId) setUnitId(data.unitId as string);
+                  console.log("AuthProvider - User Role set from Firestore data:", { role: data?.role, stationId: data?.stationId, unitId: data?.unitId });
                 } else {
                   // If no user doc exists, default to 'citizen' for mobile app users.
                   setUserRole('citizen');
@@ -89,10 +93,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUnitId(null);
       }
       setLoading(false);
+      console.log("AuthProvider - Final Auth State:", { user: user?.uid, userRole, stationId, unitId, loading: false });
     });
 
     return () => unsubscribe();
   }, []);
+
+  useEffect(() => {
+    console.log("AuthProvider - Current Context State:", { user: user?.uid, userRole, stationId, unitId, loading });
+  }, [user, userRole, stationId, unitId, loading]);
 
   const value = { user, userRole, stationId, unitId, loading };
 

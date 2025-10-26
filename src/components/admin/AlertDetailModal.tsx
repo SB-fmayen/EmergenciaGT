@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { X, Map, User, Info, Ambulance, Loader2, HardHat, AlertTriangle, Truck } from "lucide-react";
+import { X, Map, User, Info, Ambulance, Loader2, HardHat, AlertTriangle, Truck, Phone } from "lucide-react";
 import type { EnrichedAlert } from "@/app/(admin)/dashboard/admin/page";
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -74,7 +74,6 @@ export function AlertDetailModal({ isOpen, onClose, alert, stations, onCenterMap
     const [isUpdating, setIsUpdating] = useState(false);
     const [isAssigning, setIsAssigning] = useState(false);
     
-    // Estados para la asignación
     const [availableUnits, setAvailableUnits] = useState<UnitData[]>([]);
     const [loadingUnits, setLoadingUnits] = useState(false);
     const [selectedStationId, setSelectedStationId] = useState<string | undefined>(undefined);
@@ -88,18 +87,15 @@ export function AlertDetailModal({ isOpen, onClose, alert, stations, onCenterMap
         setLoadingUnits(true);
 
         try {
-            // 1. Obtener todas las alertas que están activas
             const activeStatuses: AlertStatus[] = ['assigned', 'en_route', 'on_scene', 'attending', 'transporting'];
             const activeAlertsQuery = query(collection(firestore, "alerts"), where("status", "in", activeStatuses));
             const activeAlertsSnapshot = await getDocs(activeAlertsQuery);
             const busyUnitIds = new Set(activeAlertsSnapshot.docs.map(doc => doc.data().assignedUnitId).filter(id => id));
 
-            // 2. Obtener todas las unidades de la estación seleccionada
             const unitsRef = collection(firestore, "stations", stationId, "unidades");
             const allUnitsSnapshot = await getDocs(unitsRef);
             const allUnits = allUnitsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as UnitData));
             
-            // 3. Filtrar las unidades para excluir las que están ocupadas
             const units = allUnits.filter(unit => !busyUnitIds.has(unit.id));
             setAvailableUnits(units);
 
@@ -112,10 +108,8 @@ export function AlertDetailModal({ isOpen, onClose, alert, stations, onCenterMap
         }
     }, [toast]);
 
-    // Cargar unidades cuando se selecciona una estación
     useEffect(() => {
         if (selectedStationId) {
-            // Limpiar selección de unidad al cambiar de estación
             setSelectedUnitId(undefined);
             fetchAvailableUnits(selectedStationId);
         } else {
@@ -124,11 +118,9 @@ export function AlertDetailModal({ isOpen, onClose, alert, stations, onCenterMap
         }
     }, [selectedStationId, fetchAvailableUnits]);
 
-    // Resetear estados internos cuando el modal se abre o la alerta cambia
     useEffect(() => {
         if (isOpen) {
             setSelectedStatus(alert.status);
-            // Si la alerta ya está asignada, precarga los selectores. Si no, los deja vacíos.
             setSelectedStationId(alert.assignedStationId || undefined);
             setSelectedUnitId(alert.assignedUnitId || undefined);
         }
@@ -152,7 +144,7 @@ export function AlertDetailModal({ isOpen, onClose, alert, stations, onCenterMap
                 title: "Estado Actualizado",
                 description: `La alerta ${alert.id.substring(0, 8)} ha sido actualizada a "${getStatusText(selectedStatus)}".`
             });
-            onUpdate(); // Call the refresh function
+            onUpdate();
             onClose();
         } catch (error) {
             console.error("Error updating status:", error);
@@ -178,10 +170,10 @@ export function AlertDetailModal({ isOpen, onClose, alert, stations, onCenterMap
                 assignedStationName: station?.name || "Desconocido",
                 assignedUnitId: selectedUnitId,
                 assignedUnitName: unit?.nombre || "Desconocido",
-                status: 'assigned' // Automatically set to assigned
+                status: 'assigned'
             });
             toast({ title: "Unidad Asignada", description: `La alerta ha sido asignada a ${unit?.nombre} de ${station?.name}.`});
-            onUpdate(); // Call the refresh function
+            onUpdate();
             onClose();
         } catch (error) {
             console.error("Error assigning unit:", error);
@@ -203,12 +195,49 @@ export function AlertDetailModal({ isOpen, onClose, alert, stations, onCenterMap
                         {/* User Info */}
                         <div className="p-4 bg-background rounded-lg border border-border">
                             <h3 className="font-bold text-lg mb-4 flex items-center gap-2 text-muted-foreground"><User/>Información del Usuario</h3>
-                            <div className="space-y-3 text-sm">
+                            <div className="space-y-4 text-sm">
                                 <InfoRow label="Nombre" value={alert.isAnonymous ? "Usuario Anónimo" : alert.userInfo?.fullName} />
                                 <InfoRow label="Edad" value={alert.isAnonymous ? "N/A" : `${alert.userInfo?.age || ''} años`} />
-                                <InfoRow label="Tipo de Sangre" value={alert.isAnonymous ? "N/A" : alert.userInfo?.bloodType} />
-                                <InfoRow label="Condiciones" value={alert.isAnonymous ? "N/A" : alert.userInfo?.conditions?.join(', ') || 'Ninguna'} />
-                                <InfoRow label="Contacto" value={alert.isAnonymous ? "N/A" : alert.userInfo?.emergencyContacts?.[0]?.phone || 'No registrado'} />
+                                 <InfoRow label="Tipo de Sangre">
+                                    {alert.isAnonymous ? (
+                                        <p className="mt-1 text-muted-foreground/70">No disponible</p>
+                                    ) : alert.userInfo?.bloodType ? (
+                                        <span className="bg-red-200 text-red-900 px-2 py-1 rounded-full text-xs font-medium dark:bg-red-500/30 dark:text-red-300">{alert.userInfo.bloodType}</span>
+                                    ) : (
+                                        <p className="mt-1 text-muted-foreground/70">No registrado</p>
+                                    )}
+                                </InfoRow>
+                                <InfoRow label="Condiciones">
+                                    {alert.isAnonymous ? (
+                                        <p className="mt-1 text-muted-foreground/70">No disponible</p>
+                                    ) : alert.userInfo?.conditions && alert.userInfo.conditions.length > 0 ? (
+                                        <div className="flex flex-wrap gap-2 mt-1">
+                                            {alert.userInfo.conditions.map((condition, i) => (
+                                                <span key={i} className="bg-blue-500/20 text-blue-300 px-2 py-1 rounded-full text-xs font-medium">{condition}</span>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <p className="mt-1 text-muted-foreground/70">Ninguna</p>
+                                    )}
+                                </InfoRow>
+                                <InfoRow label="Contactos de Emergencia">
+                                    {alert.isAnonymous ? (
+                                        <p className="mt-1 text-muted-foreground/70">No disponible</p>
+                                    ) : alert.userInfo?.emergencyContacts && alert.userInfo.emergencyContacts.length > 0 && alert.userInfo.emergencyContacts.some(c => c.name) ? (
+                                        <div className="space-y-2 mt-1">
+                                            {alert.userInfo.emergencyContacts.filter(c => c.name).map((contact, index) => (
+                                                <div key={index} className="p-2 bg-muted/50 rounded-md text-sm">
+                                                    <p className="font-bold text-foreground">{contact.name} <span className="font-normal text-muted-foreground">({contact.relation})</span></p>
+                                                    <a href={`tel:${contact.phone}`} className="text-primary hover:underline flex items-center gap-2">
+                                                      <Phone className="w-3 h-3"/> {contact.phone}
+                                                    </a>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <p className="mt-1 text-muted-foreground/70">No registrados</p>
+                                    )}
+                                </InfoRow>
                             </div>
                         </div>
                         {/* Event Info */}
@@ -234,7 +263,7 @@ export function AlertDetailModal({ isOpen, onClose, alert, stations, onCenterMap
                         </div>
                     </div>
 
-                    {userRole === 'admin' && (
+                    {(userRole === 'admin' || userRole === 'operator') && (
                      <div className="mb-6 p-4 bg-primary/10 rounded-lg border border-primary/50">
                          <h3 className="font-bold text-lg mb-4 flex items-center gap-2 text-primary"><Truck />Asignar Unidad</h3>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

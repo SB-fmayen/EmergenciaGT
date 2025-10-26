@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
@@ -100,7 +99,7 @@ export default function AdminDashboardPage() {
         // Si el usuario es admin, también cargamos las estaciones para poder asignarlas.
         // Esto se puede hacer con una escucha en tiempo real ya que los datos de las estaciones no son sensibles.
         let stationsUnsub: (() => void) | undefined;
-        if (userRole === 'admin') {
+        if (userRole === 'admin' || userRole === 'operator') {
             stationsUnsub = onSnapshot(collection(firestore, "stations"), 
                 (snapshot) => {
                     const stationsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as StationData));

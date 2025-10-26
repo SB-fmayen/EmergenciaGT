@@ -3,7 +3,7 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper functions
+    // --- Funciones de utilidad ---
     function isAuth() {
       return request.auth != null;
     }
@@ -14,64 +14,70 @@ service cloud.firestore {
       return isAuth() && request.auth.token.admin == true;
     }
     function isOperator() {
-        return isAuth() && (isAdmin() || (request.auth.token.operator == true || !request.auth.token.admin));
+      // Un operador es un usuario con el token de "operador" o un ID de estación.
+      return isAuth() && (request.auth.token.operator == true || request.auth.token.stationId != null);
     }
     function isUnit() {
-        return isAuth() && request.auth.token.unit == true;
+      return isAuth() && request.auth.token.unit == true;
     }
 
-    // `users` collection: For admin panel user metadata.
+    // --- Colección de Usuarios ---
     match /users/{userId} {
       allow read: if isUser(userId) || isAdmin();
-      allow create: if isAuth(); // Anyone can create their own user doc on register
-      allow update: if isAdmin(); // Only admins can update roles/stations
+      allow create: if isAuth();
+      allow update: if isUser(userId) || isAdmin();
       allow delete: if isAdmin();
     }
 
-    // `medicalInfo` collection: For mobile app user medical data.
+    // --- Colección de Información Médica ---
     match /medicalInfo/{userId} {
-      // User can manage their own data.
-      allow read, create, update: if isUser(userId);
-      // Admin/Operators can read data for an alert.
-      // This is a broad read, but it's protected by the fact that they only get the userId from an alert they have access to.
-      allow get: if isAdmin() || isOperator() || isUnit();
+      // El usuario es dueño de sus datos, pero los servicios de emergencia pueden leerlos.
+      allow read, create, update: if isUser(userId) || isAdmin() || isOperator() || isUnit();
     }
-    
-    // `stations` and their subcollections
-    match /stations/{stationId} {
-      // Anyone authenticated can read station info (for dropdowns etc)
-      allow read: if isAuth();
-      // Only admins can modify stations
-      allow create, update, delete: if isAdmin();
 
-      // Units subcollection
+    // --- Colección de Estaciones ---
+    match /stations/{stationId} {
+      allow read: if isAuth(); // Todos los autenticados pueden ver las estaciones.
+      allow create, update, delete: if isAdmin(); // Solo admins pueden gestionarlas.
+
+      // Subcolección de unidades
       match /unidades/{unitId} {
-         allow read: if isAuth();
-         allow create, update, delete: if isAdmin();
+        allow read: if isAuth();
+        // Admins u operadores de esa estación pueden gestionar unidades.
+        allow create, update, delete: if isAdmin() || (isOperator() && request.auth.token.stationId == stationId);
       }
     }
 
-    // `alerts` collection: The core of the application.
+    // --- Colección de Alertas (REGLAS CORREGIDAS) ---
     match /alerts/{alertId} {
-      // Any user (including anonymous) can create an alert.
-      allow create: if isAuth();
+      allow create: if isAuth(); // Cualquier usuario autenticado puede crear una alerta.
 
-      // Read/Update rules for single documents.
-      allow get, update: if 
-          // Admins can do anything.
-          isAdmin() ||
-          // Operators can read/update alerts assigned to their station.
-          (isOperator() && request.auth.token.stationId != null && resource.data.assignedStationId == request.auth.token.stationId) ||
-          // Units can read/update alerts assigned to them that are in an active state.
-          (isUnit() && request.auth.token.unitId != null && resource.data.assignedUnitId == request.auth.token.unitId && resource.data.status in ['assigned', 'en_route', 'on_scene', 'attending', 'transporting']) ||
-          // The user who created the alert can read it or cancel it.
-          (isUser(resource.data.userId));
-      
-      // List rule to allow users to query for their own alerts.
-      allow list: if isAuth() && request.query.where.path == 'userId' && request.query.where.op == '==' && request.query.where.value == request.auth.uid;
-          
-      // Delete is restricted. Alerts should be marked 'cancelled' or 'resolved'.
-      allow delete: if false; 
+      // GET (Leer un solo documento):
+      // Permite a admins y operadores ver el detalle de cualquier alerta.
+      allow get: if isAdmin() || isOperator()
+        || (isUnit() && resource.data.assignedUnitId == request.auth.token.unitId)
+        || (isUser(resource.data.userId));
+
+      // LIST (Consultar una colección):
+      // Permite a admins y operadores listar todas las alertas para el dashboard.
+      allow list: if isAdmin() || isOperator() || isUser(resource.data.userId);
+
+      // UPDATE (Actualizar un documento):
+      // Esta es la corrección clave para permitir la asignación.
+      allow update: if
+        // Los admins y operadores tienen permisos completos de actualización.
+        // Esto permite a los operadores asignar una alerta no asignada.
+        isAdmin() || isOperator()
+        ||
+        // Una unidad solo puede actualizar una alerta que le fue asignada.
+        (isUnit() && resource.data.assignedUnitId == request.auth.token.unitId)
+        ||
+        // El usuario creador solo puede cancelar la alerta.
+        (isUser(resource.data.userId) &&
+          request.resource.data.status == 'cancelled');
+
+      // DELETE: No se permite borrar alertas para mantener un historial.
+      allow delete: if false;
     }
   }
 }

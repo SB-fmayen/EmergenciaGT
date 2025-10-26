@@ -344,6 +344,7 @@ export default function DashboardPage() {
           onConfirm={async (reason) => {
               if (!alertData) return;
               setIsCancelling(true);
+              console.log("Attempting to cancel alert:", alertData?.id, "with user UID:", user?.uid, "Alert userId:", alertData?.userId);
               try {
                   await updateDoc(doc(firestore, "alerts", alertData.id), { status: 'cancelled', cancellationReason: reason });
                   toast({ title: "Alerta Cancelada", description: "Tu solicitud de ayuda ha sido cancelada." });

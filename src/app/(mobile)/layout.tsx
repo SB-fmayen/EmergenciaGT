@@ -16,8 +16,6 @@ export default function MobileLayout({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (loading) return; 
 
-    console.log("MobileLayout - user:", user, "userRole:", userRole, "loading:", loading, "pathname:", pathname);
-
     const isAuthPage = pathname.startsWith('/auth');
 
     if (user) {

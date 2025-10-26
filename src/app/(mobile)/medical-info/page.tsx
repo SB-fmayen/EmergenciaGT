@@ -11,6 +11,7 @@ import { MobileAppContainer } from "@/components/MobileAppContainer";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Loader2, ArrowLeft, Plus, Trash2, HeartPulse, User, HelpCircle } from "lucide-react";
@@ -31,7 +32,7 @@ const medicalFormSchema = z.object({
   medications: z.array(z.object({ name: z.string() })).optional(),
   emergencyContacts: z.array(z.object({
     name: z.string().min(1, "Nombre de contacto requerido"),
-    phone: z.string().min(8, "Teléfono debe tener al menos 8 dígitos"),
+    phone: z.string().length(8, "El teléfono debe tener exactamente 8 dígitos."),
     relation: z.string().min(1, "Relación requerida"),
   })).min(1, "Debes agregar al menos un contacto de emergencia."),
   additionalNotes: z.string().optional(),
@@ -44,6 +45,8 @@ const defaultConditions = [
   "Hipertensión",
   "Problemas Cardíacos",
 ];
+
+const bloodTypes = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
 
 export default function MedicalInfoPage() {
   const router = useRouter();
@@ -225,9 +228,20 @@ export default function MedicalInfoPage() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel className="text-slate-300">Tipo de Sangre</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Ej: O+" {...field} className="bg-slate-700 border-slate-600 text-white"/>
-                        </FormControl>
+                        <Select onValueChange={field.onChange} value={field.value || ""} defaultValue={field.value || ""}>
+                          <FormControl>
+                            <SelectTrigger className="bg-slate-700 border-slate-600 text-white">
+                              <SelectValue placeholder="Selecciona un tipo" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent className="bg-slate-800 text-white border-slate-700">
+                            {bloodTypes.map((type) => (
+                              <SelectItem key={type} value={type}>
+                                {type}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -332,7 +346,7 @@ export default function MedicalInfoPage() {
                      <FormField control={form.control} name={`emergencyContacts.${index}.relation`} render={({ field }) => (
                         <FormItem><FormLabel className="text-xs text-slate-400">Relación</FormLabel><FormControl><Input {...field} placeholder="Ej: Esposo, Madre..." className="bg-slate-700 border-slate-600 text-white"/></FormControl><FormMessage /></FormItem>
                     )}/>
-                   {contactFields.length > 1 && <Button type="button" variant="destructive" size="icon" onClick={() => removeContact(index)} className="absolute top-2 right-2 h-7 w-7 bg-red-800/80 hover:bg-red-700/80"><Trash2 className="w-4 h-4"/></Button>}
+                   {contactFields.length > 1 && <Button type="button" variant="destructive" size="icon" onClick={() => removeContact(index)} className="absolute top-2 right-2 h-7 w-7 bg-red-800/80 hover:bg-red-700/80"><Trash2 className="w-4 h-4" /></Button>}
                  </div>
               ))}
               <Button type="button" variant="outline" size="sm" onClick={() => appendContact({ name: "", phone: "", relation: "" })} className="border-slate-600 text-slate-300 hover:bg-slate-700 hover:text-white">
@@ -370,5 +384,3 @@ export default function MedicalInfoPage() {
     </>
   );
 }
-
-    
