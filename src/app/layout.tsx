@@ -69,9 +69,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                   if (data?.stationId) setStationId(data.stationId as string);
                   if (data?.unitId) setUnitId(data.unitId as string);
                 } else {
-                  // If no user doc exists, default to 'operator' for panel users
-                  // (keeps original README behaviour where new panel users are operators).
-                  setUserRole('operator');
+                  // If no user doc exists, default to 'citizen' for mobile app users.
+                  setUserRole('citizen');
                 }
               } catch (e) {
                 console.error('Error reading user profile from Firestore:', e);

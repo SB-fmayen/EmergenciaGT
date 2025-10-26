@@ -204,10 +204,11 @@ export default function AlertsMap({ alerts, stations, selectedAlert, theme }: Al
     // Centra el mapa en la alerta seleccionada
     useEffect(() => {
         if (selectedAlert && mapRef.current) {
-            mapRef.current.flyTo([selectedAlert.location.latitude, selected-alert.location.longitude], 15, { animate: true, duration: 1 });
+            // Corrected typo: selected-alert → selectedAlert
+            mapRef.current.flyTo([selectedAlert.location.latitude, selectedAlert.location.longitude], 15, { animate: true, duration: 1 });
             const marker = alertMarkersRef.current[selectedAlert.id];
             if (marker) {
-                 setTimeout(() => marker.openPopup(), 500);
+                setTimeout(() => marker.openPopup(), 500);
             }
         }
     }, [selectedAlert]);
