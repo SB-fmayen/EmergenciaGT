@@ -192,14 +192,14 @@ export default function AuthPage() {
             toast({ title: "Error", description: "Por favor, ingresa un correo electrónico.", variant: "destructive" });
             return;
         }
-        const signInMethods = await fetchSignInMethodsForEmail(auth, email);
-        if (signInMethods.length === 0) {
-            toast({ title: "Error", description: "El correo proporcionado no se encuentra registrado.", variant: "destructive" });
-            return;
-        }
-
+        
+        // Se elimina la verificación previa `fetchSignInMethodsForEmail`.
+        // `sendPasswordResetEmail` no devuelve un error si el usuario no existe,
+        // lo cual es el comportamiento deseado para evitar la enumeración de correos.
         await sendPasswordResetEmail(auth, email);
-        toast({ title: "¡Enlace enviado!", description: "Revisa tu correo para restablecer tu contraseña." });
+
+        // Se muestra un mensaje de éxito siempre, independientemente de si el correo existe o no.
+        toast({ title: "¡Verifica tu correo!", description: "Si tu cuenta existe, recibirás un enlace para restablecer tu contraseña." });
         setView("login");
     });
   };
