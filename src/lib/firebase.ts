@@ -1,12 +1,11 @@
 
 // Import the functions you need from the SDKs you need
-import { getApp, getApps, initializeApp } from "firebase/app";
+import { getApp, getApps, initializeApp, type FirebaseOptions } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
-// Your web app's Firebase configuration
-// IMPORTANT: This object is now loaded from environment variables for security.
-const firebaseConfig = {
+// Your web app's Firebase configuration from environment variables.
+const firebaseConfig: FirebaseOptions = {
   projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
   storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
@@ -16,7 +15,6 @@ const firebaseConfig = {
 };
 
 // Initialize Firebase
-console.log("Firebase Config:", firebaseConfig);
 const firebaseApp = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 const auth = getAuth(firebaseApp);
 const firestore = getFirestore(firebaseApp);
