@@ -1,166 +1,147 @@
 
 "use client";
 
-import { useState, useEffect, useMemo } from 'react';
-import { APIProvider, Map, AdvancedMarker, InfoWindow, useMap } from '@vis.gl/react-google-maps';
-import type { EnrichedAlert, AlertStatus, StationData } from "@/lib/types";
+import { useState, useEffect, useCallback, useMemo, Fragment } from 'react';
+import { GoogleMap, useJsApiLoader, Marker, InfoWindow } from '@react-google-maps/api';
+import type { EnrichedAlert, StationData } from "@/lib/types";
 
-// Mapa de Estilos de Google Maps (los IDs se crean en la Google Cloud Console)
-const MAP_STYLE_IDS = {
-    light: 'YOUR_LIGHT_MODE_MAP_ID', // Reemplazar con tu ID de estilo de mapa claro
-    dark: 'YOUR_DARK_MODE_MAP_ID'   // Reemplazar con tu ID de estilo de mapa oscuro
-};
-const DEFAULT_MAP_ID = 'YOUR_DEFAULT_MAP_ID'; // Un ID de mapa por defecto si los temas no están configurados
-
-// --- Componente del Marcador de Alerta ---
-const AlertMarker = ({ alert }: { alert: EnrichedAlert }) => {
-    let bgColor = '#6b7280'; // gris por defecto
-    let zIndex = 10;
-    let pulsing = false;
-
-    switch (alert.status) {
-        case 'new':
-            bgColor = '#ef4444'; // red-500
-            zIndex = 100;
-            pulsing = true;
-            break;
-        case 'assigned':
-        case 'en_route':
-        case 'on_scene':
-            bgColor = '#3b82f6'; // blue-500
-            zIndex = 50;
-            break;
+// --- Helper para normalizar la ubicación ---
+// Crea siempre un objeto nuevo para evitar problemas con objetos de solo lectura.
+const normalizeLocation = (location: any): { lat: number; lng: number } | null => {
+    if (!location) return null;
+    // Si el formato es correcto, crea un nuevo objeto para evitar la mutación de props.
+    if (typeof location.lat === 'number' && typeof location.lng === 'number') {
+        return { lat: location.lat, lng: location.lng }; 
     }
-
-    return (
-        <div 
-            className={`relative w-6 h-6 rounded-full flex items-center justify-center border-2 border-white shadow-lg`}
-            style={{ backgroundColor: bgColor, zIndex: zIndex }}
-        >
-            {pulsing && <div className="absolute inset-0 bg-red-500 rounded-full animate-pulse"></div>}
-        </div>
-    );
+    if (typeof location.latitude === 'number' && typeof location.longitude === 'number') {
+        return { lat: location.latitude, lng: location.longitude }; // Formato de Firestore
+    }
+    if (typeof location._lat === 'number' && typeof location._long === 'number') {
+        return { lat: location._lat, lng: location._long }; // Otro formato común
+    }
+    console.warn("Formato de ubicación no reconocido:", location);
+    return null;
 };
 
-// --- Componente del Marcador de Estación ---
-const StationMarker = () => (
-    <div 
-        className="relative w-7 h-7 bg-green-600 rounded-full flex items-center justify-center border-2 border-white shadow-lg"
-        style={{ zIndex: 5 }}
-    >
-        <p className="font-bold text-white text-sm">H</p>
-    </div>
-);
+// --- Estilos de Marcadores y Mapa ---
+const markerStyles = {
+    new: { bgColor: '#ef4444', zIndex: 100, pulsing: true },
+    assigned: { bgColor: '#3b82f6', zIndex: 50, pulsing: false },
+    en_route: { bgColor: '#3b82f6', zIndex: 50, pulsing: false },
+    on_scene: { bgColor: '#3b82f6', zIndex: 50, pulsing: false },
+    default: { bgColor: '#6b7280', zIndex: 10, pulsing: false }
+};
+
 
 // --- Componente Principal del Mapa ---
 interface AlertsMapProps {
     alerts: EnrichedAlert[];
     stations: StationData[];
     selectedAlert: EnrichedAlert | null;
-    theme: string;
+    theme?: string;
 }
 
-function MapWrapper({ alerts, stations, selectedAlert, theme }: AlertsMapProps) {
-    const map = useMap();
+export default function AlertsMap({ alerts, stations, selectedAlert }: AlertsMapProps) {
+    const { isLoaded, loadError } = useJsApiLoader({
+        googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "",
+        // Unifica las librerías en todos los mapas para evitar errores.
+        libraries: ['marker', 'places'],
+    });
+
+    const [map, setMap] = useState<google.maps.Map | null>(null);
     const [activeMarker, setActiveMarker] = useState<{ type: 'alert' | 'station'; id: string; } | null>(null);
 
-    // Centra el mapa en la alerta seleccionada
+    const onMapLoad = useCallback((mapInstance: google.maps.Map) => setMap(mapInstance), []);
+    const onMapUnmount = useCallback(() => setMap(null), []);
+
+    // Centra el mapa cuando se selecciona una alerta
     useEffect(() => {
         if (selectedAlert && map) {
-            map.moveCamera({ center: selectedAlert.location, zoom: 15 });
+            const position = normalizeLocation(selectedAlert.location);
+            if (position) {
+                map.panTo(position);
+                map.setZoom(15);
+            }
         }
     }, [selectedAlert, map]);
+    
+    // Busca la data de la alerta o estación activa
+    const activeAlertData = useMemo(() => activeMarker?.type === 'alert' ? alerts.find(a => a.id === activeMarker.id) : null, [activeMarker, alerts]);
+    const activeStationData = useMemo(() => activeMarker?.type === 'station' ? stations.find(s => s.id === activeMarker.id) : null, [activeMarker, stations]);
 
-    const activeAlert = useMemo(() => 
-        (activeMarker?.type === 'alert') ? alerts.find(a => a.id === activeMarker.id) : null,
-        [activeMarker, alerts]
-    );
+    // Normaliza la posición para la InfoWindow
+    const activeAlertPosition = activeAlertData ? normalizeLocation(activeAlertData.location) : null;
+    const activeStationPosition = activeStationData ? normalizeLocation(activeStationData.location) : null;
 
-    const activeStation = useMemo(() => 
-        (activeMarker?.type === 'station') ? stations.find(s => s.id === activeMarker.id) : null,
-        [activeMarker, stations]
-    );
+    if (loadError) return <div className="flex items-center justify-center w-full h-full">Error al cargar el mapa.</div>;
+    if (!isLoaded) return <div className="flex items-center justify-center w-full h-full">Cargando Mapa...</div>;
 
-    const mapId = theme === 'dark' ? MAP_STYLE_IDS.dark : MAP_STYLE_IDS.light;
+    // Se necesita una referencia a `google.maps` que solo está disponible después de cargar
+    const StationMarkerIcon = {
+        path: "M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z",
+        fillColor: "#16a34a",
+        fillOpacity: 1,
+        strokeWeight: 2,
+        strokeColor: "#ffffff",
+        scale: 1.5,
+        anchor: new google.maps.Point(12, 24),
+    };
 
     return (
-        <Map
-            defaultCenter={{ lat: 14.6349, lng: -90.5069 }}
-            defaultZoom={12}
-            gestureHandling={'greedy'}
-            disableDefaultUI={true}
-            mapId={mapId}
-            className="w-full h-full border-none"
+        <GoogleMap
+            mapContainerClassName="w-full h-full"
+            center={{ lat: 14.6349, lng: -90.5069 }}
+            zoom={12}
+            onLoad={onMapLoad}
+            onUnmount={onMapUnmount}
+            options={{ disableDefaultUI: true, gestureHandling: 'greedy' }}
         >
-            {/* Renderizar Marcadores de Alertas Activas */}
-            {alerts.filter(a => !['resolved', 'cancelled', 'patient_attended'].includes(a.status)).map(alert => (
-                <AdvancedMarker
-                    key={alert.id}
-                    position={alert.location}
-                    onClick={() => setActiveMarker({ type: 'alert', id: alert.id })}
-                >
-                    <AlertMarker alert={alert} />
-                </AdvancedMarker>
-            ))}
+            {/* Renderizar Marcadores de Alertas */}
+            {alerts.filter(a => !['resolved', 'cancelled', 'patient_attended'].includes(a.status)).map(alert => {
+                const position = normalizeLocation(alert.location);
+                if (!position) return null;
+
+                const style = markerStyles[alert.status as keyof typeof markerStyles] || markerStyles.default;
+                const icon = { path: google.maps.SymbolPath.CIRCLE, scale: 8, fillColor: style.bgColor, fillOpacity: 1, strokeColor: 'white', strokeWeight: 2 };
+
+                return (
+                    <Fragment key={alert.id}>
+                        {style.pulsing && (
+                            <Marker
+                                position={position}
+                                clickable={false}
+                                zIndex={style.zIndex - 1}
+                                icon={{ ...icon, scale: 14, fillOpacity: 0.4, strokeWeight: 0 }}
+                            />
+                        )}
+                        <Marker
+                            position={position}
+                            icon={icon}
+                            zIndex={style.zIndex}
+                            onClick={() => setActiveMarker({ type: 'alert', id: alert.id })}
+                        />
+                    </Fragment>
+                );
+            })}
 
             {/* Renderizar Marcadores de Estaciones */}
-            {stations.map(station => (
-                 station.location && (
-                    <AdvancedMarker
-                        key={station.id}
-                        position={station.location}
-                        onClick={() => setActiveMarker({ type: 'station', id: station.id })}
-                    >
-                        <StationMarker />
-                    </AdvancedMarker>
-                )
-            ))}
-
-            {/* Ventana de Información para Alerta Activa */}
-            {activeAlert && (
-                <InfoWindow
-                    position={activeAlert.location}
-                    onCloseClick={() => setActiveMarker(null)}
-                >
-                    <div className="p-2 bg-background text-foreground">
-                        <h3 className="font-bold">Alerta: {activeAlert.id.substring(0,8)}</h3>
-                        <p>Estado: {activeAlert.status}</p>
-                        <p>Usuario: {activeAlert.isAnonymous ? "Anónimo" : (activeAlert.userInfo?.fullName || "Registrado")}</p>
-                    </div>
+            {stations.map(station => {
+                 const position = normalizeLocation(station.location);
+                 if (!position) return null;
+                 return <Marker key={station.id} position={position} icon={StationMarkerIcon} onClick={() => setActiveMarker({ type: 'station', id: station.id })} />;
+            })}
+            
+            {/* Ventanas de Información */}
+            {activeAlertData && activeAlertPosition && (
+                <InfoWindow position={activeAlertPosition} onCloseClick={() => setActiveMarker(null)}>
+                    <div className="p-1"><h3 className="font-bold">Alerta: {activeAlertData.id.substring(0, 8)}</h3><p>Estado: {activeAlertData.status}</p><p>Usuario: {activeAlertData.isAnonymous ? "Anónimo" : (activeAlertData.userInfo?.fullName || "Registrado")}</p></div>
                 </InfoWindow>
             )}
-
-            {/* Ventana de Información para Estación Activa */}
-            {activeStation && activeStation.location && (
-                 <InfoWindow
-                    position={activeStation.location}
-                    onCloseClick={() => setActiveMarker(null)}
-                >
-                    <div className="p-2 bg-background text-foreground">
-                        <h3 className="font-bold">Estación: {activeStation.name}</h3>
-                        <p>{activeStation.address}</p>
-                    </div>
+            {activeStationData && activeStationPosition && (
+                 <InfoWindow position={activeStationPosition} onCloseClick={() => setActiveMarker(null)}>
+                    <div className="p-1"><h3 className="font-bold">Estación: {activeStationData.name}</h3><p>{activeStationData.address}</p></div>
                 </InfoWindow>
             )}
-        </Map>
-    );
-}
-
-// --- Proveedor de API y Componente de Exportación ---
-export default function AlertsMap(props: AlertsMapProps) {
-    const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
-
-    if (!apiKey) {
-        return (
-            <div className="w-full h-full bg-red-100 flex items-center justify-center">
-                <p className="text-red-700 font-bold">La clave de API de Google Maps no está configurada.</p>
-            </div>
-        );
-    }
-
-    return (
-        <APIProvider apiKey={apiKey}>
-            <MapWrapper {...props} />
-        </APIProvider>
+        </GoogleMap>
     );
 }

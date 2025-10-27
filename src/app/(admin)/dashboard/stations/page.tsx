@@ -129,10 +129,10 @@ export default function StationsPage() {
     setStationToDelete(null); // Cierra el modal
   }
   
-  const handleLocationSelect = (coords: { lat: number; lng: number }) => {
+  const handleLocationConfirm = (coords: { lat: number; lng: number }) => {
     setLatitude(coords.lat.toString());
     setLongitude(coords.lng.toString());
-    setIsPickerOpen(false);
+    // La modal ya se cierra sola desde su lógica interna
     toast({ title: "Ubicación Seleccionada", description: "Las coordenadas han sido actualizadas."});
   };
 
@@ -142,7 +142,7 @@ export default function StationsPage() {
     <LocationPickerModal 
         isOpen={isPickerOpen}
         onClose={() => setIsPickerOpen(false)}
-        onLocationSelect={handleLocationSelect}
+        onConfirm={handleLocationConfirm}
     />
     <div className="flex flex-col min-h-screen bg-background text-foreground">
       <header className="bg-card border-b border-border shadow-md">
