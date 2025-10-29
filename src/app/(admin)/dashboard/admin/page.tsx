@@ -11,7 +11,7 @@ import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import { LogOut, RefreshCw, Bell, Zap, CheckCircle, Clock, MapPin, Building, Loader2, HardHat, Users, LayoutDashboard, Truck, Siren, Check, Stethoscope, Hospital, UserCheck, AlertTriangle, HelpCircle } from "lucide-react";
 import dynamic from 'next/dynamic';
-import { collection, onSnapshot, getDocs, doc, orderBy, type Query, Timestamp } from "firebase/firestore";
+import { collection, onSnapshot, query, orderBy, Timestamp } from "firebase/firestore";
 import type { AlertData, MedicalData, StationData, UserRole } from "@/lib/types";
 import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -94,10 +94,24 @@ export default function AdminDashboardPage() {
         setTheme(savedTheme);
         document.documentElement.className = savedTheme;
 
-        fetchAlerts();
+        // Listener de alertas en tiempo real
+        const alertsQuery = query(collection(firestore, "alerts"), orderBy("timestamp", "desc"));
+        const alertsUnsub = onSnapshot(alertsQuery,
+            () => {
+                console.log("Actualización de alertas detectada, refrescando datos...");
+                fetchAlerts();
+            },
+            (error) => {
+                console.error("Error al escuchar cambios en alertas:", error);
+                toast({
+                    title: "Error de Sincronización",
+                    description: "No se pudieron obtener las actualizaciones en tiempo real.",
+                    variant: "destructive"
+                });
+            }
+        );
 
-        // Si el usuario es admin, también cargamos las estaciones para poder asignarlas.
-        // Esto se puede hacer con una escucha en tiempo real ya que los datos de las estaciones no son sensibles.
+        // Listener de estaciones
         let stationsUnsub: (() => void) | undefined;
         if (userRole === 'admin' || userRole === 'operator') {
             stationsUnsub = onSnapshot(collection(firestore, "stations"), 
@@ -111,17 +125,17 @@ export default function AdminDashboardPage() {
                 }
             );
         } else {
-            setStations([]); // No-admins no necesitan la lista de estaciones.
+            setStations([]);
         }
 
-        // Función de limpieza para desuscribirse de la escucha de estaciones cuando el componente se desmonte.
+        // Función de limpieza para desuscribirse de los listeners
         return () => {
+             alertsUnsub();
              if (stationsUnsub) {
                 stationsUnsub();
              }
         }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [userRole, authLoading]); // Depende del rol para saber si debe cargar las estaciones.
+    }, [userRole, authLoading, fetchAlerts, toast]);
 
 
     /**

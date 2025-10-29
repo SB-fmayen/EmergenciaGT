@@ -27,7 +27,7 @@ export interface EnrichedAlert extends AlertData {
 export async function getEnrichedAlerts(): Promise<{ success: boolean; alerts?: EnrichedAlert[]; error?: string; }> {
     try {
         const alertsRef = firestore.collection("alerts");
-        const snapshot = await alertsRef.orderBy("timestamp", "desc").get();
+        const snapshot = await alertsRef.orderBy("timestamp", "desc").limit(100).get();
         const alertsData = snapshot.docs.map(doc => ({
             id: doc.id,
             ...doc.data()
