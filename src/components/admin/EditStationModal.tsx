@@ -30,7 +30,6 @@ export function EditStationModal({ isOpen, onClose, station }: EditStationModalP
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isPickerOpen, setIsPickerOpen] = useState(false);
     
-    // Sincronizar el estado del formulario si la estación cambia
     const [formData, setFormData] = useState({
         name: station.name,
         address: station.address,
@@ -54,13 +53,15 @@ export function EditStationModal({ isOpen, onClose, station }: EditStationModalP
         setFormData(prev => ({ ...prev, [name]: value }));
     }
     
-    const handleLocationSelect = (coords: { lat: number; lng: number }) => {
+    // 1. Renombrado para consistencia
+    const handleLocationConfirm = (coords: { lat: number; lng: number }) => {
         setFormData(prev => ({
             ...prev,
             latitude: coords.lat.toString(),
             longitude: coords.lng.toString()
         }));
-        setIsPickerOpen(false);
+        // El modal del mapa ya se cierra solo, por lo que esta línea no es necesaria:
+        // setIsPickerOpen(false); 
         toast({ title: "Ubicación Actualizada", description: "Las nuevas coordenadas han sido seleccionadas."});
     };
 
@@ -93,7 +94,7 @@ export function EditStationModal({ isOpen, onClose, station }: EditStationModalP
         <LocationPickerModal 
             isOpen={isPickerOpen}
             onClose={() => setIsPickerOpen(false)}
-            onLocationSelect={handleLocationSelect}
+            onConfirm={handleLocationConfirm} // 2. Propiedad corregida
             initialPosition={{ lat: parseFloat(formData.latitude), lng: parseFloat(formData.longitude) }}
         />
         <Dialog open={isOpen} onOpenChange={onClose}>
