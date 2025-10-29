@@ -26,27 +26,31 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     }
 
     if (user) {
-        // If it's a mobile user, kick them out
-        if (userRole === 'citizen') {
+        const isAdmin = userRole === 'admin';
+        const isOperator = userRole === 'operator';
+        const isUnit = userRole === 'unit';
+        
+        // If the user is not an admin, operator, or unit, they are a mobile user.
+        // Kick them out to the mobile app's auth page.
+        if (!isAdmin && !isOperator && !isUnit) {
             router.replace('/auth');
             return;
         }
 
-        // Redirect unit role to mission page
-        if (userRole === 'unit' && !pathname.startsWith('/mission')) {
+        // Redirect unit role to mission page if they are not already there.
+        if (isUnit && !pathname.startsWith('/mission')) {
             router.replace('/mission');
             return;
         }
 
-        const isAdminAreaUser = userRole === 'admin' || userRole === 'operator';
-
-        if(isAdminAreaUser && isLoginPage) {
+        // If an admin or operator is on the login page, redirect them to their dashboard.
+        if ((isAdmin || isOperator) && isLoginPage) {
             router.replace('/dashboard/admin');
             return;
         }
         
         // An 'operator' tries to access admin-only pages.
-        if (userRole === 'operator') {
+        if (isOperator) {
             const adminOnlyPages = ['/dashboard/stations', '/dashboard/users', '/dashboard/analytics'];
             if (adminOnlyPages.some(page => pathname.startsWith(page))) {
                 toast({ title: "Acceso Denegado", description: "No tienes permisos para acceder a esta página.", variant: "destructive" });

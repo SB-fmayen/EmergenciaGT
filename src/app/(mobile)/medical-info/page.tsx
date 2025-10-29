@@ -127,10 +127,23 @@ export default function MedicalInfoPage() {
     setIsSubmitting(true);
     try {
       const medicalInfoRef = doc(firestore, "medicalInfo", user.uid);
+      const userRef = doc(firestore, "users", user.uid);
+
+      // Prepare user data with citizen role
+      const userData = {
+          role: 'citizen',
+          email: user.email,
+          updatedAt: serverTimestamp(),
+      };
+
+      // Set medical info
       await setDoc(medicalInfoRef, {
         ...values,
         updatedAt: serverTimestamp(),
       }, { merge: true });
+
+      // Set user role
+      await setDoc(userRef, userData, { merge: true });
 
       toast({
         title: "¡Éxito!",

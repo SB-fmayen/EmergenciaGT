@@ -1,3 +1,4 @@
+
 "use client";
 
 import './globals.css';
@@ -8,9 +9,6 @@ import { auth, firestore } from '@/lib/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import type { UserRole } from '@/lib/types';
 import 'leaflet/dist/leaflet.css';
-import { useRouter, usePathname } from 'next/navigation';
-import { Loader2 } from 'lucide-react';
-
 
 // Auth Context for the entire application
 interface AuthContextType {
@@ -32,76 +30,60 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      setLoading(true); // Start loading when auth state might be changing
+      setLoading(true);
       setUser(user);
+
       if (user) {
         try {
           const tokenResult = await user.getIdTokenResult(true); // Force refresh of claims
           const claims = tokenResult.claims;
-          console.log("AuthProvider - User Claims:", claims);
+
           setStationId((claims.stationId as string) || null);
           setUnitId((claims.unitId as string) || null);
 
+          // Role priority: Custom Claims > Firestore Document > Default
           if (claims.admin) {
             setUserRole('admin');
           } else if (claims.unit) {
             setUserRole('unit');
+          } else if (claims.stationId) {
+            // Users with a stationId claim but not admin/unit are operators.
+            setUserRole('operator');
           } else if (user.isAnonymous) {
-            setUserRole('citizen'); // Anonymous users are treated as citizens
+            setUserRole('citizen');
           } else {
-            // No explicit admin/unit claim. Prefer the stationId claim if present.
-            if (claims.stationId) {
-              setUserRole('operator');
+            // For non-anonymous users, check their Firestore document.
+            const userRef = doc(firestore, 'users', user.uid);
+            const userSnap = await getDoc(userRef);
+
+            if (userSnap.exists()) {
+              const data = userSnap.data();
+              // Use the role from the document, or default to 'citizen' if not present.
+              setUserRole(data?.role || 'citizen'); 
+              if (data?.stationId) setStationId(data.stationId as string);
+              if (data?.unitId) setUnitId(data.unitId as string);
             } else {
-              // As a fallback, try to read the user profile in Firestore
-              // (created on registration) to determine the role.
-              try {
-                const userRef = doc(firestore, 'users', user.uid);
-                const userSnap = await getDoc(userRef);
-                if (userSnap.exists()) {
-                  const data = userSnap.data() as any;
-                  console.log("AuthProvider - User Document Data:", data);
-                  console.log("AuthProvider - User Document Data (after fetch):", data);
-
-                  // Prefer explicit role in the user document
-                  if (data?.role === 'admin') setUserRole('admin');
-                  else if (data?.role === 'operator') setUserRole('operator');
-                  else if (data?.role === 'unit') setUserRole('unit');
-                  else setUserRole('operator'); // Default to operator if no role is explicitly set but user doc exists
-
-                  if (data?.stationId) setStationId(data.stationId as string);
-                  if (data?.unitId) setUnitId(data.unitId as string);
-                  console.log("AuthProvider - User Role set from Firestore data:", { role: data?.role, stationId: data?.stationId, unitId: data?.unitId });
-                } else {
-                  // If no user doc exists, default to 'citizen' for mobile app users.
-                  setUserRole('citizen');
-                }
-              } catch (e) {
-                console.error('Error reading user profile from Firestore:', e);
-                // conservative fallback
-                setUserRole('citizen');
-              }
+              // If no user document exists, they are a regular mobile user.
+              setUserRole('citizen');
             }
           }
         } catch (error) {
-          console.error("Error getting token claims:", error);
-          setUserRole('citizen'); // Fallback to default role
+          console.error("Error processing user authentication:", error);
+          // In case of any error, default to the most restrictive role.
+          setUserRole('citizen');
         }
       } else {
+        // No user is logged in.
         setUserRole(null);
         setStationId(null);
         setUnitId(null);
       }
       setLoading(false);
-      console.log("AuthProvider - Final Auth State:", { user: user?.uid, userRole, stationId, unitId, loading: false });
     });
 
     return () => unsubscribe();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  useEffect(() => {
-    console.log("AuthProvider - Current Context State:", { user: user?.uid, userRole, stationId, unitId, loading });
-  }, [user, userRole, stationId, unitId, loading]);
 
   const value = { user, userRole, stationId, unitId, loading };
 
@@ -115,7 +97,6 @@ export const useAuth = () => {
   }
   return context;
 };
-
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (

@@ -19,19 +19,22 @@ export default function MobileLayout({ children }: { children: ReactNode }) {
     const isAuthPage = pathname.startsWith('/auth');
 
     if (user) {
-        const isAdminRole = userRole === 'admin' || userRole === 'operator' || userRole === 'unit';
-        // An admin/operator/unit is trying to access the mobile app pages.
-        // Redirect them to their correct dashboard.
-        if (isAdminRole) {
-            if (userRole === 'unit') {
-                router.replace('/mission');
-            } else {
-                router.replace('/dashboard/admin');
-            }
+        // Only 'admin' and 'operator' should be redirected to the admin dashboard.
+        const isAdmin = userRole === 'admin' || userRole === 'operator';
+        
+        if (isAdmin) {
+            router.replace('/dashboard/admin');
             return;
         }
 
-        // A regular user is logged in but on the auth page, send them to the dashboard.
+        // 'unit' role should be redirected to the mission page.
+        if (userRole === 'unit') {
+            router.replace('/mission');
+            return;
+        }
+
+        // For any other authenticated user (e.g., 'user', or no role defined yet),
+        // if they are on the auth page, redirect them to the mobile dashboard.
         if (isAuthPage) {
             router.replace('/dashboard');
         }
